@@ -17,6 +17,7 @@ export interface VideoMetadata {
     duration: string;
     resolution: string;
     url: string;
+    file: File;
 }
 
 const UploadZone: React.FC<UploadZoneProps> = ({ onUploadComplete }) => {
@@ -67,7 +68,8 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onUploadComplete }) => {
                 size: (selectedFile.size / (1024 * 1024)).toFixed(2) + ' MB',
                 duration: `${Math.floor(video.duration)}s`,
                 resolution: `${video.videoWidth}x${video.videoHeight}`,
-                url: url
+                url: url,
+                file: selectedFile
             });
         };
         video.src = url;
@@ -231,10 +233,16 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onUploadComplete }) => {
                                     <div className="flex flex-col gap-6 animate-in slide-in-from-bottom-8 duration-700">
                                         <button
                                             onClick={() => metadata && onUploadComplete(metadata)}
-                                            className="w-full py-5 bg-accent text-white rounded-2xl font-black text-lg flex items-center justify-center gap-3 shadow-2xl shadow-accent/40 hover:translate-y-[-2px] hover:shadow-accent/50 active:scale-[0.98] transition-all"
+                                            disabled={!metadata}
+                                            className={cn(
+                                                "w-full py-5 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-3 shadow-2xl transition-all",
+                                                metadata
+                                                    ? "bg-accent shadow-accent/40 hover:translate-y-[-2px] hover:shadow-accent/50 active:scale-[0.98]"
+                                                    : "bg-muted cursor-not-allowed opacity-50"
+                                            )}
                                         >
                                             <Play className="w-6 h-6 fill-current" />
-                                            Run Compliance Analysis
+                                            {metadata ? "Run Compliance Analysis" : "Processing Video..."}
                                         </button>
                                         <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground font-black uppercase tracking-[0.3em]">
                                             Local AI Engine Ready

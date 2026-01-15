@@ -62,8 +62,14 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, metadata, see
 
         // Auto-play when video is loaded
         if (videoUrl) {
+            video.load(); // Explicitly load new source
             video.volume = volume;
-            video.play().catch(err => console.log('Auto-play blocked:', err));
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(err => {
+                    console.log('Auto-play blocked, waiting for interaction:', err);
+                });
+            }
         }
 
         return () => {
@@ -223,6 +229,9 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, metadata, see
                     poster={!videoUrl ? "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&q=80&w=1200" : undefined}
                     onClick={togglePlay}
                     onDoubleClick={toggleFullscreen}
+                    playsInline
+                    muted={isMuted}
+                    autoPlay
                     data-testid="main-video-player"
                 />
 

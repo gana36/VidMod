@@ -79,7 +79,7 @@ const AppLayout: React.FC = () => {
                         <>
                             <div className="flex-[3] min-w-0">
                                 <VideoWorkspace
-                                    videoUrl={videoUrl || undefined}
+                                    videoUrl={videoUrl || ''}
                                     metadata={videoMetadata || undefined}
                                     seekTo={seekToTimestamp ?? undefined}
                                     findings={findings}
