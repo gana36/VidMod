@@ -8,29 +8,46 @@ import UploadZone, { type VideoMetadata } from './UploadZone';
 const MOCK_FINDINGS: Finding[] = [
     {
         id: 1,
-        type: 'Brand Logo',
-        content: 'Coca-Cola',
+        type: 'Brand Identification',
+        category: 'logo',
+        content: 'Coca-Cola Logo',
         status: 'warning',
+        confidence: 'High',
         startTime: 2,
         endTime: 5,
         box: { top: 20, left: 30, width: 15, height: 10 }
     },
     {
         id: 2,
-        type: 'Restricted Object',
-        content: 'Cigarette',
+        type: 'Restricted Content',
+        category: 'alcohol',
+        content: 'Alcoholic Beverage',
         status: 'critical',
+        confidence: 'Medium',
         startTime: 8,
         endTime: 12,
         box: { top: 60, left: 45, width: 20, height: 15 }
     },
     {
         id: 3,
-        type: 'Offensive Language',
-        content: 'Explicit Lyric',
+        type: 'Explicit Language',
+        category: 'language',
+        content: 'Profanity Detected',
         status: 'critical',
+        confidence: 'High',
         startTime: 12,
         endTime: 14
+    },
+    {
+        id: 4,
+        type: 'Visual Violence',
+        category: 'violence',
+        content: 'Aggressive Motion',
+        status: 'warning',
+        confidence: 'Low',
+        startTime: 16,
+        endTime: 18,
+        box: { top: 30, left: 10, width: 40, height: 40 }
     },
 ];
 
@@ -45,11 +62,14 @@ const AppLayout: React.FC = () => {
     // but for simple local interactivity, we can pass a timestamp to seek to.
     const [seekToTimestamp, setSeekToTimestamp] = useState<number | null>(null);
 
-    const handleUploadComplete = (metadata: VideoMetadata) => {
+    const handleFileSelected = (metadata: VideoMetadata) => {
         setVideoMetadata(metadata);
         setVideoUrl(metadata.url);
-        setFindings(MOCK_FINDINGS);
         setActiveTab('Analysis');
+    };
+
+    const handleUploadComplete = () => {
+        setFindings(MOCK_FINDINGS);
     };
 
     const handleSeekTo = (time: string) => {
@@ -64,7 +84,7 @@ const AppLayout: React.FC = () => {
     return (
         <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
             {/* Sidebar - Fixed width */}
-            <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+            <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} metadata={videoMetadata} />
 
             {/* Main Content Area */}
             <div className="flex flex-col flex-1 min-w-0">
@@ -73,14 +93,16 @@ const AppLayout: React.FC = () => {
                 <main className="flex flex-1 overflow-hidden p-4 gap-4">
                     {activeTab === 'Upload' ? (
                         <div className="flex-1">
-                            <UploadZone onUploadComplete={handleUploadComplete} />
+                            <UploadZone
+                                onUploadComplete={handleUploadComplete}
+                                onFileSelected={handleFileSelected}
+                            />
                         </div>
                     ) : (
                         <>
                             <div className="flex-[3] min-w-0">
                                 <VideoWorkspace
                                     videoUrl={videoUrl || ''}
-                                    metadata={videoMetadata || undefined}
                                     seekTo={seekToTimestamp ?? undefined}
                                     findings={findings}
                                     onTimeUpdate={setCurrentTime}
@@ -88,7 +110,6 @@ const AppLayout: React.FC = () => {
                             </div>
                             <div className="flex-1 min-w-[300px] max-w-[400px]">
                                 <RightPanel
-                                    activeTab={activeTab}
                                     onSeekTo={handleSeekTo}
                                     findings={findings}
                                     currentTime={currentTime}

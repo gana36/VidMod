@@ -5,8 +5,10 @@ import {
     FileText,
     Upload,
     LayoutDashboard,
-    Settings
+    Settings,
+    FileVideo
 } from 'lucide-react';
+import { type VideoMetadata } from './UploadZone';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -17,9 +19,10 @@ function cn(...inputs: ClassValue[]) {
 interface SidebarProps {
     activeTab: string;
     setActiveTab: (tab: string) => void;
+    metadata?: VideoMetadata | null;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, metadata }) => {
     const menuItems = [
         { id: 'Upload', icon: Upload, label: 'Upload' },
         { id: 'Analysis', icon: BarChart3, label: 'Analysis' },
@@ -59,7 +62,25 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
                 </nav>
             </div>
 
-            <div className="mt-auto p-6 border-t border-border">
+            <div className="mt-auto p-6 border-t border-border space-y-4">
+                {metadata && (
+                    <div className="space-y-3 pb-4">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                            <FileVideo className="w-3.5 h-3.5" />
+                            <span className="text-[10px] font-bold uppercase tracking-widest">Active File</span>
+                        </div>
+                        <div className="bg-background/40 rounded-lg p-3 border border-border/50 flex flex-col gap-2">
+                            <div className="flex justify-between items-center text-[10px]">
+                                <span className="text-muted-foreground font-medium">Resolution</span>
+                                <span className="font-bold">{metadata.resolution}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px]">
+                                <span className="text-muted-foreground font-medium">Size</span>
+                                <span className="font-bold">{metadata.size}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <button className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors">
                     <Settings className="w-4 h-4" />
                     Settings

@@ -1,17 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, FileVideo, VolumeX } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, VolumeX } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import type { VideoMetadata } from './UploadZone';
+import TimelineEditor from './TimelineEditor';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 export interface Finding {
     id: number;
-    type: 'Brand Logo' | 'Restricted Object' | 'Offensive Language';
+    type: string;
+    category: 'alcohol' | 'logo' | 'violence' | 'language' | 'other';
     content: string;
     status: 'warning' | 'critical';
+    confidence: 'Low' | 'Medium' | 'High';
     startTime: number; // in seconds
     endTime: number; // in seconds
     box?: {
@@ -24,13 +26,12 @@ export interface Finding {
 
 interface VideoWorkspaceProps {
     videoUrl?: string;
-    metadata?: VideoMetadata;
     seekTo?: number;
     findings?: Finding[];
     onTimeUpdate?: (time: number) => void;
 }
 
-const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, metadata, seekTo, findings = [], onTimeUpdate }) => {
+const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, seekTo, findings = [], onTimeUpdate }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -351,115 +352,18 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, metadata, see
                 </div>
             </div>
 
-            {/* Metadata & Timeline Area */}
-            <div className="h-48 flex gap-4 overflow-hidden">
-                {/* Simple Info Panel */}
-                {metadata && (
-                    <div className="w-64 border border-border bg-card/40 rounded-xl p-4 flex flex-col gap-3">
-                        <div className="flex items-center gap-2 pb-2 border-b border-border">
-                            <FileVideo className="w-4 h-4 text-accent" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Properties</span>
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex justify-between text-[10px] uppercase font-bold text-muted-foreground">
-                                <span>Resolution</span>
-                                <span className="text-foreground">{metadata.resolution}</span>
-                            </div>
-                            <div className="flex justify-between text-[10px] uppercase font-bold text-muted-foreground">
-                                <span>Duration</span>
-                                <span className="text-foreground">{formatTime(duration)}</span>
-                            </div>
-                            <div className="flex justify-between text-[10px] uppercase font-bold text-muted-foreground">
-                                <span>Size</span>
-                                <span className="text-foreground">{metadata.size}</span>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Master Timeline */}
-                <div className="flex-1 border border-border bg-card/40 rounded-xl p-4 overflow-hidden relative group/timeline">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Master Timeline</span>
-                        <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 px-2 py-0.5 rounded">FPS: 60</div>
-                    </div>
-
-                    <div
-                        id="master-timeline"
-                        className="mt-4 flex flex-col gap-2 relative bg-black/20 rounded-lg p-2 h-24 overflow-hidden cursor-crosshair"
-                        onMouseDown={(e) => {
-                            setIsDraggingScrubber(true);
-                            handleScrub(e.clientX, e.currentTarget);
-                        }}
-                    >
-                        {/* Finding Tracks */}
-                        {findings.length > 0 ? (
-                            <>
-                                <div className="h-6 w-full bg-red-500/5 border border-red-500/10 rounded relative overflow-hidden">
-                                    {findings.filter(f => f.status === 'critical').map(f => (
-                                        <div
-                                            key={`track-crit-${f.id}`}
-                                            className="absolute h-full bg-red-500/30 border-x border-red-500/50"
-                                            style={{
-                                                left: `${(f.startTime / (duration || 1)) * 100}%`,
-                                                width: `${((f.endTime - f.startTime) / (duration || 1)) * 100}%`
-                                            }}
-                                        />
-                                    ))}
-                                </div>
-                                <div className="h-6 w-full bg-amber-500/5 border border-amber-500/10 rounded relative overflow-hidden">
-                                    {findings.filter(f => f.status === 'warning').map(f => (
-                                        <div
-                                            key={`track-warn-${f.id}`}
-                                            className="absolute h-full bg-amber-500/30 border-x border-amber-500/50"
-                                            style={{
-                                                left: `${(f.startTime / (duration || 1)) * 100}%`,
-                                                width: `${((f.endTime - f.startTime) / (duration || 1)) * 100}%`
-                                            }}
-                                        />
-                                    ))}
-                                </div>
-                            </>
-                        ) : (
-                            <div className="h-full flex items-center justify-center text-[10px] text-muted-foreground uppercase tracking-widest bg-muted/5 rounded">
-                                No Violations Detected
-                            </div>
-                        )}
-
-                        {/* Finding Markers */}
-                        {findings.map(finding => {
-                            const markerPos = (finding.startTime / duration) * 100;
-                            return (
-                                <div
-                                    key={`marker-${finding.id}`}
-                                    className={cn(
-                                        "absolute top-0 bottom-0 w-1 opacity-60 group-hover/timeline:opacity-100 transition-opacity",
-                                        finding.status === 'critical' ? "bg-red-500" : "bg-amber-500"
-                                    )}
-                                    style={{ left: `${markerPos}%` }}
-                                    title={`${finding.type}: ${finding.content}`}
-                                />
-                            );
-                        })}
-
-                        {/* Playhead in Timeline */}
-                        <div
-                            className="absolute top-0 bottom-0 w-[2px] bg-accent z-10 pointer-events-none transition-all duration-100 shadow-[0_0_10px_rgba(59,130,246,0.8)]"
-                            style={{ left: `${progress}%` }}
-                        >
-                            <div className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-accent rotate-45" />
-                        </div>
-                    </div>
-
-                    {/* Time Rulers Mock */}
-                    <div className="mt-2 flex justify-between text-[9px] font-mono text-muted-foreground select-none px-2">
-                        <span>00:00</span>
-                        <span>{formatTime(duration * 0.25)}</span>
-                        <span>{formatTime(duration * 0.5)}</span>
-                        <span>{formatTime(duration * 0.75)}</span>
-                        <span>{formatTime(duration)}</span>
-                    </div>
-                </div>
+            {/* Master Timeline Area */}
+            <div className="h-48 overflow-hidden">
+                <TimelineEditor
+                    duration={duration}
+                    currentTime={currentTime}
+                    findings={findings}
+                    onSeek={(time) => {
+                        if (videoRef.current) {
+                            videoRef.current.currentTime = time;
+                        }
+                    }}
+                />
             </div>
         </div>
     );

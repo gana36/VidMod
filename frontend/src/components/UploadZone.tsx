@@ -9,6 +9,7 @@ function cn(...inputs: ClassValue[]) {
 
 interface UploadZoneProps {
     onUploadComplete: (metadata: VideoMetadata) => void;
+    onFileSelected: (metadata: VideoMetadata) => void;
 }
 
 export interface VideoMetadata {
@@ -20,7 +21,7 @@ export interface VideoMetadata {
     file: File;
 }
 
-const UploadZone: React.FC<UploadZoneProps> = ({ onUploadComplete }) => {
+const UploadZone: React.FC<UploadZoneProps> = ({ onUploadComplete, onFileSelected }) => {
     const [isDragging, setIsDragging] = useState(false);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'ready'>('idle');
@@ -63,14 +64,16 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onUploadComplete }) => {
         const video = document.createElement('video');
         video.preload = 'metadata';
         video.onloadedmetadata = () => {
-            setMetadata({
+            const extractedMetadata = {
                 name: selectedFile.name,
                 size: (selectedFile.size / (1024 * 1024)).toFixed(2) + ' MB',
                 duration: `${Math.floor(video.duration)}s`,
                 resolution: `${video.videoWidth}x${video.videoHeight}`,
                 url: url,
                 file: selectedFile
-            });
+            };
+            setMetadata(extractedMetadata);
+            onFileSelected(extractedMetadata);
         };
         video.src = url;
 
@@ -81,31 +84,16 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onUploadComplete }) => {
     const simulateProgress = () => {
         let currentProgress = 0;
         const interval = setInterval(() => {
-            currentProgress += Math.random() * 10;
+            currentProgress += Math.random() * 20; // Faster upload feel
             if (currentProgress >= 100) {
                 currentProgress = 100;
                 clearInterval(interval);
-
-                setStatus('processing');
-                setTimeout(() => simulateProcessing(), 500);
+                setStatus('ready'); // Go straight to ready
             }
             setProgress(Math.min(currentProgress, 100));
-        }, 200);
+        }, 100);
     };
 
-    const simulateProcessing = () => {
-        setProgress(0);
-        let currentProgress = 0;
-        const interval = setInterval(() => {
-            currentProgress += Math.random() * 8;
-            if (currentProgress >= 100) {
-                currentProgress = 100;
-                clearInterval(interval);
-                setStatus('ready');
-            }
-            setProgress(Math.min(currentProgress, 100));
-        }, 300);
-    };
 
     const reset = () => {
         if (videoUrl) URL.revokeObjectURL(videoUrl);
