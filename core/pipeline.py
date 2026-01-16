@@ -86,10 +86,12 @@ class VideoPipeline:
         ffprobe_path: str = "ffprobe"
     ):
         self.frame_extractor = FrameExtractor(ffmpeg_path=ffmpeg_path, ffprobe_path=ffprobe_path)
-        self.segmentation = SegmentationEngine(replicate_api_token)
-        self.video_segmentation = VideoSegmentationEngine(replicate_api_token)
-        self.inpainting = InpaintingEngine(replicate_api_token)
         self.video_builder = VideoBuilder(ffmpeg_path=ffmpeg_path)
+        
+        # Lazy-initialized engines (require Replicate token)
+        self._segmentation = None
+        self._video_segmentation = None
+        self._inpainting = None
         
         self.base_storage_dir = base_storage_dir
         self.keyframe_interval = keyframe_interval
@@ -97,6 +99,33 @@ class VideoPipeline:
         
         # In-memory job storage (use Redis/DB for production)
         self.jobs: Dict[str, JobState] = {}
+    
+    @property
+    def segmentation(self) -> SegmentationEngine:
+        """Lazy-load segmentation engine."""
+        if self._segmentation is None:
+            if not self.replicate_api_token:
+                raise ValueError("Replicate API token required for segmentation")
+            self._segmentation = SegmentationEngine(self.replicate_api_token)
+        return self._segmentation
+    
+    @property
+    def video_segmentation(self) -> VideoSegmentationEngine:
+        """Lazy-load video segmentation engine."""
+        if self._video_segmentation is None:
+            if not self.replicate_api_token:
+                raise ValueError("Replicate API token required for video segmentation")
+            self._video_segmentation = VideoSegmentationEngine(self.replicate_api_token)
+        return self._video_segmentation
+    
+    @property
+    def inpainting(self) -> InpaintingEngine:
+        """Lazy-load inpainting engine."""
+        if self._inpainting is None:
+            if not self.replicate_api_token:
+                raise ValueError("Replicate API token required for inpainting")
+            self._inpainting = InpaintingEngine(self.replicate_api_token)
+        return self._inpainting
     
     def _get_job_dir(self, job_id: str) -> Path:
         """Get the directory for a specific job."""

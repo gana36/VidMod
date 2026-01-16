@@ -5,52 +5,6 @@ import VideoWorkspace, { type Finding } from './VideoWorkspace';
 import RightPanel from './RightPanel';
 import UploadZone, { type VideoMetadata } from './UploadZone';
 
-const MOCK_FINDINGS: Finding[] = [
-    {
-        id: 1,
-        type: 'Brand Identification',
-        category: 'logo',
-        content: 'Coca-Cola Logo',
-        status: 'warning',
-        confidence: 'High',
-        startTime: 2,
-        endTime: 5,
-        box: { top: 20, left: 30, width: 15, height: 10 }
-    },
-    {
-        id: 2,
-        type: 'Restricted Content',
-        category: 'alcohol',
-        content: 'Alcoholic Beverage',
-        status: 'critical',
-        confidence: 'Medium',
-        startTime: 8,
-        endTime: 12,
-        box: { top: 60, left: 45, width: 20, height: 15 }
-    },
-    {
-        id: 3,
-        type: 'Explicit Language',
-        category: 'language',
-        content: 'Profanity Detected',
-        status: 'critical',
-        confidence: 'High',
-        startTime: 12,
-        endTime: 14
-    },
-    {
-        id: 4,
-        type: 'Visual Violence',
-        category: 'violence',
-        content: 'Aggressive Motion',
-        status: 'warning',
-        confidence: 'Low',
-        startTime: 16,
-        endTime: 18,
-        box: { top: 30, left: 10, width: 40, height: 40 }
-    },
-];
-
 const AppLayout: React.FC = () => {
     const [activeTab, setActiveTab] = useState('Upload');
     const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null);
@@ -77,11 +31,54 @@ const AppLayout: React.FC = () => {
     const handleFileSelected = (metadata: VideoMetadata) => {
         setVideoMetadata(metadata);
         setVideoUrl(metadata.url);
-        setActiveTab('Analysis');
     };
 
-    const handleUploadComplete = () => {
-        setFindings(MOCK_FINDINGS);
+    const handleUploadComplete = async (metadata: VideoMetadata) => {
+        const jobId = metadata.jobId;
+        if (!jobId) {
+            console.error('No job_id available for analysis');
+            setFindings([]);
+            return;
+        }
+
+        setActiveTab('Analysis');
+        setIsAnalyzing(true);
+        try {
+            // Call the Gemini analysis API
+            const response = await fetch(`http://localhost:8000/api/analyze-video/${jobId}`, {
+                method: 'POST',
+            });
+
+            if (!response.ok) {
+                throw new Error(`Analysis failed: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            // Map API response to Finding[] format
+            const mappedFindings: Finding[] = (data.findings || []).map((f: any) => ({
+                id: f.id,
+                type: f.type,
+                category: f.category || 'other',
+                content: f.content,
+                status: f.status || 'warning',
+                confidence: f.confidence || 'Medium',
+                startTime: f.startTime,
+                endTime: f.endTime,
+                context: f.context,
+                suggestedAction: f.suggestedAction,
+                box: f.box
+            }));
+
+            setFindings(mappedFindings);
+            console.log('Gemini analysis complete:', data.summary);
+        } catch (error) {
+            console.error('Analysis failed:', error);
+            // Fallback to empty findings on error
+            setFindings([]);
+        } finally {
+            setIsAnalyzing(false);
+        }
     };
 
     const handleAddFinding = (newFinding: Omit<Finding, 'id'>) => {

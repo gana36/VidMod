@@ -18,6 +18,8 @@ export interface Finding {
     confidence: 'Low' | 'Medium' | 'High';
     startTime: number; // in seconds
     endTime: number; // in seconds
+    context?: string; // reasoning from Gemini
+    suggestedAction?: string; // recommended fix from Gemini
     box?: {
         top: number;   // percentage
         left: number;  // percentage
@@ -70,7 +72,11 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, seekTo, findi
             video.volume = volume;
             const playPromise = video.play();
             if (playPromise !== undefined) {
-                playPromise.catch(err => console.log('Auto-play blocked:', err));
+                playPromise.catch(err => {
+                    if (err.name !== 'AbortError') {
+                        console.log('Auto-play blocked:', err);
+                    }
+                });
             }
         }
 

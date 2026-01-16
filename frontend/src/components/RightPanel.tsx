@@ -28,8 +28,8 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSeekTo, findings = [], curren
                 <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4 text-center">
                     <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
                     <div className="space-y-1">
-                        <p className="font-bold text-sm uppercase tracking-widest">Re-analyzing Content</p>
-                        <p className="text-xs text-muted-foreground">Adjusting compliance plan for new profile standards...</p>
+                        <p className="font-bold text-sm uppercase tracking-widest text-accent">Analyzing Content</p>
+                        <p className="text-xs text-muted-foreground">Gemini is performing native video analysis...</p>
                     </div>
                 </div>
             </aside>
@@ -177,6 +177,15 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSeekTo, findings = [], curren
                                             </div>
                                         </div>
 
+                                        {finding.context && (
+                                            <div className={cn(
+                                                "mt-3 text-[10px] leading-relaxed text-muted-foreground border-t border-border/30 pt-2 transition-all duration-300",
+                                                isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100 h-0 group-hover:h-auto overflow-hidden mt-0 group-hover:mt-3"
+                                            )}>
+                                                <p className="line-clamp-3 italic opacity-80">"{finding.context}"</p>
+                                            </div>
+                                        )}
+
                                         {isActive && (
                                             <div className="absolute bottom-0 left-0 h-0.5 bg-accent transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.8)]"
                                                 style={{ width: '100%' }} />
@@ -196,7 +205,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSeekTo, findings = [], curren
                     </div>
                 </>
             ) : (
-                <EditPlanPanel />
+                <EditPlanPanel findings={findings} />
             )}
         </div>
     );

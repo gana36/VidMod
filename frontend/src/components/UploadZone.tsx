@@ -19,6 +19,7 @@ export interface VideoMetadata {
     resolution: string;
     url: string;
     file: File;
+    jobId?: string;  // Added for backend upload
 }
 
 const UploadZone: React.FC<UploadZoneProps> = ({ onUploadComplete, onFileSelected }) => {
@@ -54,44 +55,72 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onUploadComplete, onFileSelecte
         }
     };
 
-    const handleFileSelection = (selectedFile: File) => {
+    const handleFileSelection = async (selectedFile: File) => {
         const url = URL.createObjectURL(selectedFile);
         setVideoUrl(url);
         setStatus('uploading');
         setProgress(0);
 
-        // Actually extract some metadata using a temporary video element
-        const video = document.createElement('video');
-        video.preload = 'metadata';
-        video.onloadedmetadata = () => {
-            const extractedMetadata = {
-                name: selectedFile.name,
-                size: (selectedFile.size / (1024 * 1024)).toFixed(2) + ' MB',
-                duration: `${Math.floor(video.duration)}s`,
-                resolution: `${video.videoWidth}x${video.videoHeight}`,
-                url: url,
-                file: selectedFile
-            };
-            setMetadata(extractedMetadata);
-            onFileSelected(extractedMetadata);
-        };
-        video.src = url;
+        try {
+            // 1. Start metadata extraction in parallel
+            const metadataPromise = new Promise<VideoMetadata>((resolve) => {
+                const video = document.createElement('video');
+                video.preload = 'metadata';
+                video.onloadedmetadata = () => {
+                    resolve({
+                        name: selectedFile.name,
+                        size: (selectedFile.size / (1024 * 1024)).toFixed(2) + ' MB',
+                        duration: `${Math.floor(video.duration)}s`,
+                        resolution: `${video.videoWidth}x${video.videoHeight}`,
+                        url: url,
+                        file: selectedFile
+                    });
+                };
+                video.src = url;
+            });
 
-        // Simulate progress for UI feel
-        simulateProgress();
+            // 2. Start upload
+            const jobIdPromise = uploadToBackend(selectedFile);
+
+            // 3. Wait for both
+            const [baseMetadata, jobId] = await Promise.all([metadataPromise, jobIdPromise]);
+
+            if (jobId) {
+                const finalMetadata = { ...baseMetadata, jobId };
+                setMetadata(finalMetadata);
+                onFileSelected(finalMetadata);
+                setStatus('ready');
+                setProgress(100);
+            } else {
+                setStatus('idle');
+            }
+
+        } catch (error) {
+            console.error('File selection failed:', error);
+            setStatus('idle');
+        }
     };
 
-    const simulateProgress = () => {
-        let currentProgress = 0;
-        const interval = setInterval(() => {
-            currentProgress += Math.random() * 20; // Faster upload feel
-            if (currentProgress >= 100) {
-                currentProgress = 100;
-                clearInterval(interval);
-                setStatus('ready'); // Go straight to ready
-            }
-            setProgress(Math.min(currentProgress, 100));
-        }, 100);
+    const uploadToBackend = async (file: File) => {
+        setProgress(10);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('http://localhost:8000/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            setProgress(50);
+            if (!response.ok) throw new Error(`Upload failed: ${response.statusText}`);
+
+            const data = await response.json();
+            return data.job_id;
+        } catch (error) {
+            console.error('Upload failed:', error);
+            return null;
+        }
     };
 
 
@@ -118,7 +147,7 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onUploadComplete, onFileSelecte
                     className={cn(
                         "relative rounded-3xl border-2 border-dashed transition-all duration-500 flex flex-col items-center justify-center p-12 min-h-[450px] bg-card/20 backdrop-blur-sm",
                         isDragging ? "border-accent bg-accent/10 scale-[1.02] shadow-[0_0_40px_rgba(59,130,246,0.1)]" : "border-border hover:border-accent/40 hover:bg-card/40",
-                        status !== 'idle' && "border-solid border-border-muted pointer-events-none"
+                        status !== 'idle' && "border-solid border-border-muted"
                     )}
                 >
                     {status === 'idle' && (
@@ -138,7 +167,7 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onUploadComplete, onFileSelecte
                                     Select File
                                 </button>
                                 <div className="flex gap-4 justify-center items-center mt-12">
-                                    <span className="text-[10px] bg-muted/30 px-3 py-1 rounded-full font-bold text-muted-foreground tracking-widest uppercase">Max 20s</span>
+                                    <span className="text-[10px] bg-muted/30 px-3 py-1 rounded-full font-bold text-muted-foreground tracking-widest uppercase">Max 120s</span>
                                     <span className="text-[10px] bg-muted/30 px-3 py-1 rounded-full font-bold text-muted-foreground tracking-widest uppercase">MP4 / MOV</span>
                                 </div>
                             </div>
