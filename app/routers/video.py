@@ -59,13 +59,14 @@ def get_pipeline(settings: Settings = Depends(get_settings)) -> VideoPipeline:
 
 @router.post("/upload", response_model=VideoUploadResponse)
 async def upload_video(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     pipeline: VideoPipeline = Depends(get_pipeline),
     settings: Settings = Depends(get_settings)
 ):
     """
-    Upload a video file and extract frames.
-    Returns a job ID for subsequent operations.
+    Upload a video file and return a job ID immediately.
+    Heavy frame extraction is moved to background tasks.
     """
     # Validate file type
     allowed_extensions = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
@@ -83,19 +84,30 @@ async def upload_video(
         with open(temp_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # Create job and extract frames
+        # Create job
         job = pipeline.create_job(temp_path)
-        pipeline.extract_frames(job.job_id)
         
-        # Generate preview frame URL
-        preview_frame = job.frame_paths[0] if job.frame_paths else None
-        preview_url = f"/api/preview/{job.job_id}/frame/0" if preview_frame else ""
+        # 1. Extract video metadata synchronously (FAST)
+        video_info = pipeline.frame_extractor.get_video_info(job.video_path)
+        job.video_info = video_info
+        
+        # 2. Extract a single preview frame synchronously (FAST)
+        preview_filename = "frame_000000.png"
+        preview_path = job.frames_dir / preview_filename
+        job.frames_dir.mkdir(parents=True, exist_ok=True)
+        pipeline.frame_extractor.extract_single_frame(job.video_path, preview_path, timestamp=0)
+        job.frame_paths = [preview_path]
+        
+        # 3. Schedule full frame extraction in the background (HEAVY)
+        background_tasks.add_task(pipeline.extract_frames, job.job_id)
+        
+        preview_url = f"/api/preview/{job.job_id}/frame/0"
         
         return VideoUploadResponse(
             job_id=job.job_id,
-            message=f"Video uploaded successfully. Extracted {len(job.frame_paths)} frames.",
+            message="Video uploaded successfully. Analysis and frame extraction starting in background.",
             preview_frame_url=preview_url,
-            video_info=job.video_info
+            video_info=video_info
         )
         
     except Exception as e:
@@ -835,3 +847,60 @@ async def delete_job(
     
     pipeline.cleanup_job(job_id)
     return {"message": f"Job {job_id} deleted"}
+
+
+@router.post("/analyze-video/{job_id}")
+async def analyze_video(
+    job_id: str,
+    pipeline: VideoPipeline = Depends(get_pipeline),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Analyze video with Gemini 2.5 Pro for compliance violations.
+    
+    Uses native video understanding to detect:
+    - Alcohol/substance use
+    - Brand logos
+    - Violence
+    - Profanity/language
+    - Other compliance issues
+    
+    Returns findings matching the frontend Finding type.
+    """
+    from core.gemini_video_analyzer import analyzeVideoWithGemini
+    
+    job = pipeline.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if not job.video_path or not job.video_path.exists():
+        raise HTTPException(status_code=400, detail="Video file not found")
+    
+    try:
+        logger.info(f"Starting Gemini analysis for job {job_id}")
+        
+        # Analyze with Gemini
+        result = analyzeVideoWithGemini(job.video_path, api_key=settings.gemini_api_key)
+        
+        # Add IDs to findings
+        findings = result.get("findings", [])
+        for i, finding in enumerate(findings):
+            finding["id"] = i + 1
+        
+        logger.info(f"Analysis complete: {len(findings)} findings")
+        
+        return {
+            "job_id": job_id,
+            "status": "completed",
+            "findings": findings,
+            "summary": result.get("summary", ""),
+            "riskLevel": result.get("riskLevel", "Low"),
+            "predictedAgeRating": result.get("predictedAgeRating", "U")
+        }
+        
+    except ValueError as e:
+        logger.error(f"Analysis configuration error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Video analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -48,13 +48,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware (adjust origins for production)
+# CORS middleware (allow frontend origins)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Include routers
@@ -93,6 +94,7 @@ async def health_check():
     return {
         "status": "healthy",
         "replicate_configured": bool(settings.replicate_api_token),
+        "gemini_configured": bool(settings.gemini_api_key),
         "ffmpeg_path": ffmpeg_path,
         "ffmpeg_exists": os.path.exists(ffmpeg_path) if ffmpeg_path != "ffmpeg" else "in PATH"
     }
