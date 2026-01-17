@@ -32,6 +32,12 @@ from ..models import (
     FramewiseReplaceResponse,
     VaceReplaceRequest,
     VaceReplaceResponse,
+    NanoBananaRequest,
+    NanoBananaResponse,
+    PikaReplaceRequest,
+    PikaReplaceResponse,
+    BlurEffectRequest,
+    BlurEffectResponse,
 )
 from core.pipeline import VideoPipeline, PipelineStage
 
@@ -806,6 +812,209 @@ async def replace_with_vace_reference(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/replace-nano-banana", response_model=NanoBananaResponse)
+async def replace_with_nano_banana(
+    job_id: str,
+    object_prompt: str,
+    replacement_prompt: str,
+    reference_image: UploadFile,
+    frame_interval: int = 1,
+    use_composite: bool = False,
+    pipeline: VideoPipeline = Depends(get_pipeline)
+):
+    """
+    Replace object frame-by-frame using Nano Banana (Gemini) with SAM mask + reference image. ⭐
+    
+    Best for: Precise object replacement with reference image guidance.
+    
+    Requirements:
+    1. Upload video first
+    2. Run SAM3 segmentation (mask_only=true recommended)
+    3. Upload reference image of replacement object
+    
+    The optimized prompts will ensure:
+    - Matching lighting and color temperature
+    - Preserving hands, fingers, shadows
+    - Natural positioning
+    - Photorealistic blending
+    """
+    from pathlib import Path
+    from core.gemini_inpaint_engine import GeminiInpaintEngine
+    from app.config import get_settings
+    
+    job = pipeline.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if not job.frame_paths:
+        raise HTTPException(status_code=400, detail="No frames found. Upload video first.")
+    
+    # Save reference image
+    job_dir = Path(f"storage/jobs/{job_id}")
+    reference_path = job_dir / f"nano_ref_{reference_image.filename}"
+    with open(reference_path, 'wb') as f:
+        content = await reference_image.read()
+        f.write(content)
+    
+    logger.info(f"Saved reference image for Nano Banana: {reference_path}")
+    
+    # Get mask paths if available (from SAM3 segmentation)
+    mask_dir = job_dir / "masks"
+    mask_paths = []
+    if mask_dir.exists():
+        mask_paths = sorted(mask_dir.glob("*.png"))
+    
+    # If no mask frames, extract from SAM3 mask video
+    if not mask_paths and job.segmented_video_path and job.segmented_video_path.exists():
+        logger.info(f"Extracting mask frames from SAM3 video: {job.segmented_video_path}")
+        mask_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Use ffmpeg to extract frames from mask video
+        import subprocess
+        extract_cmd = [
+            "ffmpeg", "-y",
+            "-i", str(job.segmented_video_path),
+            "-vf", "fps=25",  # Match typical video fps
+            str(mask_dir / "mask_%06d.png")
+        ]
+        try:
+            subprocess.run(extract_cmd, check=True, capture_output=True)
+            mask_paths = sorted(mask_dir.glob("mask_*.png"))
+            logger.info(f"Extracted {len(mask_paths)} mask frames")
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"Failed to extract mask frames: {e}")
+    
+    try:
+        settings = get_settings()
+        engine = GeminiInpaintEngine(api_key=settings.gemini_api_key)
+        
+        # Process frames with masks
+        output_dir = job_dir / "nano_edited"
+        
+        if mask_paths:
+            edited_paths = engine.process_frames_with_masks(
+                frame_paths=job.frame_paths,
+                mask_paths=mask_paths,
+                reference_image_path=reference_path,
+                object_prompt=object_prompt,
+                replacement_prompt=replacement_prompt,
+                frame_interval=frame_interval,
+                output_dir=output_dir,
+                use_composite=use_composite
+            )
+        else:
+            edited_paths = engine.process_frames(
+                frame_paths=job.frame_paths,
+                object_prompt=object_prompt,
+                replacement_prompt=replacement_prompt,
+                reference_image_path=reference_path,
+                frame_interval=frame_interval,
+                output_dir=output_dir
+            )
+        
+        # Build video from edited frames
+        output_path = job_dir / "replaced_nano.mp4"
+        video_info = job.video_info or {}
+        fps = video_info.get("fps", 25)
+        
+        pipeline.video_builder.build_video(
+            frames_dir=output_dir,
+            output_path=output_path,
+            fps=fps,
+            audio_path=job.audio_path if job.audio_path and job.audio_path.exists() else None
+        )
+        
+        job.output_path = output_path
+        job.inpainted_paths = edited_paths
+        
+        return NanoBananaResponse(
+            job_id=job_id,
+            status="completed",
+            download_path=f"/api/download/{job_id}",
+            frames_processed=len([p for p in edited_paths if p.exists()]),
+            frames_total=len(job.frame_paths),
+            message=f"Replaced '{object_prompt}' with '{replacement_prompt}' using Nano Banana"
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Nano Banana replacement failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/replace-with-pika", response_model=PikaReplaceResponse)
+async def replace_with_pika(
+    job_id: str,
+    prompt: str,
+    reference_image: UploadFile,
+    negative_prompt: str = "blurry, distorted, low quality, deformed",
+    duration: int = 5,
+    pipeline: VideoPipeline = Depends(get_pipeline)
+):
+    """
+    Replace object in video using Pika Labs Pikadditions. ⭐⭐
+    
+    BEST FOR: Shape-changing object replacement (cup → bottle).
+    Uses Pika v2 which is better at complete object swaps than VACE.
+    
+    Workflow:
+    1. Upload video
+    2. Call this endpoint with prompt + reference image
+    
+    Note: Pika processes the whole video, no SAM mask required!
+    """
+    from pathlib import Path
+    from core.pika_engine import PikaEngine
+    from app.config import get_settings
+    
+    job = pipeline.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if not job.video_path:
+        raise HTTPException(status_code=400, detail="No video found. Upload video first.")
+    
+    # Save reference image
+    job_dir = Path(f"storage/jobs/{job_id}")
+    reference_path = job_dir / f"pika_ref_{reference_image.filename}"
+    with open(reference_path, 'wb') as f:
+        content = await reference_image.read()
+        f.write(content)
+    
+    logger.info(f"Saved Pika reference image: {reference_path}")
+    
+    try:
+        settings = get_settings()
+        engine = PikaEngine(api_key=settings.fal_key)
+        
+        output_path = job_dir / "replaced_pika.mp4"
+        
+        result_path = engine.replace_and_download(
+            video_path=job.video_path,
+            output_path=output_path,
+            prompt=prompt,
+            reference_image_path=reference_path,
+            negative_prompt=negative_prompt,
+            duration=duration
+        )
+        
+        job.output_path = result_path
+        
+        return PikaReplaceResponse(
+            job_id=job_id,
+            status="completed",
+            download_path=f"/api/download/{job_id}",
+            message=f"Object replaced using Pika Labs: {prompt}"
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Pika replacement failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/download-segmented/{job_id}")
 async def download_segmented_video(
     job_id: str,
@@ -903,4 +1112,126 @@ async def analyze_video(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Video analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/blur-object", response_model=BlurEffectResponse)
+async def blur_object(
+    request: BlurEffectRequest,
+    pipeline: VideoPipeline = Depends(get_pipeline)
+):
+    """
+    Apply blur/pixelate effect to detected object - like Meta's Segment Anything demo! ⭐
+    
+    This is a two-step process:
+    1. SAM3 detects and creates a mask for the object
+    2. FFmpeg applies blur/pixelate effect only to the masked region
+    
+    Args:
+        job_id: Job ID from video upload
+        text_prompt: What to blur (e.g., 'face', 'logo', 'license plate')
+        blur_strength: Intensity of blur (10-50 recommended)
+        effect_type: 'blur' for Gaussian blur, 'pixelate' for mosaic effect
+    
+    Example:
+        POST /api/blur-object
+        {
+            "job_id": "abc123",
+            "text_prompt": "Veo watermark logo",
+            "blur_strength": 30,
+            "effect_type": "blur"
+        }
+    """
+    from core.video_builder import VideoBuilder
+    import hashlib
+    
+    job = pipeline.get_job(request.job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if not job.video_path or not job.video_path.exists():
+        raise HTTPException(status_code=400, detail="Video file not found")
+    
+    try:
+        # Create a cache key from the prompt (sanitized for filename)
+        prompt_hash = hashlib.md5(request.text_prompt.lower().encode()).hexdigest()[:8]
+        prompt_slug = "".join(c if c.isalnum() else "_" for c in request.text_prompt.lower())[:20]
+        cache_filename = f"mask_{prompt_slug}_{prompt_hash}.mp4"
+        job_dir = job.video_path.parent
+        cached_mask_path = job_dir / cache_filename
+        
+        # Check if mask is already cached
+        if cached_mask_path.exists():
+            logger.info(f"Using cached mask for '{request.text_prompt}': {cached_mask_path}")
+            mask_video_path = cached_mask_path
+        else:
+            # Step 1: Run SAM3 to create mask (using difference mode for robustness)
+            # We request the full video with green overlay, then subtract original to get the mask.
+            # This is more robust than mask_only=True which seems to resolve to black/empty sometimes.
+            logger.info(f"Step 1: Creating segmentation for '{request.text_prompt}' using SAM3...")
+            job = pipeline.segment_video_with_sam3(
+                job_id=request.job_id,
+                text_prompt=request.text_prompt,
+                mask_only=False,  # Get full video + overlay
+                mask_color="green",
+                mask_opacity=1.0  # Solid overlay for clear difference
+            )
+            
+            if not job.segmented_video_path or not job.segmented_video_path.exists():
+                raise ValueError("SAM3 mask generation failed")
+            
+            # Cache the mask for future use
+            import shutil
+            shutil.copy(job.segmented_video_path, cached_mask_path)
+            logger.info(f"Cached mask to: {cached_mask_path}")
+            mask_video_path = cached_mask_path
+        
+        # Step 2: Apply blur/pixelate effect using FFmpeg
+        logger.info(f"Step 2: Applying {request.effect_type} effect...")
+        video_builder = VideoBuilder(ffmpeg_path=pipeline.ffmpeg_path)
+        
+        # IMPORTANT: Use previous output if exists (for chaining effects)
+        # Otherwise use original video
+        if job.output_path and job.output_path.exists():
+            input_video = job.output_path
+            logger.info(f"Chaining effect on previous result: {input_video}")
+        else:
+            input_video = job.video_path
+            logger.info(f"Applying effect to original video: {input_video}")
+        
+        output_path = job_dir / f"output_{request.effect_type}_{prompt_hash}.mp4"
+        
+        if request.effect_type == "pixelate":
+            video_builder.apply_pixelate_with_mask(
+                input_video=input_video,
+                mask_video=mask_video_path,
+                output_path=output_path,
+                pixel_size=max(8, 64 // (request.blur_strength // 10 + 1))
+            )
+        else:
+            video_builder.apply_blur_with_mask(
+                input_video=input_video,
+                mask_video=mask_video_path,
+                output_path=output_path,
+                blur_strength=request.blur_strength
+            )
+        
+        # Update job with final output (for next effect to chain on)
+        job.output_path = output_path
+        
+        logger.info(f"Blur effect applied successfully: {output_path}")
+        
+        return BlurEffectResponse(
+            job_id=request.job_id,
+            status="completed",
+            download_path=f"/api/download/{request.job_id}",
+            text_prompt=request.text_prompt,
+            effect_type=request.effect_type,
+            message=f"Applied {request.effect_type} effect to '{request.text_prompt}'"
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Blur effect failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

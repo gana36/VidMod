@@ -4,21 +4,56 @@ import TopBar from './TopBar';
 import VideoWorkspace, { type Finding } from './VideoWorkspace';
 import RightPanel from './RightPanel';
 import UploadZone, { type VideoMetadata } from './UploadZone';
+import { Eye, EyeOff } from 'lucide-react';
+
+// Edit version interface for tracking history
+export interface EditVersion {
+    id: string;
+    version: number;
+    objectName: string;
+    effectType: string;
+    downloadUrl: string;
+    enabled: boolean;
+    timestamp: number;
+}
 
 const AppLayout: React.FC = () => {
     const [activeTab, setActiveTab] = useState('Upload');
     const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null);
-    const [videoUrl, setVideoUrl] = useState<string | null>(null);
+    const [originalVideoUrl, setOriginalVideoUrl] = useState<string | null>(null);  // Original video
+    const [editedVideoUrl, setEditedVideoUrl] = useState<string | null>(null);      // Current processed video
+    const [showOriginal, setShowOriginal] = useState(false);  // Toggle state
     const [findings, setFindings] = useState<Finding[]>([]);
     const [currentTime, setCurrentTime] = useState(0);
     const [seekToTimestamp, setSeekToTimestamp] = useState<number | null>(null);
     const [platform, setPlatform] = useState('YouTube');
     const [region, setRegion] = useState('US');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [jobId, setJobId] = useState<string | null>(null);  // Job ID for API actions
+
+    // Edit history - tracks all applied effects with their versions
+    const [editHistory, setEditHistory] = useState<EditVersion[]>([]);
+    const [selectedVersion, setSelectedVersion] = useState<number | null>(null);  // For previewing specific version
+
+    // Current video to display
+    const getDisplayVideoUrl = () => {
+        if (showOriginal) {
+            console.log('Showing original video');
+            return originalVideoUrl;
+        }
+        if (selectedVersion !== null) {
+            const version = editHistory.find(v => v.version === selectedVersion);
+            console.log('Showing selected version:', selectedVersion, 'URL:', version?.downloadUrl);
+            return version?.downloadUrl || editedVideoUrl || originalVideoUrl;
+        }
+        console.log('Showing latest edited video:', editedVideoUrl);
+        return editedVideoUrl || originalVideoUrl;
+    };
+    const currentVideoUrl = getDisplayVideoUrl();
 
     // Mock re-analysis when profile changes
     useEffect(() => {
-        if (!videoUrl) return;
+        if (!originalVideoUrl) return;
 
         setIsAnalyzing(true);
         const timer = setTimeout(() => {
@@ -30,22 +65,27 @@ const AppLayout: React.FC = () => {
 
     const handleFileSelected = (metadata: VideoMetadata) => {
         setVideoMetadata(metadata);
-        setVideoUrl(metadata.url);
+        setOriginalVideoUrl(metadata.url);
+        setEditedVideoUrl(null);  // Reset edited video
+        setEditHistory([]);  // Reset edit history
+        setSelectedVersion(null);
+        setShowOriginal(false);
     };
 
     const handleUploadComplete = async (metadata: VideoMetadata) => {
-        const jobId = metadata.jobId;
-        if (!jobId) {
+        const uploadedJobId = metadata.jobId;
+        if (!uploadedJobId) {
             console.error('No job_id available for analysis');
             setFindings([]);
             return;
         }
 
+        setJobId(uploadedJobId);  // Store job ID for actions
         setActiveTab('Analysis');
         setIsAnalyzing(true);
         try {
             // Call the Gemini analysis API
-            const response = await fetch(`http://localhost:8000/api/analyze-video/${jobId}`, {
+            const response = await fetch(`http://localhost:8000/api/analyze-video/${uploadedJobId}`, {
                 method: 'POST',
             });
 
@@ -95,6 +135,51 @@ const AppLayout: React.FC = () => {
         setTimeout(() => setSeekToTimestamp(null), 100);
     };
 
+    const handleActionComplete = (actionType: string, result: any) => {
+        console.log(`Action ${actionType} completed:`, result);
+
+        // Update edited video URL to show the processed result
+        if (result.downloadUrl) {
+            // Add timestamp to force refresh
+            const processedUrl = `${result.downloadUrl}?t=${Date.now()}`;
+            setEditedVideoUrl(processedUrl);
+            setShowOriginal(false);  // Show edited by default after processing
+            setSelectedVersion(null);  // Show latest version
+
+            // Add to edit history with correct version number
+            setEditHistory(prev => {
+                const newVersion: EditVersion = {
+                    id: `edit-${Date.now()}`,
+                    version: prev.length + 1,  // Use prev.length for correct numbering
+                    objectName: result.objectName || result.text_prompt || 'Object',
+                    effectType: actionType,
+                    downloadUrl: processedUrl,
+                    enabled: true,
+                    timestamp: Date.now()
+                };
+                console.log('Added version to history:', newVersion);
+                return [...prev, newVersion];
+            });
+        }
+    };
+
+    // Preview a specific version
+    const handlePreviewVersion = (version: number) => {
+        console.log('Preview version clicked:', version);
+        console.log('Current editHistory:', editHistory);
+        const found = editHistory.find(v => v.version === version);
+        console.log('Found version:', found);
+        setSelectedVersion(version);
+        setShowOriginal(false);
+    };
+
+    // Toggle version enabled state (for future re-compositing)
+    const handleToggleVersion = (id: string) => {
+        setEditHistory(prev => prev.map(v =>
+            v.id === id ? { ...v, enabled: !v.enabled } : v
+        ));
+    };
+
     return (
         <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
             {/* Sidebar - Fixed width */}
@@ -119,14 +204,38 @@ const AppLayout: React.FC = () => {
                         </div>
                     ) : (
                         <>
-                            <div className="flex-[3] min-w-0">
+                            <div className="flex-[3] min-w-0 relative">
                                 <VideoWorkspace
-                                    videoUrl={videoUrl || ''}
+                                    videoUrl={currentVideoUrl || ''}
                                     seekTo={seekToTimestamp ?? undefined}
                                     findings={findings}
                                     onTimeUpdate={setCurrentTime}
                                     onAddFinding={handleAddFinding}
                                 />
+
+                                {/* Video Toggle Button - Only show when edited video exists */}
+                                {editedVideoUrl && (
+                                    <button
+                                        onClick={() => setShowOriginal(!showOriginal)}
+                                        className={`absolute top-6 right-6 z-20 flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-sm transition-all shadow-lg ${showOriginal
+                                            ? 'bg-amber-500/90 text-white hover:bg-amber-400'
+                                            : 'bg-accent/90 text-white hover:bg-accent'
+                                            }`}
+                                        title={showOriginal ? 'Viewing Original - Click to see Edited' : 'Viewing Edited - Click to see Original'}
+                                    >
+                                        {showOriginal ? (
+                                            <>
+                                                <EyeOff className="w-4 h-4" />
+                                                Original
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Eye className="w-4 h-4" />
+                                                Edited
+                                            </>
+                                        )}
+                                    </button>
+                                )}
                             </div>
                             <div className="flex-1 min-w-[300px] max-w-[400px]">
                                 <RightPanel
@@ -134,6 +243,12 @@ const AppLayout: React.FC = () => {
                                     findings={findings}
                                     currentTime={currentTime}
                                     isAnalyzing={isAnalyzing}
+                                    jobId={jobId || undefined}
+                                    onActionComplete={handleActionComplete}
+                                    editHistory={editHistory}
+                                    onPreviewVersion={handlePreviewVersion}
+                                    onToggleVersion={handleToggleVersion}
+                                    selectedVersion={selectedVersion}
                                 />
                             </div>
                         </>

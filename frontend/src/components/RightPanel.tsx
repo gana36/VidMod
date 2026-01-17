@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, ShieldAlert, History, Beer, ShieldX, Sword, MessageCircle, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, History, Beer, ShieldX, Sword, MessageCircle, AlertTriangle, Download, Eye } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -10,15 +10,34 @@ function cn(...inputs: ClassValue[]) {
 import { type Finding } from './VideoWorkspace';
 import EditPlanPanel from './EditPlanPanel';
 import { useState } from 'react';
+import { type EditVersion } from './AppLayout';
 
 interface RightPanelProps {
     onSeekTo?: (time: string) => void;
     findings?: Finding[];
     currentTime?: number;
     isAnalyzing?: boolean;
+    jobId?: string;  // Job ID for API calls
+    onActionComplete?: (actionType: string, result: any) => void;
+    // Edit history props
+    editHistory?: EditVersion[];
+    onPreviewVersion?: (version: number) => void;
+    onToggleVersion?: (id: string) => void;
+    selectedVersion?: number | null;
 }
 
-const RightPanel: React.FC<RightPanelProps> = ({ onSeekTo, findings = [], currentTime = 0, isAnalyzing = false }) => {
+const RightPanel: React.FC<RightPanelProps> = ({
+    onSeekTo,
+    findings = [],
+    currentTime = 0,
+    isAnalyzing = false,
+    jobId,
+    onActionComplete,
+    editHistory = [],
+    onPreviewVersion,
+    onToggleVersion,
+    selectedVersion
+}) => {
     if (isAnalyzing) {
         return (
             <aside className="w-full h-full flex flex-col bg-card border border-border rounded-xl overflow-hidden animate-in fade-in zoom-in-95">
@@ -55,7 +74,7 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSeekTo, findings = [], curren
         }
     };
 
-    const [activePanel, setActivePanel] = useState<'risks' | 'plan'>('risks');
+    const [activePanel, setActivePanel] = useState<'risks' | 'plan' | 'history'>('risks');
 
     const formatTimeRange = (start: number, end: number) => {
         const format = (t: number) => {
@@ -91,6 +110,18 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSeekTo, findings = [], curren
                 >
                     Edit Plan
                     {activePanel === 'plan' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+                    )}
+                </button>
+                <button
+                    onClick={() => setActivePanel('history')}
+                    className={cn(
+                        "flex-1 py-3 text-[10px] font-bold uppercase tracking-widest transition-all relative",
+                        activePanel === 'history' ? "text-accent" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                    )}
+                >
+                    History {editHistory.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-accent/20 text-accent rounded-full text-[8px]">{editHistory.length}</span>}
+                    {activePanel === 'history' && (
                         <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
                     )}
                 </button>
@@ -204,8 +235,80 @@ const RightPanel: React.FC<RightPanelProps> = ({ onSeekTo, findings = [], curren
                         </button>
                     </div>
                 </>
+            ) : activePanel === 'plan' ? (
+                <EditPlanPanel findings={findings} jobId={jobId} onActionComplete={onActionComplete} />
             ) : (
-                <EditPlanPanel findings={findings} />
+                /* History Panel */
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="p-4 border-b border-border bg-muted/20">
+                        <h3 className="font-bold text-sm tracking-tight flex items-center gap-2">
+                            <History className="w-4 h-4 text-accent" />
+                            Edit History
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">Each version can be previewed and downloaded individually</p>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                        {editHistory.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4 opacity-40">
+                                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                                    <History className="w-8 h-8" />
+                                </div>
+                                <p className="text-xs font-bold uppercase tracking-[0.2em]">No Edits Yet</p>
+                                <p className="text-[10px] text-muted-foreground">Apply effects from the Edit Plan to see version history</p>
+                            </div>
+                        ) : (
+                            editHistory.map((version) => (
+                                <div
+                                    key={version.id}
+                                    className={cn(
+                                        "rounded-lg border p-3 transition-all",
+                                        selectedVersion === version.version
+                                            ? "border-accent bg-accent/10"
+                                            : "border-border bg-background/40 hover:bg-muted/10"
+                                    )}
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={version.enabled}
+                                                onChange={() => onToggleVersion?.(version.id)}
+                                                className="w-4 h-4 rounded border-border"
+                                            />
+                                            <div>
+                                                <p className="text-sm font-medium">
+                                                    v{version.version}: {version.effectType} "{version.objectName}"
+                                                </p>
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    {new Date(version.timestamp).toLocaleTimeString()}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => onPreviewVersion?.(version.version)}
+                                                className="p-2 rounded-lg bg-accent/20 hover:bg-accent/30 text-accent transition-colors"
+                                                title="Preview this version"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
+                                            <a
+                                                href={version.downloadUrl.split('?')[0]}
+                                                download={`video_v${version.version}.mp4`}
+                                                className="p-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 transition-colors"
+                                                title="Download this version"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
             )}
         </div>
     );

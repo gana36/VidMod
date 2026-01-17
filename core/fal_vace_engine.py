@@ -15,6 +15,15 @@ logger = logging.getLogger(__name__)
 # fal.ai model for VACE video inpainting
 FAL_VACE_MODEL = "fal-ai/wan-vace-14b/inpainting"
 
+# Optimized negative prompt for better results
+VACE_NEGATIVE_PROMPT = """letterboxing, borders, black bars, bright colors, overexposed, 
+static, blurred details, subtitles, style, artwork, painting, picture, still, 
+overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, 
+extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, 
+malformed limbs, fused fingers, still picture, cluttered background, 
+blurry, distorted hand, deformed bottle, wrong scale, floating object, 
+changed background, mismatched lighting"""
+
 
 class FalVaceEngine:
     """
@@ -47,6 +56,47 @@ class FalVaceEngine:
         url = fal_client.upload_file(str(file_path))
         logger.info(f"Uploaded: {url}")
         return url
+    
+    def _prepare_reference_image(self, image_path: Path) -> Path:
+        """
+        Prepare reference image by removing background and making it white.
+        VACE works better with reference objects on white backgrounds.
+        Falls back to original if rembg is not available.
+        
+        Args:
+            image_path: Path to original reference image
+            
+        Returns:
+            Path to processed image (or original if processing fails)
+        """
+        try:
+            from PIL import Image
+            from rembg import remove
+            
+            logger.info(f"Removing background from reference image: {image_path}")
+            
+            # Load and remove background
+            input_image = Image.open(image_path)
+            output_image = remove(input_image)
+            
+            # Create white background and paste the object
+            white_bg = Image.new("RGBA", output_image.size, (255, 255, 255, 255))
+            white_bg.paste(output_image, (0, 0), output_image)
+            
+            # Convert to RGB (no alpha)
+            final_image = white_bg.convert("RGB")
+            
+            # Save to temp file
+            output_path = image_path.parent / f"ref_whitebg_{image_path.stem}.png"
+            final_image.save(output_path)
+            
+            logger.info(f"Reference image prepared with white background: {output_path}")
+            return output_path
+            
+        except BaseException as e:
+            # Catch all including SystemExit from rembg
+            logger.warning(f"Background removal not available: {type(e).__name__}. Using original image.")
+            return image_path
     
     def replace_object(
         self,
@@ -87,6 +137,7 @@ class FalVaceEngine:
             "video_url": video_url,
             "mask_video_url": mask_url,
             "prompt": prompt,
+            "negative_prompt": VACE_NEGATIVE_PROMPT,
             "num_inference_steps": num_inference_steps,
             "guidance_scale": guidance_scale,
             "resolution": output_resolution,
@@ -94,11 +145,15 @@ class FalVaceEngine:
             "match_input_frames_per_second": True,
         }
         
-        # Add reference image if provided
+        # Add reference image if provided (with background removal)
         if reference_image_path and Path(reference_image_path).exists():
-            logger.info(f"Using reference image: {reference_image_path}")
-            ref_url = self._upload_file(reference_image_path)
+            logger.info(f"Processing reference image: {reference_image_path}")
+            # Remove background and make it white for better VACE understanding
+            processed_ref_path = self._prepare_reference_image(Path(reference_image_path))
+            ref_url = self._upload_file(processed_ref_path)
             request["ref_image_urls"] = [ref_url]
+            # Max guidance for better reference matching
+            request["guidance_scale"] = min(max(guidance_scale, 9.0), 10.0)
         
         logger.info("Calling fal.ai VACE API...")
         

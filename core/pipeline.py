@@ -85,6 +85,8 @@ class VideoPipeline:
         ffmpeg_path: str = "ffmpeg",
         ffprobe_path: str = "ffprobe"
     ):
+        self.ffmpeg_path = ffmpeg_path  # Store for blur/pixelate effects
+        self.ffprobe_path = ffprobe_path
         self.frame_extractor = FrameExtractor(ffmpeg_path=ffmpeg_path, ffprobe_path=ffprobe_path)
         self.video_builder = VideoBuilder(ffmpeg_path=ffmpeg_path)
         

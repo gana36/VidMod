@@ -211,7 +211,7 @@ class VaceReplaceRequest(BaseModel):
         description="Text prompt for replacement content (e.g., 'red Coca-Cola can')"
     )
     num_inference_steps: int = Field(30, ge=10, le=50, description="Diffusion steps")
-    guidance_scale: float = Field(5.0, ge=1.0, le=15.0, description="Prompt guidance")
+    guidance_scale: float = Field(7.0, ge=1.0, le=10.0, description="Prompt guidance (max 10)")
 
 
 class VaceReplaceResponse(BaseModel):
@@ -220,4 +220,67 @@ class VaceReplaceResponse(BaseModel):
     status: str
     download_path: Optional[str] = None
     video_url: Optional[str] = None
+    message: str = ""
+
+
+class NanoBananaRequest(BaseModel):
+    """Request for Nano Banana frame-by-frame with mask support."""
+    job_id: str = Field(..., description="Job ID from video upload")
+    object_prompt: str = Field("object", description="What object is being replaced")
+    replacement_prompt: str = Field(..., description="What to replace it with (e.g., 'soda bottle')")
+    frame_interval: int = Field(1, ge=1, le=100, description="Process every Nth frame")
+    use_composite: bool = Field(False, description="Use composite image trick for single-image models")
+
+
+class NanoBananaResponse(BaseModel):
+    """Response from Nano Banana frame-by-frame editing."""
+    job_id: str
+    status: str
+    download_path: Optional[str] = None
+    frames_processed: int = 0
+    frames_total: int = 0
+    message: str = ""
+
+
+class PikaReplaceRequest(BaseModel):
+    """Request for Pika Labs object replacement."""
+    job_id: str = Field(..., description="Job ID from video upload")
+    prompt: str = Field(
+        ...,
+        description="Description of object to add/replace (e.g., 'Coca-Cola bottle held in hand')"
+    )
+    negative_prompt: str = Field(
+        "blurry, distorted, low quality, deformed",
+        description="What to avoid in generation"
+    )
+    duration: int = Field(5, ge=1, le=10, description="Output duration in seconds")
+
+
+class PikaReplaceResponse(BaseModel):
+    """Response from Pika Labs object replacement."""
+    job_id: str
+    status: str
+    download_path: Optional[str] = None
+    video_url: Optional[str] = None
+    message: str = ""
+
+
+class BlurEffectRequest(BaseModel):
+    """Request to apply blur effect to masked region (like Meta's Segment Anything demo)."""
+    job_id: str = Field(..., description="Job ID from video upload")
+    text_prompt: str = Field(
+        ...,
+        description="Text description of object to blur (e.g., 'face', 'logo', 'license plate')"
+    )
+    blur_strength: int = Field(30, ge=5, le=100, description="Blur intensity (10-50 recommended)")
+    effect_type: str = Field("blur", description="Effect type: 'blur' or 'pixelate'")
+
+
+class BlurEffectResponse(BaseModel):
+    """Response from blur effect application."""
+    job_id: str
+    status: str
+    download_path: Optional[str] = None
+    text_prompt: str = ""
+    effect_type: str = "blur"
     message: str = ""

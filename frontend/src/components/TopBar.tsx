@@ -1,11 +1,5 @@
 import React from 'react';
 import { Upload, Download, ChevronDown, Bell, Globe, Layout, Check } from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
 
 interface TopBarProps {
     platform: string;
