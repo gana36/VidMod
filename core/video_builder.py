@@ -295,3 +295,101 @@ class VideoBuilder:
         except subprocess.CalledProcessError as e:
             logger.error(f"Pixelation failed: {e.stderr}")
             raise RuntimeError(f"Failed to apply pixelation: {e.stderr}")
+    
+    def insert_segment(
+        self,
+        original_video: Path,
+        processed_segment: Path,
+        output_path: Path,
+        start_time: float,
+        end_time: float,
+        buffer_seconds: float = 1.0
+    ) -> Path:
+        """
+        Replace a segment of the original video with a processed segment.
+        
+        This uses FFmpeg's concat demuxer for seamless stitching.
+        
+        Args:
+            original_video: Path to the original full video
+            processed_segment: Path to the processed clip
+            output_path: Path to save the final video
+            start_time: Original start time of the incident
+            end_time: Original end time of the incident
+            buffer_seconds: Buffer used during extraction
+            
+        Returns:
+            Path to the stitched video
+        """
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Calculate actual clip boundaries (with buffer)
+        buffered_start = max(0, start_time - buffer_seconds)
+        buffered_end = end_time + buffer_seconds
+        
+        # Create temporary clips: before, processed, after
+        temp_dir = output_path.parent / "temp_segments"
+        temp_dir.mkdir(exist_ok=True)
+        
+        before_clip = temp_dir / "before.mp4"
+        after_clip = temp_dir / "after.mp4"
+        concat_list = temp_dir / "concat_list.txt"
+        
+        try:
+            # Extract "before" segment (0 to buffered_start)
+            if buffered_start > 0:
+                cmd_before = [
+                    self.ffmpeg_path, "-y",
+                    "-i", str(original_video),
+                    "-t", str(buffered_start),
+                    "-c", "copy",
+                    str(before_clip)
+                ]
+                subprocess.run(cmd_before, capture_output=True, text=True, check=True)
+                logger.info(f"Extracted 'before' segment: 0s to {buffered_start:.2f}s")
+            
+            # Extract "after" segment (buffered_end to end)
+            cmd_after = [
+                self.ffmpeg_path, "-y",
+                "-ss", str(buffered_end),
+                "-i", str(original_video),
+                "-c", "copy",
+                str(after_clip)
+            ]
+            result = subprocess.run(cmd_after, capture_output=True, text=True, check=False)
+            has_after = after_clip.exists() and after_clip.stat().st_size > 1000
+            if has_after:
+                logger.info(f"Extracted 'after' segment: {buffered_end:.2f}s to end")
+            
+            # Create concat list
+            with open(concat_list, 'w') as f:
+                if buffered_start > 0:
+                    f.write(f"file '{before_clip.absolute()}'\n")
+                f.write(f"file '{processed_segment.absolute()}'\n")
+                if has_after:
+                    f.write(f"file '{after_clip.absolute()}'\n")
+            
+            # Concatenate all segments
+            cmd_concat = [
+                self.ffmpeg_path, "-y",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", str(concat_list),
+                "-c", "copy",
+                str(output_path)
+            ]
+            
+            subprocess.run(cmd_concat, capture_output=True, text=True, check=True)
+            logger.info(f"Stitched video created: {output_path}")
+            
+            return output_path
+            
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Video stitching failed: {e.stderr}")
+            raise RuntimeError(f"Failed to stitch video segments: {e.stderr}")
+        finally:
+            # Cleanup temporary files
+            import shutil
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir)
+

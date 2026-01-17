@@ -4,6 +4,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import TimelineEditor from './TimelineEditor';
 import DrawingCanvas from './DrawingCanvas';
+import ActionModal, { type ActionType } from './ActionModal';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -30,13 +31,14 @@ export interface Finding {
 
 interface VideoWorkspaceProps {
     videoUrl?: string;
+    jobId?: string; // Added jobId for ActionModal
     seekTo?: number;
     findings?: Finding[];
     onTimeUpdate?: (time: number) => void;
     onAddFinding?: (finding: Omit<Finding, 'id'>) => void;
 }
 
-const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, seekTo, findings = [], onTimeUpdate, onAddFinding }) => {
+const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo, findings = [], onTimeUpdate, onAddFinding }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -49,6 +51,11 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, seekTo, findi
     const [showControls, setShowControls] = useState(true);
     const [isEditMode, setIsEditMode] = useState(false);
     const controlsTimeoutRef = useRef<any>(null);
+
+    // State for ActionModal
+    const [modalOpen, setModalOpen] = useState(false);
+    const [currentBox, setCurrentBox] = useState<{ top: number, left: number, width: number, height: number } | undefined>(undefined);
+    const [currentAction, setCurrentAction] = useState<ActionType>('blur');
 
     useEffect(() => {
         const video = videoRef.current;
@@ -208,23 +215,37 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, seekTo, findi
     };
 
     const handleManualEditConfirm = (box: any, action: 'blur' | 'replace' | 'mute') => {
-        if (!onAddFinding) return;
+        setCurrentBox(box);
 
-        const type = action === 'blur' ? 'Manual Blur' : action === 'replace' ? 'Manual Replace' : 'Manual Mute';
-        const category = action === 'blur' || action === 'replace' ? 'logo' : 'language';
+        // Map simple action to ActionType
+        let mappedAction: ActionType = 'blur';
+        if (action === 'replace') mappedAction = 'replace-pika'; // Default to Pika for manual replace
+        else if (action === 'mute') mappedAction = 'mask'; // 'mute' isn't fully supported in ActionModal yet, fallback to mask
+        else mappedAction = action;
+
+        setCurrentAction(mappedAction);
+        setModalOpen(true);
+        setIsEditMode(false);
+    };
+
+    const handleActionComplete = (result: { type: ActionType; downloadUrl?: string }) => {
+        if (!onAddFinding || !currentBox) return;
+
+        const type = result.type === 'blur' ? 'Manual Blur' : result.type.includes('replace') ? 'Manual Replace' : 'Manual Edit';
+        const category = 'logo'; // Default category
 
         onAddFinding({
             type,
             category,
-            content: `User defined ${action} area`,
+            content: `User defined ${result.type} area`,
             status: 'warning',
             confidence: 'High',
             startTime: currentTime,
             endTime: Math.min(currentTime + 5, duration),
-            box
+            box: currentBox
         });
 
-        setIsEditMode(false);
+        setModalOpen(false);
     };
 
     const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -252,6 +273,20 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, seekTo, findi
                     <DrawingCanvas
                         onConfirm={handleManualEditConfirm}
                         onCancel={() => setIsEditMode(false)}
+                    />
+                )}
+
+                {/* Render ActionModal */}
+                {jobId && (
+                    <ActionModal
+                        isOpen={modalOpen}
+                        onClose={() => setModalOpen(false)}
+                        jobId={jobId}
+                        actionType={currentAction}
+                        objectPrompt="Custom Object" // Default, will be auto-updated by detection
+                        initialBox={currentBox}
+                        timestamp={currentTime}
+                        onActionComplete={handleActionComplete}
                     />
                 )}
 

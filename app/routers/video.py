@@ -38,8 +38,11 @@ from ..models import (
     PikaReplaceResponse,
     BlurEffectRequest,
     BlurEffectResponse,
+    ObjectDetectionRequest,
+    ObjectDetectionResponse,
 )
 from core.pipeline import VideoPipeline, PipelineStage
+from core.gemini_video_analyzer import GeminiVideoAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +64,69 @@ def get_pipeline(settings: Settings = Depends(get_settings)) -> VideoPipeline:
             ffprobe_path=settings.get_ffprobe_path()
         )
     return _pipeline
+
+
+@router.post("/detect-objects", response_model=ObjectDetectionResponse)
+async def detect_objects(
+    request: ObjectDetectionRequest,
+    pipeline: VideoPipeline = Depends(get_pipeline),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Detect objects within a user-defined bounding box using Gemini.
+    1. Extract frame crop at timestamp.
+    2. Send to Gemini 2.0 Flash to identify object(s).
+    """
+    logger.info(f"Detecting objects for job {request.job_id} at {request.timestamp}s")
+    
+    # 1. Get Job
+    job = pipeline.jobs.get(request.job_id)
+    if not job:
+        # Try to load logic if job exists on disk but not memory (restart scenario)
+        potential_path = settings.base_dir / "storage" / "jobs" / request.job_id
+        if potential_path.exists():
+            from core.pipeline import JobState
+            job = JobState(
+                job_id=request.job_id,
+                video_path=potential_path / "input.mp4",
+                output_dir=potential_path,
+                frames_dir=potential_path / "frames",
+                status="loaded"
+            )
+            pipeline.jobs[request.job_id] = job
+        else:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+    # 2. Extract specific crop
+    crop_path = job.output_dir / f"crop_{int(request.timestamp * 1000)}.jpg"
+    
+    try:
+        pipeline.frame_extractor.extract_frame_crop(
+            video_path=job.video_path,
+            output_path=crop_path,
+            timestamp=request.timestamp,
+            box=request.box
+        )
+    except Exception as e:
+        logger.error(f"Failed to extract crop: {e}")
+        raise HTTPException(status_code=500, detail="Failed to extract image crop")
+
+    # 3. Analyze with Gemini
+    try:
+        analyzer = GeminiVideoAnalyzer(api_key=settings.gemini_api_key)
+        suggestions = analyzer.identify_objects_in_image(crop_path)
+        
+        # Cleanup
+        if crop_path.exists():
+            crop_path.unlink()
+            
+        return ObjectDetectionResponse(suggestions=suggestions)
+        
+    except Exception as e:
+        logger.error(f"Gemini analysis failed: {e}")
+        # Return empty list rather than 500 so UI can still function manually
+        return ObjectDetectionResponse(suggestions=[])
+
 
 
 @router.post("/upload", response_model=VideoUploadResponse)
@@ -1153,73 +1219,177 @@ async def blur_object(
         raise HTTPException(status_code=400, detail="Video file not found")
     
     try:
-        # Create a cache key from the prompt (sanitized for filename)
-        prompt_hash = hashlib.md5(request.text_prompt.lower().encode()).hexdigest()[:8]
-        prompt_slug = "".join(c if c.isalnum() else "_" for c in request.text_prompt.lower())[:20]
-        cache_filename = f"mask_{prompt_slug}_{prompt_hash}.mp4"
+        # Define job directory first (needed for both paths)
         job_dir = job.video_path.parent
-        cached_mask_path = job_dir / cache_filename
         
-        # Check if mask is already cached
-        if cached_mask_path.exists():
-            logger.info(f"Using cached mask for '{request.text_prompt}': {cached_mask_path}")
-            mask_video_path = cached_mask_path
-        else:
-            # Step 1: Run SAM3 to create mask (using difference mode for robustness)
-            # We request the full video with green overlay, then subtract original to get the mask.
-            # This is more robust than mask_only=True which seems to resolve to black/empty sometimes.
-            logger.info(f"Step 1: Creating segmentation for '{request.text_prompt}' using SAM3...")
-            job = pipeline.segment_video_with_sam3(
-                job_id=request.job_id,
-                text_prompt=request.text_prompt,
-                mask_only=False,  # Get full video + overlay
-                mask_color="green",
-                mask_opacity=1.0  # Solid overlay for clear difference
+        # SMART CLIPPING OPTIMIZATION: If timestamps provided, process only the clip
+        use_smart_clipping = request.start_time is not None and request.end_time is not None
+        
+        if use_smart_clipping:
+            logger.info(f"🚀 Smart Clipping enabled: processing {request.start_time:.2f}s to {request.end_time:.2f}s")
+            
+            # Step 0: Extract clip from original video
+            clip_path = job_dir / f"clip_{request.start_time}_{request.end_time}.mp4"
+            pipeline.frame_extractor.extract_clip(
+                video_path=job.video_path,
+                output_path=clip_path,
+                start_time=request.start_time,
+                end_time=request.end_time,
+                buffer_seconds=1.0
             )
             
-            if not job.segmented_video_path or not job.segmented_video_path.exists():
-                raise ValueError("SAM3 mask generation failed")
+            # Create a cache key from the prompt (sanitized for filename)
+            prompt_hash = hashlib.md5(request.text_prompt.lower().encode()).hexdigest()[:8]
+            prompt_slug = "".join(c if c.isalnum() else "_" for c in request.text_prompt.lower())[:20]
+            cache_filename = f"mask_{prompt_slug}_{prompt_hash}_clip.mp4"
+            cached_mask_path = job_dir / cache_filename
             
-            # Cache the mask for future use
-            import shutil
-            shutil.copy(job.segmented_video_path, cached_mask_path)
-            logger.info(f"Cached mask to: {cached_mask_path}")
-            mask_video_path = cached_mask_path
-        
-        # Step 2: Apply blur/pixelate effect using FFmpeg
-        logger.info(f"Step 2: Applying {request.effect_type} effect...")
-        video_builder = VideoBuilder(ffmpeg_path=pipeline.ffmpeg_path)
-        
-        # IMPORTANT: Use previous output if exists (for chaining effects)
-        # Otherwise use original video
-        if job.output_path and job.output_path.exists():
-            input_video = job.output_path
-            logger.info(f"Chaining effect on previous result: {input_video}")
-        else:
-            input_video = job.video_path
-            logger.info(f"Applying effect to original video: {input_video}")
-        
-        output_path = job_dir / f"output_{request.effect_type}_{prompt_hash}.mp4"
-        
-        if request.effect_type == "pixelate":
-            video_builder.apply_pixelate_with_mask(
-                input_video=input_video,
-                mask_video=mask_video_path,
+            # Check if mask is already cached for this clip
+            if cached_mask_path.exists():
+                logger.info(f"Using cached mask for '{request.text_prompt}': {cached_mask_path}")
+                mask_video_path = cached_mask_path
+            else:
+                # Step 1: Run SAM3 on the CLIP (much faster!)
+                logger.info(f"Step 1: Creating segmentation for '{request.text_prompt}' on clip using SAM3...")
+                
+                # Call SAM3 directly on the clip
+                from core.sam3_engine import Sam3VideoEngine
+                sam3_video = Sam3VideoEngine(api_token=pipeline.replicate_api_token)
+                
+                result = sam3_video.segment_video(
+                    video_source=clip_path,  # Fixed: was 'video'
+                    prompt=request.text_prompt,  # Fixed: was 'text_prompt'
+                    mask_only=False,
+                    mask_color="green",
+                    mask_opacity=1.0
+                )
+                
+                # Download mask
+                mask_video_path = job_dir / f"mask_clip_{prompt_hash}.mp4"
+                import httpx
+                response = httpx.get(result['output_url'], follow_redirects=True)  # Fixed: was 'video_url'
+                response.raise_for_status()
+                with open(mask_video_path, 'wb') as f:
+                    f.write(response.content)
+                
+                # Cache the mask
+                import shutil
+                shutil.copy(mask_video_path, cached_mask_path)
+                logger.info(f"Cached mask to: {cached_mask_path}")
+            
+            # Step 2: Apply blur/pixelate effect to the clip
+            logger.info(f"Step 2: Applying {request.effect_type} effect to clip...")
+            video_builder = VideoBuilder(ffmpeg_path=pipeline.ffmpeg_path)
+            
+            processed_clip_path = job_dir / f"processed_clip_{prompt_hash}.mp4"
+            
+            if request.effect_type == "pixelate":
+                video_builder.apply_pixelate_with_mask(
+                    input_video=clip_path,
+                    mask_video=mask_video_path,
+                    output_path=processed_clip_path,
+                    pixel_size=max(8, 64 // (request.blur_strength // 10 + 1))
+                )
+            else:
+                video_builder.apply_blur_with_mask(
+                    input_video=clip_path,
+                    mask_video=mask_video_path,
+                    output_path=processed_clip_path,
+                    blur_strength=request.blur_strength
+                )
+            
+            # Step 3: Stitch processed clip back into original video
+            logger.info("Step 3: Stitching processed clip back into original video...")
+            
+            # Determine source video (for chaining effects)
+            if job.output_path and job.output_path.exists():
+                source_video = job.output_path
+                logger.info(f"Chaining effect on previous result: {source_video}")
+            else:
+                source_video = job.video_path
+                logger.info(f"Applying effect to original video: {source_video}")
+            
+            output_path = job_dir / f"output_{request.effect_type}_{prompt_hash}_stitched.mp4"
+            
+            video_builder.insert_segment(
+                original_video=source_video,
+                processed_segment=processed_clip_path,
                 output_path=output_path,
-                pixel_size=max(8, 64 // (request.blur_strength // 10 + 1))
+                start_time=request.start_time,
+                end_time=request.end_time,
+                buffer_seconds=1.0
             )
+            
+            # Update job with final output
+            job.output_path = output_path
+            logger.info(f"✅ Smart Clipping complete: {output_path}")
+            
         else:
-            video_builder.apply_blur_with_mask(
-                input_video=input_video,
-                mask_video=mask_video_path,
-                output_path=output_path,
-                blur_strength=request.blur_strength
-            )
-        
-        # Update job with final output (for next effect to chain on)
-        job.output_path = output_path
-        
-        logger.info(f"Blur effect applied successfully: {output_path}")
+            # LEGACY FULL VIDEO PROCESSING (when no timestamps provided)
+            logger.info("⚠️ Processing full video (no timestamps provided)")
+            
+            # Create a cache key from the prompt (sanitized for filename)
+            prompt_hash = hashlib.md5(request.text_prompt.lower().encode()).hexdigest()[:8]
+            prompt_slug = "".join(c if c.isalnum() else "_" for c in request.text_prompt.lower())[:20]
+            cache_filename = f"mask_{prompt_slug}_{prompt_hash}.mp4"
+            cached_mask_path = job_dir / cache_filename
+            
+            # Check if mask is already cached
+            if cached_mask_path.exists():
+                logger.info(f"Using cached mask for '{request.text_prompt}': {cached_mask_path}")
+                mask_video_path = cached_mask_path
+            else:
+                # Step 1: Run SAM3 to create mask
+                logger.info(f"Step 1: Creating segmentation for '{request.text_prompt}' using SAM3...")
+                job = pipeline.segment_video_with_sam3(
+                    job_id=request.job_id,
+                    text_prompt=request.text_prompt,
+                    mask_only=False,
+                    mask_color="green",
+                    mask_opacity=1.0
+                )
+                
+                if not job.segmented_video_path or not job.segmented_video_path.exists():
+                    raise ValueError("SAM3 mask generation failed")
+                
+                # Cache the mask for future use
+                import shutil
+                shutil.copy(job.segmented_video_path, cached_mask_path)
+                logger.info(f"Cached mask to: {cached_mask_path}")
+                mask_video_path = cached_mask_path
+            
+            # Step 2: Apply blur/pixelate effect using FFmpeg
+            logger.info(f"Step 2: Applying {request.effect_type} effect...")
+            video_builder = VideoBuilder(ffmpeg_path=pipeline.ffmpeg_path)
+            
+            # Use previous output if exists (for chaining effects)
+            if job.output_path and job.output_path.exists():
+                input_video = job.output_path
+                logger.info(f"Chaining effect on previous result: {input_video}")
+            else:
+                input_video = job.video_path
+                logger.info(f"Applying effect to original video: {input_video}")
+            
+            output_path = job_dir / f"output_{request.effect_type}_{prompt_hash}.mp4"
+            
+            if request.effect_type == "pixelate":
+                video_builder.apply_pixelate_with_mask(
+                    input_video=input_video,
+                    mask_video=mask_video_path,
+                    output_path=output_path,
+                    pixel_size=max(8, 64 // (request.blur_strength // 10 + 1))
+                )
+            else:
+                video_builder.apply_blur_with_mask(
+                    input_video=input_video,
+                    mask_video=mask_video_path,
+                    output_path=output_path,
+                    blur_strength=request.blur_strength
+                )
+            
+            # Update job with final output
+            job.output_path = output_path
+            logger.info(f"Blur effect applied successfully: {output_path}")
         
         return BlurEffectResponse(
             job_id=request.job_id,
@@ -1227,11 +1397,17 @@ async def blur_object(
             download_path=f"/api/download/{request.job_id}",
             text_prompt=request.text_prompt,
             effect_type=request.effect_type,
-            message=f"Applied {request.effect_type} effect to '{request.text_prompt}'"
+            message=f"Applied {request.effect_type} effect to '{request.text_prompt}'" + (" (Smart Clipping)" if use_smart_clipping else "")
         )
         
     except ValueError as e:
+        logger.error(f"Blur effect validation error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Blur effect failed: {e}")
+        logger.error(f"Blur effect failed with exception: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
+

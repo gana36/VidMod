@@ -274,6 +274,8 @@ class BlurEffectRequest(BaseModel):
     )
     blur_strength: int = Field(30, ge=5, le=100, description="Blur intensity (10-50 recommended)")
     effect_type: str = Field("blur", description="Effect type: 'blur' or 'pixelate'")
+    start_time: Optional[float] = Field(None, description="Start time in seconds for clip processing (Smart Clipping optimization)")
+    end_time: Optional[float] = Field(None, description="End time in seconds for clip processing (Smart Clipping optimization)")
 
 
 class BlurEffectResponse(BaseModel):
@@ -282,5 +284,17 @@ class BlurEffectResponse(BaseModel):
     status: str
     download_path: Optional[str] = None
     text_prompt: str = ""
-    effect_type: str = "blur"
     message: str = ""
+
+
+class ObjectDetectionRequest(BaseModel):
+    """Request to detect objects in a specific bounding box."""
+    job_id: str = Field(..., description="Job ID from video upload")
+    timestamp: float = Field(..., description="Video timestamp to extract frame from")
+    box: dict = Field(..., description="Bounding box {top, left, width, height} in percentages")
+
+
+class ObjectDetectionResponse(BaseModel):
+    """Response with object suggestions."""
+    suggestions: List[str] = Field(default_factory=list)
+

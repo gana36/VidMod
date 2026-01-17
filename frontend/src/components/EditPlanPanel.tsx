@@ -193,7 +193,13 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
 
                 setBatchProgress(`Processing ${effectType}: ${combinedPrompt} (${i + 1}/${effectTypes.length})`);
 
-                // Call API with combined prompt for this effect type
+                // Get timestamp from the first finding that matches the objects
+                // (For batch processing, we'll use the earliest timestamp)
+                const matchingFinding = findings.find(f =>
+                    objects.some(obj => f.content.toLowerCase().includes(obj.toLowerCase()))
+                );
+
+                // Call API with combined prompt for this effect type + timestamps for Smart Clipping
                 const response = await fetch('http://localhost:8000/api/blur-object', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -201,7 +207,9 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                         job_id: jobId,
                         text_prompt: combinedPrompt,
                         effect_type: effectType === 'pixelate' ? 'pixelate' : 'blur',
-                        blur_strength: 30
+                        blur_strength: 30,
+                        start_time: matchingFinding?.startTime,
+                        end_time: matchingFinding?.endTime
                     })
                 });
 
@@ -557,14 +565,15 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
             </div>
 
             {/* Action Modal */}
-            {selectedStep && jobId && (
+            {modalOpen && selectedStep && jobId && (
                 <ActionModal
                     isOpen={modalOpen}
                     onClose={() => setModalOpen(false)}
                     jobId={jobId}
                     actionType={selectedActionType}
                     objectPrompt={selectedStep.violation}
-                    suggestedReplacement={getReplacementPrompt(selectedStep)}
+                    startTime={selectedStep.finding.startTime}
+                    endTime={selectedStep.finding.endTime}
                     onActionComplete={(result) => {
                         onActionComplete?.(result.type, result);
                         setModalOpen(false);

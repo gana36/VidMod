@@ -245,7 +245,9 @@ export async function blurObject(
     jobId: string,
     textPrompt: string,
     blurStrength: number = 30,
-    effectType: 'blur' | 'pixelate' = 'blur'
+    effectType: 'blur' | 'pixelate' = 'blur',
+    startTime?: number,
+    endTime?: number
 ): Promise<BlurEffectResponse> {
     const response = await fetch(`${API_BASE}/blur-object`, {
         method: 'POST',
@@ -255,11 +257,42 @@ export async function blurObject(
             text_prompt: textPrompt,
             blur_strength: blurStrength,
             effect_type: effectType,
+            start_time: startTime,
+            end_time: endTime,
         }),
     });
 
     if (!response.ok) {
         throw new Error(`Blur effect failed: ${response.statusText}`);
+    }
+
+    return response.json();
+}
+
+export interface ObjectDetectionResponse {
+    suggestions: string[];
+}
+
+/**
+ * Detect objects within a bounding box using Gemini
+ */
+export async function detectObjects(
+    jobId: string,
+    timestamp: number,
+    box: { top: number; left: number; width: number; height: number }
+): Promise<ObjectDetectionResponse> {
+    const response = await fetch(`${API_BASE}/detect-objects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            job_id: jobId,
+            timestamp: timestamp,
+            box: box,
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`Object detection failed: ${response.statusText}`);
     }
 
     return response.json();
