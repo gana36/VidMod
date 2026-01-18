@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import VideoWorkspace, { type Finding } from './VideoWorkspace';
 import RightPanel from './RightPanel';
 import UploadZone, { type VideoMetadata } from './UploadZone';
-import { Eye, EyeOff } from 'lucide-react';
 
 // Edit version interface for tracking history
 export interface EditVersion {
@@ -180,8 +179,38 @@ const AppLayout: React.FC = () => {
         ));
     };
 
+    // Right Panel Resizing Logic
+    const [rightPanelWidth, setRightPanelWidth] = useState(380);
+    const [isResizing, setIsResizing] = useState(false);
+
+    const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
+        setIsResizing(true);
+    }, []);
+
+    const stopResizing = useCallback(() => {
+        setIsResizing(false);
+    }, []);
+
+    const resize = useCallback((mouseMoveEvent: MouseEvent) => {
+        if (isResizing) {
+            const newWidth = window.innerWidth - mouseMoveEvent.clientX;
+            if (newWidth >= 300 && newWidth <= 600) {
+                setRightPanelWidth(newWidth);
+            }
+        }
+    }, [isResizing]);
+
+    useEffect(() => {
+        window.addEventListener("mousemove", resize);
+        window.addEventListener("mouseup", stopResizing);
+        return () => {
+            window.removeEventListener("mousemove", resize);
+            window.removeEventListener("mouseup", stopResizing);
+        };
+    }, [resize, stopResizing]);
+
     return (
-        <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
+        <div className={`flex h-screen w-full overflow-hidden bg-background text-foreground ${isResizing ? 'cursor-col-resize select-none' : ''}`}>
             {/* Sidebar - Fixed width */}
             <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} metadata={videoMetadata} />
 
@@ -194,17 +223,18 @@ const AppLayout: React.FC = () => {
                     onRegionChange={setRegion}
                 />
 
-                <main className="flex flex-1 overflow-hidden p-4 gap-4">
+                <main className="flex flex-1 overflow-hidden relative">
                     {activeTab === 'Upload' ? (
-                        <div className="flex-1">
+                        <div className="flex-1 p-4">
                             <UploadZone
                                 onUploadComplete={handleUploadComplete}
                                 onFileSelected={handleFileSelected}
                             />
                         </div>
                     ) : (
-                        <>
-                            <div className="flex-[3] min-w-0 relative">
+                        <div className="flex-1 relative flex overflow-hidden">
+                            {/* 1. Video Space (Flex-grow) */}
+                            <div className="flex-1 relative min-w-0 h-full overflow-hidden p-4 pr-0">
                                 <VideoWorkspace
                                     videoUrl={currentVideoUrl || ''}
                                     seekTo={seekToTimestamp ?? undefined}
@@ -214,45 +244,59 @@ const AppLayout: React.FC = () => {
                                     onAddFinding={handleAddFinding}
                                 />
 
-                                {/* Video Toggle Button - Only show when edited video exists */}
+                                {/* Status Indicator/Toggle Button */}
                                 {editedVideoUrl && (
                                     <button
                                         onClick={() => setShowOriginal(!showOriginal)}
-                                        className={`absolute top-6 right-6 z-20 flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-sm transition-all shadow-lg ${showOriginal
-                                            ? 'bg-amber-500/90 text-white hover:bg-amber-400'
-                                            : 'bg-accent/90 text-white hover:bg-accent'
+                                        className={`absolute top-10 left-10 z-20 flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-2xl glass-panel border-white/10 ${showOriginal
+                                            ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
+                                            : 'bg-primary/20 text-primary border-primary/40 hover:bg-primary/30'
                                             }`}
-                                        title={showOriginal ? 'Viewing Original - Click to see Edited' : 'Viewing Edited - Click to see Original'}
                                     >
-                                        {showOriginal ? (
-                                            <>
-                                                <EyeOff className="w-4 h-4" />
-                                                Original
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Eye className="w-4 h-4" />
-                                                Edited
-                                            </>
-                                        )}
+                                        <div className="relative flex items-center justify-center w-2 h-2 mr-1">
+                                            <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping ${showOriginal ? 'bg-amber-400' : 'bg-primary'}`} />
+                                            <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${showOriginal ? 'bg-amber-400' : 'bg-primary'}`} />
+                                        </div>
+                                        {showOriginal ? 'Original' : 'Remediated'}
                                     </button>
                                 )}
                             </div>
-                            <div className="flex-1 min-w-[300px] max-w-[400px]">
-                                <RightPanel
-                                    onSeekTo={handleSeekTo}
-                                    findings={findings}
-                                    currentTime={currentTime}
-                                    isAnalyzing={isAnalyzing}
-                                    jobId={jobId || undefined}
-                                    onActionComplete={handleActionComplete}
-                                    editHistory={editHistory}
-                                    onPreviewVersion={handlePreviewVersion}
-                                    onToggleVersion={handleToggleVersion}
-                                    selectedVersion={selectedVersion}
-                                />
+
+                            {/* 2. Base Spacer - Reserves space for the RightPanel initially */}
+                            <div className="flex-none w-[380px] h-full pointer-events-none" />
+
+                            {/* 3. Absolute Right Panel Overlay */}
+                            <div
+                                className="absolute right-0 top-0 h-full z-[100] flex border-l border-white/5 bg-background/20 backdrop-blur-3xl"
+                                style={{
+                                    width: Math.max(380, rightPanelWidth),
+                                    boxShadow: rightPanelWidth > 380 ? '-20px 0 50px rgba(0,0,0,0.5)' : 'none'
+                                }}
+                            >
+                                {/* Resize Handle */}
+                                <div
+                                    className="absolute -left-1 top-0 w-2 h-full cursor-col-resize hover:bg-primary/20 transition-colors flex items-center justify-center group z-[110]"
+                                    onMouseDown={startResizing}
+                                >
+                                    <div className={`w-0.5 h-16 rounded-full bg-white/10 group-hover:bg-primary/50 transition-colors ${isResizing ? 'bg-primary' : ''}`} />
+                                </div>
+
+                                <div className="flex-1 h-full p-4 overflow-hidden">
+                                    <RightPanel
+                                        onSeekTo={handleSeekTo}
+                                        findings={findings}
+                                        currentTime={currentTime}
+                                        isAnalyzing={isAnalyzing}
+                                        jobId={jobId || undefined}
+                                        onActionComplete={handleActionComplete}
+                                        editHistory={editHistory}
+                                        onPreviewVersion={handlePreviewVersion}
+                                        onToggleVersion={handleToggleVersion}
+                                        selectedVersion={selectedVersion}
+                                    />
+                                </div>
                             </div>
-                        </>
+                        </div>
                     )}
                 </main>
             </div>

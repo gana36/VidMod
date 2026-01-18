@@ -1,28 +1,67 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #09090b;
+  --color-background: #050507;
   --color-foreground: #fafafa;
-  --color-card: #18181b;
-  --color-border: #27272a;
-  --color-muted: #3f3f46;
+  --color-card: #0c0c0e;
+  --color-card-foreground: #fafafa;
+  --color-popover: #0c0c0e;
+  --color-popover-foreground: #fafafa;
+  --color-primary: #3b82f6;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #18181b;
+  --color-secondary-foreground: #fafafa;
+  --color-muted: #111114;
+  --color-muted-foreground: #a1a1aa;
   --color-accent: #3b82f6;
-  
+  --color-accent-foreground: #ffffff;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #fafafa;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-input: #18181b;
+  --color-ring: #3b82f6;
+
   --radius-xl: 1rem;
   --radius-lg: 0.75rem;
   --radius-md: 0.5rem;
   --radius-sm: 0.25rem;
+
+  --glass-bg: rgba(12, 12, 14, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: 16px;
 }
 
 @layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased selection:bg-primary/30;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-image:
+      radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.03) 0px, transparent 50%);
+    background-attachment: fixed;
   }
 }
 
-@layer components {
-  .panel {
-    @apply bg-card border border-border rounded-lg shadow-sm;
+@layer utilities {
+  .glass-panel {
+    @apply bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-xl;
+    backdrop-filter: blur(var(--glass-blur));
+  }
+
+  .glass-card {
+    @apply bg-card/60 border border-[var(--glass-border)] rounded-xl shadow-xl transition-all duration-300;
+    backdrop-filter: blur(8px);
+
+    &:hover {
+      @apply border-white/20 bg-card/80 shadow-primary/10;
+    }
+  }
+
+  .btn-primary {
+    @apply bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium transition-all hover:brightness-110 active:scale-95 shadow-lg shadow-primary/20;
   }
 }
