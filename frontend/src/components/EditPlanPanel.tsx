@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, EyeOff, ShieldCheck, Info, Play, RefreshCw, Grid, Plus, Search, X } from 'lucide-react';
+import { ChevronDown, EyeOff, ShieldCheck, Info, Play, RefreshCw, Grid, Plus, Search, X, AlertCircle } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import ActionModal, { type ActionType } from './ActionModal';
@@ -168,45 +168,122 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
     const [isProcessingBatch, setIsProcessingBatch] = useState(false);
     const [batchProgress, setBatchProgress] = useState('');
 
-    // Apply All - process queue grouped by effect type
+    // State for batch review modal
+    const [showBatchReviewModal, setShowBatchReviewModal] = useState(false);
+
+    // Batch findings configuration (editable in modal)
+    interface BatchFindingConfig {
+        finding: Finding;
+        selected: boolean;
+        effectType: 'blur' | 'pixelate';
+        prompt: string;
+        startTime: number;  // Editable timestamp
+        endTime: number;    // Editable timestamp
+    }
+
+    const [batchConfigs, setBatchConfigs] = useState<BatchFindingConfig[]>([]);
+
+    // Initialize batch configs from findings
+    const initializeBatchConfigs = () => {
+        const configs: BatchFindingConfig[] = findings.map(f => ({
+            finding: f,
+            selected: true, // All selected by default
+            effectType: (f.suggestedAction?.toLowerCase().includes('pixelate') ? 'pixelate' : 'blur') as 'blur' | 'pixelate',
+            prompt: f.content,
+            startTime: f.startTime,
+            endTime: f.endTime
+        }));
+        setBatchConfigs(configs);
+        setShowBatchReviewModal(true);
+    };
+
+    // Process selected findings
+    // Process selected findings
+    const processBatchFindings = async () => {
+        const selected = batchConfigs.filter(c => c.selected);
+        if (selected.length === 0 || !jobId) return;
+
+        setShowBatchReviewModal(false);
+        setIsProcessingBatch(true);
+        setBatchProgress(`Starting batch process for ${selected.length} findings...`);
+
+        try {
+            let lastDownloadUrl = '';
+
+            for (let i = 0; i < selected.length; i++) {
+                const config = selected[i];
+                const shortPrompt = config.prompt.substring(0, 60) + (config.prompt.length > 60 ? '...' : '');
+
+                setBatchProgress(`Processing ${i + 1}/${selected.length}: ${shortPrompt}`);
+
+                // Import blurObject from api
+                const { blurObject } = await import('../services/api');
+
+                const result = await blurObject(
+                    jobId,
+                    config.prompt,
+                    30,
+                    config.effectType,
+                    config.startTime,  // Use editable timestamp
+                    config.endTime     // Use editable timestamp
+                );
+
+                if (result && result.download_path) {
+                    lastDownloadUrl = `http://localhost:8000${result.download_path}`;
+                }
+            }
+
+            setBatchProgress(`✅ Successfully processed ${selected.length} findings!`);
+
+            // Pass the final video URL to the parent to reload the player
+            if (onActionComplete) {
+                onActionComplete('batch-findings', {
+                    count: selected.length,
+                    downloadUrl: lastDownloadUrl
+                });
+            }
+
+        } catch (error: any) {
+            setBatchProgress(`❌ Error: ${error.message}`);
+        } finally {
+            setTimeout(() => {
+                setIsProcessingBatch(false);
+                setBatchProgress('');
+            }, 3000);
+        }
+    };
+
+    // Apply All - process queue sequentially to ensure Smart Clipping works correctly for each item
     const handleApplyAll = async () => {
         if (customObjects.length === 0 || !jobId) return;
 
         setIsProcessingBatch(true);
 
         try {
-            // Group objects by effect type
-            const groups: Record<string, string[]> = {};
-            customObjects.forEach((obj: CustomObject) => {
-                const effect = obj.appliedEffect || 'blur';
-                if (!groups[effect]) groups[effect] = [];
-                groups[effect].push(obj.name);
-            });
+            console.log('Processing objects sequentially:', customObjects);
 
-            console.log('Processing groups:', groups);
+            // Process each object sequentially to respect individual timestamps for Smart Clipping
+            for (let i = 0; i < customObjects.length; i++) {
+                const obj = customObjects[i];
+                setBatchProgress(`Processing ${i + 1}/${customObjects.length}: ${obj.name}`);
 
-            // Process each effect group
-            const effectTypes = Object.keys(groups);
-            for (let i = 0; i < effectTypes.length; i++) {
-                const effectType = effectTypes[i];
-                const objects = groups[effectType];
-                const combinedPrompt = objects.join(', ');
-
-                setBatchProgress(`Processing ${effectType}: ${combinedPrompt} (${i + 1}/${effectTypes.length})`);
-
-                // Get timestamp from the first finding that matches the objects
-                // (For batch processing, we'll use the earliest timestamp)
+                // Get timestamp from the matching finding
+                // Use the FIRST finding that matches the content
                 const matchingFinding = findings.find(f =>
-                    objects.some(obj => f.content.toLowerCase().includes(obj.toLowerCase()))
+                    f.content.toLowerCase().includes(obj.name.toLowerCase()) ||
+                    obj.name.toLowerCase().includes(f.content.toLowerCase())
                 );
 
-                // Call API with combined prompt for this effect type + timestamps for Smart Clipping
+                // Effective Prompt: Use the object name
+                const effectType = obj.appliedEffect || 'blur';
+
+                // Call API for this single object/effect
                 const response = await fetch('http://localhost:8000/api/blur-object', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         job_id: jobId,
-                        text_prompt: combinedPrompt,
+                        text_prompt: obj.name,
                         effect_type: effectType === 'pixelate' ? 'pixelate' : 'blur',
                         blur_strength: 30,
                         start_time: matchingFinding?.startTime,
@@ -215,24 +292,17 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Failed to process ${effectType}: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                console.log(`${effectType} result:`, result);
-
-                // Notify parent of completion
-                if (onActionComplete) {
-                    onActionComplete(effectType, {
-                        downloadUrl: `http://localhost:8000${result.download_path}`,
-                        objectName: combinedPrompt
-                    });
+                    throw new Error(`Failed to process ${obj.name}`);
                 }
             }
 
-            // Clear queue after successful processing
+            // Clear queue logic 
             setCustomObjects([]);
-            setBatchProgress('All effects applied successfully!');
+
+            // Trigger refresh
+            if (onActionComplete) {
+                onActionComplete('batch-queue', { count: customObjects.length });
+            }
 
         } catch (error) {
             console.error('Batch processing error:', error);
@@ -547,6 +617,33 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                         })}
                     </div>
                 )}
+
+                {/* Process All Findings Button */}
+                {steps.length > 0 && jobId && (
+                    <div className="mt-6 mb-4">
+                        <button
+                            onClick={initializeBatchConfigs}
+                            disabled={isProcessingBatch}
+                            className="w-full py-3 bg-gradient-to-r from-accent via-purple-600 to-pink-600 hover:from-accent/90 hover:via-purple-600/90 hover:to-pink-600/90 text-white rounded-xl font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                        >
+                            {isProcessingBatch ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Processing...
+                                </>
+                            ) : (
+                                <>
+                                    🚀 Process All Findings ({steps.length} items)
+                                </>
+                            )}
+                        </button>
+                        {batchProgress && (
+                            <p className={`text-sm mt-2 text-center font-medium ${batchProgress.includes('Error') || batchProgress.includes('❌') ? 'text-red-400' : 'text-emerald-400'}`}>
+                                {batchProgress}
+                            </p>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className="p-4 mt-auto border-t border-border bg-white/[0.01]">
@@ -563,6 +660,178 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     />
                 </div>
             </div>
+
+
+            {/* Batch Review Modal */}
+            {showBatchReviewModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    {/* Backdrop */}
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowBatchReviewModal(false)} />
+
+                    {/* Modal */}
+                    <div className="relative z-10 w-full max-w-4xl max-h-[90vh] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20">
+                            <h2 className="font-bold text-lg flex items-center gap-2">
+                                🚀 Batch Process Findings
+                            </h2>
+                            <button onClick={() => setShowBatchReviewModal(false)} className="p-1 rounded-lg hover:bg-muted transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                            {batchConfigs.map((config, index) => (
+                                <div key={index} className={`p-4 rounded-xl border transition-all ${config.selected ? 'border-accent bg-accent/5' : 'border-border bg-muted/10'}`}>
+                                    <div className="flex items-start gap-3">
+                                        {/* Checkbox */}
+                                        <input
+                                            type="checkbox"
+                                            checked={config.selected}
+                                            onChange={(e) => {
+                                                const updated = [...batchConfigs];
+                                                updated[index].selected = e.target.checked;
+                                                setBatchConfigs(updated);
+                                            }}
+                                            className="mt-1 w-5 h-5 rounded border-2 border-accent text-accent focus:ring-2 focus:ring-accent cursor-pointer"
+                                        />
+
+                                        <div className="flex-1 space-y-3">
+                                            {/* Finding Info */}
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-xs font-bold text-accent uppercase">{config.finding.type}</span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {Math.floor(config.finding.startTime / 60)}:{String(Math.floor(config.finding.startTime % 60)).padStart(2, '0')} - {Math.floor(config.finding.endTime / 60)}:{String(Math.floor(config.finding.endTime % 60)).padStart(2, '0')}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Editable Prompt */}
+                                                    <textarea
+                                                        value={config.prompt}
+                                                        onChange={(e) => {
+                                                            const updated = [...batchConfigs];
+                                                            updated[index].prompt = e.target.value;
+                                                            setBatchConfigs(updated);
+                                                        }}
+                                                        className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+                                                        rows={2}
+                                                        placeholder="Object description..."
+                                                    />
+
+                                                    {/* Editable Timestamps */}
+                                                    <div className="mt-2 space-y-2">
+                                                        <div className="flex items-center gap-3">
+                                                            <label className="text-xs text-muted-foreground min-w-[60px]">Start:</label>
+                                                            <input
+                                                                type="number"
+                                                                value={config.startTime}
+                                                                onChange={(e) => {
+                                                                    const updated = [...batchConfigs];
+                                                                    updated[index].startTime = parseFloat(e.target.value) || 0;
+                                                                    setBatchConfigs(updated);
+                                                                }}
+                                                                step="0.1"
+                                                                min="0"
+                                                                className="flex-1 px-3 py-1.5 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                                                                placeholder="0.0"
+                                                            />
+                                                            <span className="text-xs text-muted-foreground">seconds</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <label className="text-xs text-muted-foreground min-w-[60px]">End:</label>
+                                                            <input
+                                                                type="number"
+                                                                value={config.endTime}
+                                                                onChange={(e) => {
+                                                                    const updated = [...batchConfigs];
+                                                                    updated[index].endTime = parseFloat(e.target.value) || 0;
+                                                                    setBatchConfigs(updated);
+                                                                }}
+                                                                step="0.1"
+                                                                min={config.startTime}
+                                                                className="flex-1 px-3 py-1.5 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                                                                placeholder="0.0"
+                                                            />
+                                                            <span className="text-xs text-muted-foreground">seconds</span>
+                                                        </div>
+
+                                                        {/* Duration Warning */}
+                                                        {(config.endTime - config.startTime) > 15 && (
+                                                            <div className="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                                                                <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                                                                <span className="text-xs text-amber-400">
+                                                                    ⚠️ Clip duration is {(config.endTime - config.startTime).toFixed(1)}s. SAM3 works best with clips ≤ 15 seconds.
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Effect Type Toggle */}
+                                                <div className="flex flex-col gap-2">
+                                                    <button
+                                                        onClick={() => {
+                                                            const updated = [...batchConfigs];
+                                                            updated[index].effectType = 'blur';
+                                                            setBatchConfigs(updated);
+                                                        }}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${config.effectType === 'blur'
+                                                            ? 'bg-amber-500/20 text-amber-400 border-2 border-amber-500'
+                                                            : 'bg-muted border border-border text-muted-foreground hover:bg-muted-foreground/10'
+                                                            }`}
+                                                    >
+                                                        <EyeOff className="w-3 h-3 inline mr-1" />
+                                                        Blur
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            const updated = [...batchConfigs];
+                                                            updated[index].effectType = 'pixelate';
+                                                            setBatchConfigs(updated);
+                                                        }}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${config.effectType === 'pixelate'
+                                                            ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500'
+                                                            : 'bg-muted border border-border text-muted-foreground hover:bg-muted-foreground/10'
+                                                            }`}
+                                                    >
+                                                        <Grid className="w-3 h-3 inline mr-1" />
+                                                        Pixelate
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">
+                                {batchConfigs.filter(c => c.selected).length} of {batchConfigs.length} selected
+                            </span>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setShowBatchReviewModal(false)}
+                                    className="px-4 py-2 bg-muted hover:bg-muted-foreground/20 rounded-lg font-medium transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={processBatchFindings}
+                                    disabled={batchConfigs.filter(c => c.selected).length === 0}
+                                    className="px-6 py-2 bg-gradient-to-r from-accent to-purple-600 hover:from-accent/90 hover:to-purple-600/90 text-white rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Process Selected ({batchConfigs.filter(c => c.selected).length})
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Action Modal */}
             {modalOpen && selectedStep && jobId && (

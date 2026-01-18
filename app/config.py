@@ -73,6 +73,12 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""  # Gemini API key for Nano Banana image editing
     fal_key: str = ""  # fal.ai API key for VACE video inpainting
     
+    # AWS S3 Configuration (optional - for cloud storage)
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    aws_s3_bucket_name: str = ""
+    aws_region: str = "us-east-1"
+    
     # Server Configuration
     host: str = "0.0.0.0"
     port: int = 8000

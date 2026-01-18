@@ -10,6 +10,7 @@ function cn(...inputs: ClassValue[]) {
 interface UploadZoneProps {
     onUploadComplete: (metadata: VideoMetadata) => void;
     onFileSelected: (metadata: VideoMetadata) => void;
+    onBrowseLibrary?: () => void;  // New: Open video library
 }
 
 export interface VideoMetadata {
@@ -22,7 +23,7 @@ export interface VideoMetadata {
     jobId?: string;  // Added for backend upload
 }
 
-const UploadZone: React.FC<UploadZoneProps> = ({ onUploadComplete, onFileSelected }) => {
+const UploadZone: React.FC<UploadZoneProps> = ({ onUploadComplete, onFileSelected, onBrowseLibrary }) => {
     const [isDragging, setIsDragging] = useState(false);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'ready'>('idle');
@@ -166,6 +167,14 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onUploadComplete, onFileSelecte
                                 >
                                     Select File
                                 </button>
+                                {onBrowseLibrary && (
+                                    <button
+                                        onClick={onBrowseLibrary}
+                                        className="px-8 py-3 bg-muted text-foreground rounded-xl font-bold hover:bg-muted/80 hover:translate-y-[-2px] transition-all active:scale-95"
+                                    >
+                                        📚 Browse Library
+                                    </button>
+                                )}
                                 <div className="flex gap-4 justify-center items-center mt-12">
                                     <span className="text-[10px] bg-muted/30 px-3 py-1 rounded-full font-bold text-muted-foreground tracking-widest uppercase">Max 120s</span>
                                     <span className="text-[10px] bg-muted/30 px-3 py-1 rounded-full font-bold text-muted-foreground tracking-widest uppercase">MP4 / MOV</span>

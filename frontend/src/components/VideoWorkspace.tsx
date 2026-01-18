@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, VolumeX, PencilLine } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, VolumeX, PencilLine, Eye, EyeOff } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import TimelineEditor from './TimelineEditor';
@@ -51,6 +51,7 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
     const [showControls, setShowControls] = useState(true);
     const [isEditMode, setIsEditMode] = useState(false);
     const [videoDimensions, setVideoDimensions] = useState({ width: 0, height: 0 });
+    const [showOverlays, setShowOverlays] = useState(true);
     const controlsTimeoutRef = useRef<any>(null);
     const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
@@ -277,6 +278,17 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
                         autoPlay
                     />
 
+                    {isEditMode && !isPlaying && (
+                        <div className="absolute inset-0 pointer-events-auto">
+                            <DrawingCanvas
+                                jobId={jobId || "temp-job"}
+                                currentTime={currentTime}
+                                onConfirm={handleManualEditConfirm}
+                                onCancel={() => setIsEditMode(false)}
+                            />
+                        </div>
+                    )}
+
                     {/* Overlay Container - now properly constrained to video aspect ratio */}
                     <div
                         id="video-overlay"
@@ -289,44 +301,38 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
                             transform: 'translate(-50%, -50%)'
                         }}
                     >
-                        {isEditMode && !isPlaying && (
-                            <div className="absolute inset-0 pointer-events-auto">
-                                <DrawingCanvas
-                                    jobId={jobId || "temp-job"}
-                                    currentTime={currentTime}
-                                    onConfirm={handleManualEditConfirm}
-                                    onCancel={() => setIsEditMode(false)}
-                                />
+                        {/* Bounding box overlays - toggle with Eye button */}
+                        {showOverlays && (
+                            <div className="absolute inset-0 pointer-events-none">
+                                {findings.map(finding => {
+                                    const isActive = currentTime >= finding.startTime && currentTime <= finding.endTime;
+                                    if (!isActive || !finding.box) return null;
+
+                                    return (
+                                        <div
+                                            key={finding.id}
+                                            className={cn(
+                                                "absolute border-2 rounded transition-opacity duration-200",
+                                                finding.status === 'critical' ? "border-red-500 bg-red-500/10" : "border-amber-500 bg-amber-500/10"
+                                            )}
+                                            style={{
+                                                top: `${finding.box.top}%`,
+                                                left: `${finding.box.left}%`,
+                                                width: `${finding.box.width}%`,
+                                                height: `${finding.box.height}%`
+                                            }}
+                                        >
+                                            <div className={cn(
+                                                "absolute -top-6 left-0 px-2 py-0.5 rounded text-[10px] font-bold text-white whitespace-nowrap uppercase tracking-wider shadow-lg",
+                                                finding.status === 'critical' ? "bg-red-500" : "bg-amber-500"
+                                            )}>
+                                                {finding.type}: {finding.content}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
-
-                        {findings.map(finding => {
-                            const isActive = currentTime >= finding.startTime && currentTime <= finding.endTime;
-                            if (!isActive || !finding.box) return null;
-
-                            return (
-                                <div
-                                    key={finding.id}
-                                    className={cn(
-                                        "absolute border-2 rounded transition-opacity duration-200",
-                                        finding.status === 'critical' ? "border-red-500 bg-red-500/10" : "border-amber-500 bg-amber-500/10"
-                                    )}
-                                    style={{
-                                        top: `${finding.box.top}%`,
-                                        left: `${finding.box.left}%`,
-                                        width: `${finding.box.width}%`,
-                                        height: `${finding.box.height}%`
-                                    }}
-                                >
-                                    <div className={cn(
-                                        "absolute -top-6 left-0 px-2 py-0.5 rounded text-[10px] font-bold text-white whitespace-nowrap uppercase tracking-wider shadow-lg",
-                                        finding.status === 'critical' ? "bg-red-500" : "bg-amber-500"
-                                    )}>
-                                        {finding.type}: {finding.content}
-                                    </div>
-                                </div>
-                            );
-                        })}
                     </div>
                 </div>
 
@@ -399,6 +405,20 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
                                 >
                                     <PencilLine className="w-4 h-4" />
                                     {isEditMode ? 'Editing...' : 'Manual Edit'}
+                                </button>
+
+                                {/* Toggle overlays button */}
+                                <button
+                                    onClick={() => setShowOverlays(!showOverlays)}
+                                    className={cn(
+                                        "p-2 rounded-lg transition-all",
+                                        showOverlays
+                                            ? "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
+                                            : "bg-white/5 text-white/40 hover:bg-white/10"
+                                    )}
+                                    title={showOverlays ? "Hide overlays" : "Show overlays"}
+                                >
+                                    {showOverlays ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                                 </button>
                             </div>
 

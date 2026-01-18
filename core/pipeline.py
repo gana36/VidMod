@@ -15,6 +15,7 @@ from .frame_extractor import FrameExtractor
 from .segmentation import SegmentationEngine, VideoSegmentationEngine
 from .inpainting import InpaintingEngine
 from .video_builder import VideoBuilder
+from .s3_uploader import S3Uploader
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,9 @@ class JobState:
     # Video segmentation (SAM-2 Video)
     segmented_video_path: Optional[Path] = None
     segmented_video_url: Optional[str] = None
+    
+    # S3 storage (optional - for cloud upload)
+    s3_url: Optional[str] = None
 
 
 class VideoPipeline:
@@ -83,7 +87,9 @@ class VideoPipeline:
         base_storage_dir: Path,
         keyframe_interval: int = 5,
         ffmpeg_path: str = "ffmpeg",
-        ffprobe_path: str = "ffprobe"
+        ffprobe_path: str = "ffprobe",
+        aws_bucket_name: Optional[str] = None,
+        aws_region: str = 'us-east-1'
     ):
         self.ffmpeg_path = ffmpeg_path  # Store for blur/pixelate effects
         self.ffprobe_path = ffprobe_path
@@ -98,6 +104,18 @@ class VideoPipeline:
         self.base_storage_dir = base_storage_dir
         self.keyframe_interval = keyframe_interval
         self.replicate_api_token = replicate_api_token
+        
+        # Initialize S3 uploader if AWS credentials provided
+        self.s3_uploader = None
+        if aws_bucket_name:
+            try:
+                self.s3_uploader = S3Uploader(
+                    bucket_name=aws_bucket_name,
+                    region=aws_region
+                )
+                logger.info(f"S3 integration enabled for bucket: {aws_bucket_name}")
+            except Exception as e:
+                logger.warning(f"S3 uploader initialization failed: {e}. Continuing without S3.")
         
         # Initialize manual analyzer
         from .manual_analyzer import ManualAnalyzer
@@ -181,9 +199,22 @@ class VideoPipeline:
         job_video_path = job_dir / f"input{video_path.suffix}"
         shutil.copy(video_path, job_video_path)
         
+        # Upload to S3 if configured
+        s3_url = None
+        if self.s3_uploader:
+            try:
+                s3_url = self.s3_uploader.upload_video(
+                    job_video_path,
+                    key=f"jobs/{job_id}/input{video_path.suffix}"
+                )
+                logger.info(f"Video uploaded to S3: {s3_url}")
+            except Exception as e:
+                logger.warning(f"S3 upload failed: {e}. Continuing with local processing.")
+        
         job = JobState(
             job_id=job_id,
             video_path=job_video_path,
+            s3_url=s3_url,  # Store S3 URL
             frames_dir=job_dir / "frames",
             masks_dir=job_dir / "masks",
             inpainted_dir=job_dir / "inpainted",
