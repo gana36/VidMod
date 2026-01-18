@@ -269,6 +269,51 @@ export async function blurObject(
     return response.json();
 }
 
+export interface ManualAction {
+    id: string;
+    type: string;
+    label: string;
+    description: string;
+}
+
+export interface ManualAnalysisResponse {
+    job_id: string;
+    item_name: string;
+    reasoning: string;
+    suggested_actions: ManualAction[];
+    confidence: string;
+}
+
+/**
+ * Analyze a manually drawn bounding box using Gemini
+ */
+export async function analyzeManual(
+    jobId: string,
+    timestamp: number,
+    box: { top: number; left: number; width: number; height: number }
+): Promise<ManualAnalysisResponse> {
+    const response = await fetch(`${API_BASE}/analyze-manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            job_id: jobId,
+            timestamp: timestamp,
+            box: {
+                x1: box.left / 100,
+                y1: box.top / 100,
+                x2: (box.left + box.width) / 100,
+                y2: (box.top + box.height) / 100,
+            }
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`Manual analysis failed: ${response.statusText}`);
+    }
+
+    return response.json();
+}
+
 export interface ObjectDetectionResponse {
     suggestions: string[];
 }

@@ -287,6 +287,30 @@ class BlurEffectResponse(BaseModel):
     message: str = ""
 
 
+class ManualAction(BaseModel):
+    """A suggested action for a manual edit."""
+    id: str
+    type: str  # 'blur', 'replace', 'mute'
+    label: str
+    description: str
+
+
+class ManualAnalysisRequest(BaseModel):
+    """Request for Gemini to analyze a manual bounding box."""
+    job_id: str
+    timestamp: float
+    box: BoundingBox
+
+
+class ManualAnalysisResponse(BaseModel):
+    """Results from Gemini manual analysis."""
+    job_id: str
+    item_name: str
+    reasoning: str
+    suggested_actions: List[ManualAction]
+    confidence: str
+
+
 class ObjectDetectionRequest(BaseModel):
     """Request to detect objects in a specific bounding box."""
     job_id: str = Field(..., description="Job ID from video upload")
@@ -297,4 +321,3 @@ class ObjectDetectionRequest(BaseModel):
 class ObjectDetectionResponse(BaseModel):
     """Response with object suggestions."""
     suggestions: List[str] = Field(default_factory=list)
-

@@ -4,7 +4,6 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import TimelineEditor from './TimelineEditor';
 import DrawingCanvas from './DrawingCanvas';
-import ActionModal, { type ActionType } from './ActionModal';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -34,6 +33,7 @@ interface VideoWorkspaceProps {
     jobId?: string; // Added jobId for ActionModal
     seekTo?: number;
     findings?: Finding[];
+
     onTimeUpdate?: (time: number) => void;
     onAddFinding?: (finding: Omit<Finding, 'id'>) => void;
 }
@@ -52,10 +52,7 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
     const [isEditMode, setIsEditMode] = useState(false);
     const controlsTimeoutRef = useRef<any>(null);
 
-    // State for ActionModal
-    const [modalOpen, setModalOpen] = useState(false);
-    const [currentBox, setCurrentBox] = useState<{ top: number, left: number, width: number, height: number } | undefined>(undefined);
-    const [currentAction, setCurrentAction] = useState<ActionType>('blur');
+
 
     useEffect(() => {
         const video = videoRef.current;
@@ -214,39 +211,29 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
         return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     };
 
-    const handleManualEditConfirm = (box: any, action: 'blur' | 'replace' | 'mute') => {
-        setCurrentBox(box);
+    const handleManualEditConfirm = (box: any, action: 'blur' | 'replace' | 'mute', label?: string, reasoning?: string) => {
+        if (!onAddFinding) return;
 
-        // Map simple action to ActionType
-        let mappedAction: ActionType = 'blur';
-        if (action === 'replace') mappedAction = 'replace-pika'; // Default to Pika for manual replace
-        else if (action === 'mute') mappedAction = 'mask'; // 'mute' isn't fully supported in ActionModal yet, fallback to mask
-        else mappedAction = action;
-
-        setCurrentAction(mappedAction);
-        setModalOpen(true);
-        setIsEditMode(false);
-    };
-
-    const handleActionComplete = (result: { type: ActionType; downloadUrl?: string }) => {
-        if (!onAddFinding || !currentBox) return;
-
-        const type = result.type === 'blur' ? 'Manual Blur' : result.type.includes('replace') ? 'Manual Replace' : 'Manual Edit';
-        const category = 'logo'; // Default category
+        const type = action === 'blur' ? 'Manual Blur' : action === 'replace' ? 'Manual Replace' : 'Manual Mute';
+        const category = action === 'blur' || action === 'replace' ? 'logo' : 'language';
+        const content = label || `User defined ${action} area`;
 
         onAddFinding({
             type,
             category,
-            content: `User defined ${result.type} area`,
+            content,
             status: 'warning',
             confidence: 'High',
             startTime: currentTime,
             endTime: Math.min(currentTime + 5, duration),
-            box: currentBox
+            suggestedAction: label || action.charAt(0).toUpperCase() + action.slice(1),
+            context: reasoning,
+            box
         });
 
-        setModalOpen(false);
+        setIsEditMode(false);
     };
+
 
     const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -271,24 +258,13 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
 
                 {isEditMode && !isPlaying && (
                     <DrawingCanvas
+                        jobId={jobId || "temp-job"}
+                        currentTime={currentTime}
                         onConfirm={handleManualEditConfirm}
                         onCancel={() => setIsEditMode(false)}
                     />
                 )}
 
-                {/* Render ActionModal */}
-                {jobId && (
-                    <ActionModal
-                        isOpen={modalOpen}
-                        onClose={() => setModalOpen(false)}
-                        jobId={jobId}
-                        actionType={currentAction}
-                        objectPrompt="Custom Object" // Default, will be auto-updated by detection
-                        initialBox={currentBox}
-                        timestamp={currentTime}
-                        onActionComplete={handleActionComplete}
-                    />
-                )}
 
                 <div className="absolute inset-0 pointer-events-none">
                     {findings.map(finding => {

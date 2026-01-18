@@ -209,6 +209,7 @@ const AppLayout: React.FC = () => {
                                     videoUrl={currentVideoUrl || ''}
                                     seekTo={seekToTimestamp ?? undefined}
                                     findings={findings}
+                                    jobId={jobId || undefined}
                                     onTimeUpdate={setCurrentTime}
                                     onAddFinding={handleAddFinding}
                                 />

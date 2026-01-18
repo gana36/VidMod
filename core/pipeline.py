@@ -99,8 +99,45 @@ class VideoPipeline:
         self.keyframe_interval = keyframe_interval
         self.replicate_api_token = replicate_api_token
         
+        # Initialize manual analyzer
+        from .manual_analyzer import ManualAnalyzer
+        from app.config import get_settings
+        self.manual_analyzer = ManualAnalyzer(api_key=get_settings().gemini_api_key)
+
         # In-memory job storage (use Redis/DB for production)
         self.jobs: Dict[str, JobState] = {}
+
+    def analyze_manual_box(
+        self,
+        job_id: str,
+        timestamp: float,
+        box: Dict[str, float]
+    ) -> Dict[str, Any]:
+        """
+        Extract a frame at timestamp and analyze a region using Gemini.
+        """
+        job = self.jobs.get(job_id)
+        if not job:
+            raise ValueError(f"Job {job_id} not found")
+
+        # Extract specific frame for analysis if not already extracted
+        # Calculate frame index based on timestamp and FPS
+        fps = job.video_info.get("fps", 30)
+        frame_idx = int(timestamp * fps)
+        
+        # Check if we have the frame path
+        frame_path = None
+        if job.frame_paths and frame_idx < len(job.frame_paths):
+            frame_path = job.frame_paths[frame_idx]
+        else:
+            # Extract single frame
+            job_dir = self._get_job_dir(job_id)
+            frame_path = job_dir / f"manual_frame_{frame_idx}.png"
+            self.frame_extractor.extract_single_frame(job.video_path, frame_path, timestamp=timestamp)
+
+        # Analyze region
+        result = self.manual_analyzer.analyze_region(frame_path, box)
+        return result
     
     @property
     def segmentation(self) -> SegmentationEngine:

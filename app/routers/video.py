@@ -38,6 +38,9 @@ from ..models import (
     PikaReplaceResponse,
     BlurEffectRequest,
     BlurEffectResponse,
+    ManualAction,
+    ManualAnalysisRequest,
+    ManualAnalysisResponse,
     ObjectDetectionRequest,
     ObjectDetectionResponse,
 )
@@ -1411,3 +1414,43 @@ async def blur_object(
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.post("/analyze-manual", response_model=ManualAnalysisResponse)
+async def analyze_manual(
+    request: ManualAnalysisRequest,
+    pipeline: VideoPipeline = Depends(get_pipeline)
+):
+    """
+    Analyze a manually drawn bounding box using Gemini.
+    Identifies the object and suggests remediation actions.
+    """
+    try:
+        # Convert Pydantic box to dict for pipeline
+        box_dict = {
+            "x1": request.box.x1,
+            "y1": request.box.y1,
+            "x2": request.box.x2,
+            "y2": request.box.y2
+        }
+        
+        result = pipeline.analyze_manual_box(
+            job_id=request.job_id,
+            timestamp=request.timestamp,
+            box=box_dict
+        )
+        
+        return ManualAnalysisResponse(
+            job_id=request.job_id,
+            item_name=result.get("item_name", "Unknown Object"),
+            reasoning=result.get("reasoning", ""),
+            suggested_actions=[
+                ManualAction(**action) for action in result.get("suggested_actions", [])
+            ],
+            confidence=result.get("confidence", "Medium")
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Manual analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
