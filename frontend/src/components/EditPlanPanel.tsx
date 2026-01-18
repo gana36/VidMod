@@ -176,6 +176,8 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
         selected: boolean;
         effectType: 'blur' | 'pixelate';
         prompt: string;
+        startTime: number;  // Editable timestamp
+        endTime: number;    // Editable timestamp
     }
 
     const [batchConfigs, setBatchConfigs] = useState<BatchFindingConfig[]>([]);
@@ -186,12 +188,15 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
             finding: f,
             selected: true, // All selected by default
             effectType: (f.suggestedAction?.toLowerCase().includes('pixelate') ? 'pixelate' : 'blur') as 'blur' | 'pixelate',
-            prompt: f.content
+            prompt: f.content,
+            startTime: f.startTime,
+            endTime: f.endTime
         }));
         setBatchConfigs(configs);
         setShowBatchReviewModal(true);
     };
 
+    // Process selected findings
     // Process selected findings
     const processBatchFindings = async () => {
         const selected = batchConfigs.filter(c => c.selected);
@@ -202,6 +207,8 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
         setBatchProgress(`Starting batch process for ${selected.length} findings...`);
 
         try {
+            let lastDownloadUrl = '';
+
             for (let i = 0; i < selected.length; i++) {
                 const config = selected[i];
                 const shortPrompt = config.prompt.substring(0, 60) + (config.prompt.length > 60 ? '...' : '');
@@ -211,18 +218,29 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                 // Import blurObject from api
                 const { blurObject } = await import('../services/api');
 
-                await blurObject(
+                const result = await blurObject(
                     jobId,
                     config.prompt,
                     30,
                     config.effectType,
-                    config.finding.startTime,
-                    config.finding.endTime
+                    config.startTime,  // Use editable timestamp
+                    config.endTime     // Use editable timestamp
                 );
+
+                if (result && result.download_path) {
+                    lastDownloadUrl = `http://localhost:8000${result.download_path}`;
+                }
             }
 
             setBatchProgress(`✅ Successfully processed ${selected.length} findings!`);
-            onActionComplete?.('batch-findings', { count: selected.length });
+
+            // Pass the final video URL to the parent to reload the player
+            if (onActionComplete) {
+                onActionComplete('batch-findings', {
+                    count: selected.length,
+                    downloadUrl: lastDownloadUrl
+                });
+            }
 
         } catch (error: any) {
             setBatchProgress(`❌ Error: ${error.message}`);
@@ -234,45 +252,37 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
         }
     };
 
-    // Apply All - process queue grouped by effect type
+    // Apply All - process queue sequentially to ensure Smart Clipping works correctly for each item
     const handleApplyAll = async () => {
         if (customObjects.length === 0 || !jobId) return;
 
         setIsProcessingBatch(true);
 
         try {
-            // Group objects by effect type
-            const groups: Record<string, string[]> = {};
-            customObjects.forEach(obj => {
-                const effect = obj.appliedEffect || 'blur';
-                if (!groups[effect]) groups[effect] = [];
-                groups[effect].push(obj.name);
-            });
+            console.log('Processing objects sequentially:', customObjects);
 
-            console.log('Processing groups:', groups);
+            // Process each object sequentially to respect individual timestamps for Smart Clipping
+            for (let i = 0; i < customObjects.length; i++) {
+                const obj = customObjects[i];
+                setBatchProgress(`Processing ${i + 1}/${customObjects.length}: ${obj.name}`);
 
-            // Process each effect group
-            const effectTypes = Object.keys(groups);
-            for (let i = 0; i < effectTypes.length; i++) {
-                const effectType = effectTypes[i];
-                const objects = groups[effectType];
-                const combinedPrompt = objects.join(', ');
-
-                setBatchProgress(`Processing ${effectType}: ${combinedPrompt} (${i + 1}/${effectTypes.length})`);
-
-                // Get timestamp from the first finding that matches the objects
-                // (For batch processing, we'll use the earliest timestamp)
+                // Get timestamp from the matching finding
+                // Use the FIRST finding that matches the content
                 const matchingFinding = findings.find(f =>
-                    objects.some(obj => f.content.toLowerCase().includes(obj.toLowerCase()))
+                    f.content.toLowerCase().includes(obj.name.toLowerCase()) ||
+                    obj.name.toLowerCase().includes(f.content.toLowerCase())
                 );
 
-                // Call API with combined prompt for this effect type + timestamps for Smart Clipping
+                // Effective Prompt: Use the object name
+                const effectType = obj.appliedEffect || 'blur';
+
+                // Call API for this single object/effect
                 const response = await fetch('http://localhost:8000/api/blur-object', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         job_id: jobId,
-                        text_prompt: combinedPrompt,
+                        text_prompt: obj.name,
                         effect_type: effectType === 'pixelate' ? 'pixelate' : 'blur',
                         blur_strength: 30,
                         start_time: matchingFinding?.startTime,
@@ -281,24 +291,17 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Failed to process ${effectType}: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                console.log(`${effectType} result:`, result);
-
-                // Notify parent of completion
-                if (onActionComplete) {
-                    onActionComplete(effectType, {
-                        downloadUrl: `http://localhost:8000${result.download_path}`,
-                        objectName: combinedPrompt
-                    });
+                    throw new Error(`Failed to process ${obj.name}`);
                 }
             }
 
-            // Clear queue after successful processing
+            // Clear queue logic 
             setCustomObjects([]);
-            setBatchProgress('All effects applied successfully!');
+
+            // Trigger refresh
+            if (onActionComplete) {
+                onActionComplete('batch-queue', { count: customObjects.length });
+            }
 
         } catch (error) {
             console.error('Batch processing error:', error);
@@ -717,6 +720,54 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                                                         rows={2}
                                                         placeholder="Object description..."
                                                     />
+
+                                                    {/* Editable Timestamps */}
+                                                    <div className="mt-2 space-y-2">
+                                                        <div className="flex items-center gap-3">
+                                                            <label className="text-xs text-muted-foreground min-w-[60px]">Start:</label>
+                                                            <input
+                                                                type="number"
+                                                                value={config.startTime}
+                                                                onChange={(e) => {
+                                                                    const updated = [...batchConfigs];
+                                                                    updated[index].startTime = parseFloat(e.target.value) || 0;
+                                                                    setBatchConfigs(updated);
+                                                                }}
+                                                                step="0.1"
+                                                                min="0"
+                                                                className="flex-1 px-3 py-1.5 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                                                                placeholder="0.0"
+                                                            />
+                                                            <span className="text-xs text-muted-foreground">seconds</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <label className="text-xs text-muted-foreground min-w-[60px]">End:</label>
+                                                            <input
+                                                                type="number"
+                                                                value={config.endTime}
+                                                                onChange={(e) => {
+                                                                    const updated = [...batchConfigs];
+                                                                    updated[index].endTime = parseFloat(e.target.value) || 0;
+                                                                    setBatchConfigs(updated);
+                                                                }}
+                                                                step="0.1"
+                                                                min={config.startTime}
+                                                                className="flex-1 px-3 py-1.5 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                                                                placeholder="0.0"
+                                                            />
+                                                            <span className="text-xs text-muted-foreground">seconds</span>
+                                                        </div>
+
+                                                        {/* Duration Warning */}
+                                                        {(config.endTime - config.startTime) > 15 && (
+                                                            <div className="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                                                                <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                                                                <span className="text-xs text-amber-400">
+                                                                    ⚠️ Clip duration is {(config.endTime - config.startTime).toFixed(1)}s. SAM3 works best with clips ≤ 15 seconds.
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
 
                                                 {/* Effect Type Toggle */}
@@ -728,8 +779,8 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                                                             setBatchConfigs(updated);
                                                         }}
                                                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${config.effectType === 'blur'
-                                                                ? 'bg-amber-500/20 text-amber-400 border-2 border-amber-500'
-                                                                : 'bg-muted border border-border text-muted-foreground hover:bg-muted-foreground/10'
+                                                            ? 'bg-amber-500/20 text-amber-400 border-2 border-amber-500'
+                                                            : 'bg-muted border border-border text-muted-foreground hover:bg-muted-foreground/10'
                                                             }`}
                                                     >
                                                         <EyeOff className="w-3 h-3 inline mr-1" />
@@ -742,8 +793,8 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                                                             setBatchConfigs(updated);
                                                         }}
                                                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${config.effectType === 'pixelate'
-                                                                ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500'
-                                                                : 'bg-muted border border-border text-muted-foreground hover:bg-muted-foreground/10'
+                                                            ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500'
+                                                            : 'bg-muted border border-border text-muted-foreground hover:bg-muted-foreground/10'
                                                             }`}
                                                     >
                                                         <Grid className="w-3 h-3 inline mr-1" />

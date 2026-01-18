@@ -4,6 +4,7 @@ import TopBar from './TopBar';
 import VideoWorkspace, { type Finding } from './VideoWorkspace';
 import RightPanel from './RightPanel';
 import UploadZone, { type VideoMetadata } from './UploadZone';
+import { VideoLibrary } from './VideoLibrary';
 import { Eye, EyeOff } from 'lucide-react';
 
 // Edit version interface for tracking history
@@ -34,6 +35,9 @@ const AppLayout: React.FC = () => {
     // Edit history - tracks all applied effects with their versions
     const [editHistory, setEditHistory] = useState<EditVersion[]>([]);
     const [selectedVersion, setSelectedVersion] = useState<number | null>(null);  // For previewing specific version
+
+    // Video library modal state
+    const [showVideoLibrary, setShowVideoLibrary] = useState(false);
 
     // Current video to display
     const getDisplayVideoUrl = () => {
@@ -121,6 +125,47 @@ const AppLayout: React.FC = () => {
         }
     };
 
+    // Handle video selection from library
+    const handleLibraryVideoSelect = async (jobId: string) => {
+        // When a video is selected from library, it creates a job
+        // Just need to set the job ID and navigate to analysis
+        setJobId(jobId);
+        setActiveTab('Analysis');
+        setIsAnalyzing(true);
+
+        try {
+            const response = await fetch(`http://localhost:8000/api/analyze-video/${jobId}`, {
+                method: 'POST',
+            });
+
+            if (!response.ok) {
+                throw new Error(`Analysis failed: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            const mappedFindings: Finding[] = (data.findings || []).map((f: any) => ({
+                id: f.id,
+                type: f.type,
+                category: f.category || 'other',
+                content: f.content,
+                status: f.status || 'warning',
+                confidence: f.confidence || 'Medium',
+                startTime: f.startTime,
+                endTime: f.endTime,
+                context: f.context,
+                suggestedAction: f.suggestedAction,
+                box: f.box
+            }));
+
+            setFindings(mappedFindings);
+        } catch (error) {
+            console.error('Analysis failed:', error);
+            setFindings([]);
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
     const handleAddFinding = (newFinding: Omit<Finding, 'id'>) => {
         const id = findings.length > 0 ? Math.max(...findings.map(f => f.id)) + 1 : 1;
         setFindings(prev => [...prev, { ...newFinding, id }]);
@@ -200,7 +245,16 @@ const AppLayout: React.FC = () => {
                             <UploadZone
                                 onUploadComplete={handleUploadComplete}
                                 onFileSelected={handleFileSelected}
+                                onBrowseLibrary={() => setShowVideoLibrary(true)}
                             />
+
+                            {/* Video Library Modal */}
+                            {showVideoLibrary && (
+                                <VideoLibrary
+                                    onVideoSelect={handleLibraryVideoSelect}
+                                    onClose={() => setShowVideoLibrary(false)}
+                                />
+                            )}
                         </div>
                     ) : (
                         <>

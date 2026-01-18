@@ -6,7 +6,7 @@ API endpoints for video upload, detection, replacement, and download.
 import shutil
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import FileResponse
@@ -43,6 +43,8 @@ from ..models import (
     ManualAnalysisResponse,
     ObjectDetectionRequest,
     ObjectDetectionResponse,
+    VideoMetadata,
+    UseExistingVideoRequest
 )
 from core.pipeline import VideoPipeline, PipelineStage
 from core.gemini_video_analyzer import GeminiVideoAnalyzer
@@ -195,6 +197,160 @@ async def upload_video(
         # Cleanup temp file
         if temp_path.exists():
             temp_path.unlink()
+
+
+@router.get("/download/{job_id}")
+async def download_video(
+    job_id: str,
+    pipeline: VideoPipeline = Depends(get_pipeline)
+):
+    """
+    Download the processed video for a job.
+    Returns the edited video if available, otherwise the original video.
+    """
+    from fastapi.responses import FileResponse
+    
+    job = pipeline.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Serve edited video if available, otherwise original
+    if job.output_path and job.output_path.exists():
+        video_path = job.output_path
+        logger.info(f"Serving edited video: {video_path}")
+    elif job.video_path and job.video_path.exists():
+        video_path = job.video_path
+        logger.info(f"Serving original video: {video_path}")
+    else:
+        raise HTTPException(status_code=404, detail="Video file not found")
+    
+    return FileResponse(
+        video_path,
+        media_type="video/mp4",
+        filename=f"{job_id}.mp4"
+    )
+
+
+@router.get("/videos", response_model=List[VideoMetadata])
+async def list_videos(pipeline: VideoPipeline = Depends(get_pipeline)):
+    """
+    List all videos available in S3 bucket.
+    Returns empty list if S3 is not configured.
+    """
+    if not pipeline.s3_uploader:
+        logger.warning("S3 not configured, returning empty video list")
+        return []
+    
+    try:
+        videos = pipeline.s3_uploader.list_videos(prefix="jobs/")
+        logger.info(f"Found {len(videos)} videos in S3")
+        return videos
+    except Exception as e:
+        logger.error(f"Failed to list S3 videos: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list videos: {str(e)}")
+
+
+@router.post("/use-existing-video", response_model=VideoUploadResponse)
+async def use_existing_video(
+    request: UseExistingVideoRequest,
+    pipeline: VideoPipeline = Depends(get_pipeline)
+):
+    """
+    Create a job from an existing S3 video without re-uploading.
+    This allows users to reuse videos they've already uploaded.
+    """
+    if not pipeline.s3_uploader:
+        raise HTTPException(status_code=501, detail="S3 not configured")
+    
+    try:
+        from core.pipeline import JobState
+        import uuid
+        import httpx
+        from pathlib import Path
+        
+        # Extract job_id from S3 URL (e.g., jobs/abc123/input.mp4 -> abc123)
+        s3_key_parts = request.s3_url.split('/')
+        existing_job_id = None
+        if 'jobs' in s3_key_parts:
+            idx = s3_key_parts.index('jobs')
+            if idx + 1 < len(s3_key_parts):
+                existing_job_id = s3_key_parts[idx + 1]
+        
+        # Check if we already have this video locally (from previous upload)
+        if existing_job_id:
+            existing_job_dir = Path(pipeline.storage_path) / "jobs" / existing_job_id
+            existing_video_path = existing_job_dir / "input.mp4"
+            
+            if existing_video_path.exists():
+                logger.info(f"♻️ Reusing existing local job: {existing_job_id}")
+                
+                # Check if job already exists in pipeline
+                if existing_job_id in pipeline.jobs:
+                    job = pipeline.jobs[existing_job_id]
+                    logger.info(f"Job {existing_job_id} already in memory")
+                else:
+                    # Recreate job from existing files
+                    job = JobState(
+                        job_id=existing_job_id,
+                        video_path=existing_video_path,
+                        s3_url=request.s3_url,
+                        frames_dir=None,
+                        masks_dir=None,
+                        inpainted_dir=None,
+                        output_path=None
+                    )
+                    pipeline.jobs[job.job_id] = job
+                    logger.info(f"Restored job {existing_job_id} from local files")
+                
+                filename = request.filename or request.s3_url.split("/")[-1]
+                return VideoUploadResponse(
+                    job_id=job.job_id,
+                    message=f"Using existing video from library: {filename}",
+                    preview_frame_url="",
+                    video_info={"source": "s3_library_local", "url": request.s3_url}
+                )
+        
+        # If not found locally, download from S3 (new job)
+        logger.info(f"📥 Video not found locally, downloading from S3...")
+        job_id = str(uuid.uuid4())[:8]
+        job_dir = Path(pipeline.storage_path) / "jobs" / job_id
+        job_dir.mkdir(parents=True, exist_ok=True)
+        
+        filename = request.filename or request.s3_url.split("/")[-1]
+        local_video_path = job_dir / "input.mp4"
+        
+        logger.info(f"Downloading S3 video to local storage: {request.s3_url}")
+        response = httpx.get(request.s3_url, follow_redirects=True)
+        response.raise_for_status()
+        with open(local_video_path, 'wb') as f:
+            f.write(response.content)
+        logger.info(f"Video downloaded: {local_video_path}")
+        
+        # Create new job
+        job = JobState(
+            job_id=job_id,
+            video_path=local_video_path,
+            s3_url=request.s3_url,
+            frames_dir=None,
+            masks_dir=None,
+            inpainted_dir=None,
+            output_path=None
+        )
+        
+        pipeline.jobs[job.job_id] = job
+        
+        logger.info(f"Created new job {job.job_id} from S3 video: {request.s3_url}")
+        
+        return VideoUploadResponse(
+            job_id=job.job_id,
+            message=f"Downloaded from library: {filename}",
+            preview_frame_url="",
+            video_info={"source": "s3_library_download", "url": request.s3_url}
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to create job from S3 video: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/detect", response_model=DetectionResponse)
@@ -1233,15 +1389,34 @@ async def blur_object(
         if use_smart_clipping:
             logger.info(f"🚀 Smart Clipping enabled: processing {request.start_time:.2f}s to {request.end_time:.2f}s")
             
-            # Step 0: Extract clip from original video
+            # Determine source video for extraction (for effect chaining)
+            if job.output_path and job.output_path.exists():
+                source_video_for_clip = job.output_path
+                logger.info(f"✨ Chaining effect: extracting clip from previous output: {source_video_for_clip}")
+            else:
+                source_video_for_clip = job.video_path
+                logger.info(f"📹 First effect: extracting clip from original video: {source_video_for_clip}")
+            
+            # Step 0: Extract clip from source video (original or previously edited)
             clip_path = job_dir / f"clip_{request.start_time}_{request.end_time}.mp4"
             pipeline.frame_extractor.extract_clip(
-                video_path=job.video_path,
+                video_path=source_video_for_clip,
                 output_path=clip_path,
                 start_time=request.start_time,
                 end_time=request.end_time,
                 buffer_seconds=1.0
             )
+            
+            # Upload clip to S3 for faster SAM3 processing
+            clip_s3_url = None
+            if pipeline.s3_uploader and job.s3_url:
+                try:
+                    logger.info(f"📤 Uploading clip to S3 for faster processing...")
+                    clip_s3_key = f"jobs/{request.job_id}/clip_{request.start_time}_{request.end_time}.mp4"
+                    clip_s3_url = pipeline.s3_uploader.upload_video(clip_path, clip_s3_key)
+                    logger.info(f"✅ Clip uploaded to S3: {clip_s3_url}")
+                except Exception as e:
+                    logger.warning(f"Failed to upload clip to S3, will use local file: {e}")
             
             # Create a cache key from the prompt (sanitized for filename)
             prompt_hash = hashlib.md5(request.text_prompt.lower().encode()).hexdigest()[:8]
@@ -1277,16 +1452,14 @@ async def blur_object(
                 from core.sam3_engine import Sam3VideoEngine
                 sam3_video = Sam3VideoEngine(api_token=pipeline.replicate_api_token)
                 
-                # Use S3 URL for full video if available, otherwise use local clip path
-                # Smart Clipping will extract the relevant clip locally
-                video_source = job.s3_url if job.s3_url else clip_path
+                # Use clip's S3 URL if available (fastest), otherwise use local clip path
+                video_source = clip_s3_url if clip_s3_url else clip_path
+                logger.info(f"🎯 SAM3 video source: {'S3 clip URL' if clip_s3_url else 'local clip file'}")
                 
                 result = sam3_video.segment_video(
-                    video_source=video_source,  # Use S3 URL if available, else clip path
+                    video_source=video_source,  # Use clip's S3 URL or local clip
                     prompt=simplified_prompt,  # Use simplified prompt
-                    mask_only=False,
-                    mask_color="green",
-                    mask_opacity=1.0
+                    mask_only=True,  # Pure black/white mask (white = blur areas)
                 )
                 
                 # Download mask

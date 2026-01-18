@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, VolumeX, PencilLine } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, VolumeX, PencilLine, Eye, EyeOff } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import TimelineEditor from './TimelineEditor';
@@ -50,6 +50,7 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
     const [isDraggingVolume, setIsDraggingVolume] = useState(false);
     const [showControls, setShowControls] = useState(true);
     const [isEditMode, setIsEditMode] = useState(false);
+    const [showOverlays, setShowOverlays] = useState(true);
     const controlsTimeoutRef = useRef<any>(null);
 
 
@@ -245,8 +246,8 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
             >
                 <video
                     ref={videoRef}
-                    key={videoUrl}
                     src={videoUrl}
+                    key={videoUrl}
                     className="w-full h-full object-contain cursor-pointer"
                     poster={!videoUrl ? "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&q=80&w=1200" : undefined}
                     onClick={togglePlay}
@@ -266,35 +267,38 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
                 )}
 
 
-                <div className="absolute inset-0 pointer-events-none">
-                    {findings.map(finding => {
-                        const isActive = currentTime >= finding.startTime && currentTime <= finding.endTime;
-                        if (!isActive || !finding.box) return null;
+                {/* Bounding box overlays - toggle with Eye button */}
+                {showOverlays && (
+                    <div className="absolute inset-0 pointer-events-none">
+                        {findings.map(finding => {
+                            const isActive = currentTime >= finding.startTime && currentTime <= finding.endTime;
+                            if (!isActive || !finding.box) return null;
 
-                        return (
-                            <div
-                                key={finding.id}
-                                className={cn(
-                                    "absolute border-2 rounded transition-opacity duration-200",
-                                    finding.status === 'critical' ? "border-red-500 bg-red-500/10" : "border-amber-500 bg-amber-500/10"
-                                )}
-                                style={{
-                                    top: `${finding.box.top}%`,
-                                    left: `${finding.box.left}%`,
-                                    width: `${finding.box.width}%`,
-                                    height: `${finding.box.height}%`
-                                }}
-                            >
-                                <div className={cn(
-                                    "absolute -top-6 left-0 px-2 py-0.5 rounded text-[10px] font-bold text-white whitespace-nowrap uppercase tracking-wider shadow-lg",
-                                    finding.status === 'critical' ? "bg-red-500" : "bg-amber-500"
-                                )}>
-                                    {finding.type}: {finding.content}
+                            return (
+                                <div
+                                    key={finding.id}
+                                    className={cn(
+                                        "absolute border-2 rounded transition-opacity duration-200",
+                                        finding.status === 'critical' ? "border-red-500 bg-red-500/10" : "border-amber-500 bg-amber-500/10"
+                                    )}
+                                    style={{
+                                        top: `${finding.box.top}%`,
+                                        left: `${finding.box.left}%`,
+                                        width: `${finding.box.width}%`,
+                                        height: `${finding.box.height}%`
+                                    }}
+                                >
+                                    <div className={cn(
+                                        "absolute -top-6 left-0 px-2 py-0.5 rounded text-[10px] font-bold text-white whitespace-nowrap uppercase tracking-wider shadow-lg",
+                                        finding.status === 'critical' ? "bg-red-500" : "bg-amber-500"
+                                    )}>
+                                        {finding.type}: {finding.content}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                            );
+                        })}
+                    </div>
+                )}
 
                 {!isPlaying && videoUrl && !isEditMode && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px] pointer-events-none">
@@ -365,6 +369,20 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
                                 >
                                     <PencilLine className="w-4 h-4" />
                                     {isEditMode ? 'Editing...' : 'Manual Edit'}
+                                </button>
+
+                                {/* Toggle overlays button */}
+                                <button
+                                    onClick={() => setShowOverlays(!showOverlays)}
+                                    className={cn(
+                                        "p-2 rounded-lg transition-all",
+                                        showOverlays
+                                            ? "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
+                                            : "bg-white/5 text-white/40 hover:bg-white/10"
+                                    )}
+                                    title={showOverlays ? "Hide overlays" : "Show overlays"}
+                                >
+                                    {showOverlays ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                                 </button>
                             </div>
 
