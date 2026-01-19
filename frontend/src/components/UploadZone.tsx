@@ -155,10 +155,10 @@ const UploadZone: React.FC<UploadZoneProps> = ({
                 <div className="mb-10 text-center animate-in fade-in slide-in-from-top-4 duration-700">
                     <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-white/10 bg-white/5 mb-4">
                         <Video className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Compliance Unit v2</span>
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Compliance Engine v4</span>
                     </div>
-                    <h1 className="text-4xl font-black mb-2 tracking-tight text-foreground">Content Engine</h1>
-                    <p className="text-muted-foreground font-medium text-sm max-w-sm mx-auto leading-relaxed opacity-60">Systematic verification for global broadcasting standards.</p>
+                    <h1 className="text-4xl font-black mb-2 tracking-tighter text-foreground uppercase">Compliance AI</h1>
+                    <p className="text-muted-foreground font-bold text-[10px] uppercase tracking-[0.1em] max-w-sm mx-auto leading-relaxed opacity-40">Systematic verification for global broadcasting standards.</p>
                 </div>
 
                 <div
@@ -191,9 +191,9 @@ const UploadZone: React.FC<UploadZoneProps> = ({
                                 <div className="flex flex-col gap-4 items-center">
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="px-8 py-3 bg-zinc-100 text-zinc-950 rounded-lg font-black text-[10px] tracking-[0.2em] shadow-xl hover:bg-white transition-all active:scale-95 uppercase"
+                                        className="px-8 py-3 bg-zinc-100 text-zinc-950 rounded-lg font-black text-[10px] tracking-[0.3em] shadow-xl hover:bg-white transition-all active:scale-95 uppercase"
                                     >
-                                        CHOOSE FILE
+                                        BROWSE SOURCE
                                     </button>
                                     {onBrowseLibrary && (
                                         <button
@@ -294,11 +294,11 @@ const UploadZone: React.FC<UploadZoneProps> = ({
                                                 onClick={() => metadata && onUploadComplete(metadata)}
                                                 disabled={!metadata}
                                                 className={cn(
-                                                    "w-full py-4 text-zinc-950 rounded-lg font-black text-[10px] tracking-[0.3em] transition-all relative overflow-hidden group/btn uppercase",
+                                                    "w-full py-4 text-zinc-950 rounded-lg font-black text-[10px] tracking-[0.4em] transition-all relative overflow-hidden group/btn uppercase",
                                                     metadata ? "bg-zinc-100 hover:bg-white active:scale-[0.99] shadow-lg shadow-white/5" : "bg-zinc-800 cursor-not-allowed opacity-20"
                                                 )}
                                             >
-                                                PROCESS COMPLIANCE MATRIX
+                                                EXECUTE COMPLIANCE SCAN
                                             </button>
                                             <div className="mt-6 flex items-center justify-center gap-4 opacity-5">
                                                 <div className="h-[1px] w-8 bg-white" />

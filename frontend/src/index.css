@@ -19,7 +19,7 @@
   --color-destructive-foreground: #fafafa;
   --color-border: rgba(255, 255, 255, 0.08);
   --color-input: #18181b;
-  --color-ring: #3b82f6;
+  --color-ring: #fafafa;
 
   --radius-xl: 1rem;
   --radius-lg: 0.75rem;
@@ -49,11 +49,11 @@
   }
 
   .glass-card {
-    @apply bg-card/60 border border-[var(--glass-border)] rounded-xl shadow-xl transition-all duration-300;
-    backdrop-filter: blur(8px);
+    @apply bg-card/40 border border-white/[0.05] rounded-xl shadow-sm transition-all duration-300;
+    backdrop-filter: blur(12px);
 
     &:hover {
-      @apply border-white/20 bg-card/80 shadow-primary/10;
+      @apply border-white/10 bg-card/60 shadow-xl;
     }
   }
 

@@ -109,11 +109,11 @@ const RightPanel: React.FC<RightPanelProps> = ({
                                 key={tab.id}
                                 onClick={() => setActivePanel(tab.id)}
                                 className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 py-3 text-[10px] font-bold uppercase tracking-widest transition-all rounded-t-lg relative group",
-                                    isActive ? "text-primary" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                                    "flex-1 flex items-center justify-center gap-2 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all rounded-t-lg relative group",
+                                    isActive ? "text-zinc-100" : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
                                 )}
                             >
-                                <Icon className={cn("w-3.5 h-3.5 transition-transform", isActive ? "scale-110" : "group-hover:scale-110")} />
+                                <Icon className={cn("w-3.5 h-3.5 transition-transform", isActive ? "scale-110 opacity-100" : "opacity-40 group-hover:opacity-100 group-hover:scale-110")} />
                                 <span>{tab.label}</span>
                                 {tab.count !== undefined && tab.count > 0 && (
                                     <span className="px-1.5 py-0.5 bg-primary/20 text-primary rounded-full text-[8px] tabular-nums font-black">
@@ -123,7 +123,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
                                 {isActive && (
                                     <motion.div
                                         layoutId="activeTab"
-                                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary shadow-[0_0_12px_rgba(59,130,246,0.8)]"
+                                        className="absolute bottom-0 left-0 right-0 h-px bg-white shadow-[0_0_15px_rgba(255,255,255,0.3)]"
                                     />
                                 )}
                             </button>
@@ -145,9 +145,9 @@ const RightPanel: React.FC<RightPanelProps> = ({
                         <div className="p-4 space-y-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="font-bold text-xs uppercase tracking-[0.15em] text-muted-foreground">System Overview</h3>
-                                <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-emerald-400/10 border border-emerald-400/20">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                    <span className="text-emerald-400 text-[9px] font-black uppercase tracking-widest leading-none">Compliant Output Ready</span>
+                                <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-100/5 border border-zinc-100/10">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                                    <span className="text-zinc-400 text-[9px] font-black uppercase tracking-[0.2em] leading-none">Ready for Output</span>
                                 </div>
                             </div>
 
@@ -157,10 +157,10 @@ const RightPanel: React.FC<RightPanelProps> = ({
                                     { label: 'Rating', value: predictedAgeRating, sub: 'Predicted' },
                                     { label: 'Status', value: riskLevel, sub: 'Risk Level', color: riskColor },
                                 ].map((stat, i) => (
-                                    <div key={i} className="glass-card p-3 flex flex-col items-center justify-center text-center">
-                                        <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mb-1">{stat.label}</span>
-                                        <span className={cn("text-lg font-black tracking-tight", stat.color)}>{stat.value}</span>
-                                        <span className="text-[8px] text-muted-foreground/60 font-medium uppercase mt-0.5">{stat.sub}</span>
+                                    <div key={i} className="glass-card p-3 flex flex-col items-center justify-center text-center bg-zinc-900/40 border-white/[0.03]">
+                                        <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-[0.2em] mb-1">{stat.label}</span>
+                                        <span className={cn("text-lg font-black tracking-tight text-white", stat.color)}>{stat.value}</span>
+                                        <span className="text-[8px] text-zinc-600 font-medium uppercase mt-0.5 tracking-widest">{stat.sub}</span>
                                     </div>
                                 ))}
                             </div>
@@ -266,9 +266,9 @@ const RightPanel: React.FC<RightPanelProps> = ({
 
                         {/* Footer Action */}
                         <div className="p-4 border-t border-border bg-white/[0.02] mt-auto">
-                            <button className="w-full flex items-center justify-center gap-2 btn-primary group">
-                                <Download className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" />
-                                <span className="text-xs font-bold uppercase tracking-widest">Download Analysis PDF</span>
+                            <button className="w-full flex items-center justify-center gap-3 py-3 bg-zinc-900 hover:bg-zinc-800 border border-white/5 rounded-lg transition-all group">
+                                <Download className="w-4 h-4 text-zinc-500 group-hover:text-zinc-100 group-hover:-translate-y-0.5 transition-all" />
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 group-hover:text-zinc-100">Export Analysis Data</span>
                             </button>
                         </div>
                     </motion.div>
@@ -293,8 +293,8 @@ const RightPanel: React.FC<RightPanelProps> = ({
                         <div className="p-4 space-y-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="font-bold text-xs uppercase tracking-[0.15em] text-muted-foreground">Version Management</h3>
-                                <div className="px-2 py-1 rounded-full bg-primary/10 border border-primary/20">
-                                    <span className="text-primary text-[9px] font-black uppercase tracking-widest">{editHistory.length} Snapshots</span>
+                                <div className="px-2 py-0.5 rounded-full bg-zinc-100/5 border border-zinc-100/10 shrink-0">
+                                    <span className="text-zinc-500 text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap">{editHistory.length} SNAPSHOTS</span>
                                 </div>
                             </div>
 
@@ -340,8 +340,8 @@ const RightPanel: React.FC<RightPanelProps> = ({
                                                             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{version.effectType}</span>
                                                         </div>
                                                         <p className="text-sm font-bold text-foreground/90 mt-0.5">"{version.objectName}"</p>
-                                                        <p className="text-[9px] font-medium text-muted-foreground mt-1 tabular-nums opacity-60">
-                                                            {new Date(version.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Secure Snapshot
+                                                        <p className="text-[9px] font-black text-zinc-500 mt-1 uppercase tracking-[0.1em] tabular-nums whitespace-nowrap">
+                                                            {new Date(version.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • SYNC SNAPSHOT
                                                         </p>
                                                     </div>
                                                 </div>

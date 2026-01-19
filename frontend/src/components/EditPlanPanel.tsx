@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, EyeOff, ShieldCheck, Info, Play, RefreshCw, Grid, Plus, Search, X, AlertCircle } from 'lucide-react';
+import { ChevronDown, EyeOff, ShieldCheck, Info, Play, RefreshCw, Grid, Plus, Search, X, AlertCircle, Loader2 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import ActionModal, { type ActionType } from './ActionModal';
@@ -46,8 +46,8 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
             finding: f,
             violation: f.content,
             action: action,
-            reason: `Compliance Risk: ${f.type}`,
-            summary: f.context || 'No additional reasoning provided by Gemini.',
+            reason: `Regulation: ${f.type}`,
+            summary: f.context || 'System verified compliance point.',
             confidence: confidenceMap[f.confidence] || 75,
             iconType
         };
@@ -380,8 +380,8 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
             <div className="p-4 space-y-4">
                 <div className="flex items-center justify-between">
                     <h3 className="font-bold text-xs uppercase tracking-[0.15em] text-muted-foreground">Manual Targeting</h3>
-                    <div className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-black uppercase tracking-widest border border-primary/20">
-                        Overlay Engine
+                    <div className="px-2 py-0.5 rounded-full bg-zinc-100/10 text-zinc-100 text-[9px] font-black uppercase tracking-[0.2em] border border-white/5">
+                        Targeting Logic
                     </div>
                 </div>
 
@@ -476,7 +476,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                             <button
                                 onClick={handleApplyAll}
                                 disabled={isProcessingBatch || !jobId}
-                                className="w-full py-3 btn-primary disabled:opacity-40 disabled:scale-100 flex items-center justify-center gap-2 overflow-hidden relative"
+                                className="w-full py-3 bg-zinc-100 text-zinc-950 rounded-lg hover:bg-white transition-all active:scale-[0.98] disabled:opacity-20 disabled:scale-100 flex items-center justify-center gap-2 overflow-hidden relative"
                             >
                                 {isProcessingBatch ? (
                                     <>
@@ -624,22 +624,26 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                         <button
                             onClick={initializeBatchConfigs}
                             disabled={isProcessingBatch}
-                            className="w-full py-3 bg-gradient-to-r from-accent via-purple-600 to-pink-600 hover:from-accent/90 hover:via-purple-600/90 hover:to-pink-600/90 text-white rounded-xl font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                            className="w-full py-3.5 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-100 rounded-lg font-black text-[10px] uppercase tracking-[0.3em] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-2xl"
                         >
                             {isProcessingBatch ? (
                                 <>
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    Processing...
+                                    <Loader2 className="w-4 h-4 animate-spin opacity-40" />
+                                    Authorizing...
                                 </>
                             ) : (
                                 <>
-                                    🚀 Process All Findings ({steps.length} items)
+                                    <ShieldCheck className="w-4 h-4" />
+                                    EXECUTE COMPLIANCE MATRIX ({steps.length} ITEMS)
                                 </>
                             )}
                         </button>
                         {batchProgress && (
-                            <p className={`text-sm mt-2 text-center font-medium ${batchProgress.includes('Error') || batchProgress.includes('❌') ? 'text-red-400' : 'text-emerald-400'}`}>
-                                {batchProgress}
+                            <p className={cn(
+                                "text-[9px] mt-3 text-center font-black uppercase tracking-[0.2em]",
+                                batchProgress.includes('Error') || batchProgress.includes('❌') ? 'text-red-400' : 'text-zinc-500'
+                            )}>
+                                {batchProgress.replace('✅', '').replace('❌', '')}
                             </p>
                         )}
                     </div>
@@ -671,12 +675,13 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     {/* Modal */}
                     <div className="relative z-10 w-full max-w-4xl max-h-[90vh] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col">
                         {/* Header */}
-                        <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20">
-                            <h2 className="font-bold text-lg flex items-center gap-2">
-                                🚀 Batch Process Findings
+                        <div className="flex items-center justify-between p-4 border-b border-border bg-zinc-900/50">
+                            <h2 className="font-black text-xs uppercase tracking-[0.2em] flex items-center gap-3">
+                                <ShieldCheck className="w-4 h-4 text-zinc-100" />
+                                Review Batch Configuration
                             </h2>
-                            <button onClick={() => setShowBatchReviewModal(false)} className="p-1 rounded-lg hover:bg-muted transition-colors">
-                                <X className="w-5 h-5" />
+                            <button onClick={() => setShowBatchReviewModal(false)} className="p-1 rounded-lg hover:bg-white/10 transition-colors">
+                                <X className="w-4 h-4" />
                             </button>
                         </div>
 

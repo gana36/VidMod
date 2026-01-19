@@ -28,18 +28,18 @@ const TopBar: React.FC<TopBarProps> = ({
 
                 {hasVideo ? (
                     <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-500">
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background/50">
-                            <Layout className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span className="text-xs font-bold">{platform}</span>
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/5 bg-zinc-900 shadow-sm">
+                            <Layout className="w-3 h-3 text-zinc-500" />
+                            <span className="text-[10px] font-black uppercase tracking-tight text-zinc-300">{platform}</span>
                         </div>
-                        <div className="text-muted-foreground font-light">/</div>
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background/50">
-                            <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span className="text-xs font-bold">{rating}</span>
+                        <div className="text-zinc-700 font-light">/</div>
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/5 bg-zinc-900 shadow-sm">
+                            <ShieldCheck className="w-3 h-3 text-zinc-500" />
+                            <span className="text-[10px] font-black uppercase tracking-tight text-zinc-300">{rating}</span>
                         </div>
-                        <div className="text-muted-foreground font-light">/</div>
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background/50">
-                            <span className="text-xs font-bold">{region}</span>
+                        <div className="text-zinc-700 font-light">/</div>
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/5 bg-zinc-900 shadow-sm">
+                            <span className="text-[10px] font-black uppercase tracking-tight text-zinc-300">{region}</span>
                         </div>
                     </div>
                 ) : (
@@ -51,9 +51,9 @@ const TopBar: React.FC<TopBarProps> = ({
 
             <div className="flex items-center gap-3">
                 {isAnalyzing && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/20 text-accent mr-2 animate-pulse">
-                        <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Analyzing Compliance...</span>
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-100/5 border border-white/5 text-zinc-500 mr-2">
+                        <div className="w-1 h-1 rounded-full bg-zinc-500 animate-pulse" />
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em]">Live Analysis</span>
                     </div>
                 )}
 

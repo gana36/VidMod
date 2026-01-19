@@ -4,12 +4,12 @@ import {
     Clock,
     FileText,
     Upload,
-    LayoutDashboard,
-    Settings,
     FileVideo,
     ShieldCheck,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    Video,
+    Settings
 } from 'lucide-react';
 import { type VideoMetadata } from './UploadZone';
 import { clsx, type ClassValue } from 'clsx';
@@ -51,11 +51,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, metadata, po
     return (
         <aside className="w-64 border-r border-border flex flex-col bg-card/50 backdrop-blur-sm">
             <div className="p-6 overflow-y-auto no-scrollbar flex-1">
-                <div className="flex items-center gap-2 mb-8">
-                    <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shadow-sm">
-                        <LayoutDashboard className="w-5 h-5 text-accent-foreground" />
+                <div className="flex items-center gap-2 mb-8 px-2">
+                    <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center shadow-sm">
+                        <Video className="w-4 h-4 text-zinc-950" />
                     </div>
-                    <span className="font-bold text-lg tracking-tight">Zenith Sensor</span>
+                    <span className="font-black text-xs uppercase tracking-[0.2em] text-zinc-100">Compliance AI</span>
                 </div>
 
                 <nav className="space-y-1 mb-8">
@@ -64,15 +64,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, metadata, po
                             key={item.id}
                             onClick={() => setActiveTab(item.id)}
                             className={cn(
-                                "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all group",
+                                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-[0.15em] transition-all group",
                                 activeTab === item.id
-                                    ? "bg-white/10 text-foreground font-black"
-                                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                                    ? "bg-zinc-100 text-zinc-950 shadow-lg"
+                                    : "text-zinc-500 hover:bg-white/5 hover:text-zinc-100"
                             )}
                         >
                             <item.icon className={cn(
-                                "w-4 h-4",
-                                activeTab === item.id ? "text-accent" : "text-muted-foreground group-hover:text-foreground"
+                                "w-3.5 h-3.5",
+                                activeTab === item.id ? "text-zinc-950" : "text-zinc-500 group-hover:text-zinc-300"
                             )} />
                             {item.label}
                         </button>
