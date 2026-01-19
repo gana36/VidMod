@@ -52,8 +52,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, metadata, po
         <aside className="w-64 border-r border-border flex flex-col bg-card/50 backdrop-blur-sm">
             <div className="p-6 overflow-y-auto no-scrollbar flex-1">
                 <div className="flex items-center gap-2 mb-8">
-                    <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shadow-lg shadow-accent/20">
-                        <LayoutDashboard className="w-5 h-5 text-white" />
+                    <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shadow-sm">
+                        <LayoutDashboard className="w-5 h-5 text-accent-foreground" />
                     </div>
                     <span className="font-bold text-lg tracking-tight">Zenith Sensor</span>
                 </div>
@@ -66,8 +66,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, metadata, po
                             className={cn(
                                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all group",
                                 activeTab === item.id
-                                    ? "bg-accent/10 text-accent shadow-[0_0_15px_rgba(59,130,246,0.1)]"
-                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                    ? "bg-white/10 text-foreground font-black"
+                                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                             )}
                         >
                             <item.icon className={cn(

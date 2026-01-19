@@ -19,9 +19,9 @@ const TopBar: React.FC<TopBarProps> = ({
     return (
         <header className="h-16 border-b border-border flex items-center justify-between px-6 bg-card/30 backdrop-blur-md sticky top-0 z-10">
             <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-accent text-white shadow-lg shadow-accent/20">
-                    <Video className="w-4 h-4" />
-                    <span className="text-xs font-black uppercase tracking-tight">VidMod AI</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-zinc-100">
+                    <Video className="w-3.5 h-3.5 text-zinc-400" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Compliance AI</span>
                 </div>
 
                 <div className="h-4 w-[1px] bg-border mx-2" />
@@ -62,9 +62,9 @@ const TopBar: React.FC<TopBarProps> = ({
                     <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-card" />
                 </button>
 
-                <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 shadow-lg shadow-accent/20 transition-all">
-                    <Download className="w-4 h-4" />
-                    Export Result
+                <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-100 text-zinc-950 text-[10px] font-black hover:bg-white transition-all uppercase tracking-[0.2em]">
+                    <Download className="w-3.5 h-3.5" />
+                    Export
                 </button>
             </div>
         </header>

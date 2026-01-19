@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload as UploadIcon, X, CheckCircle2, Loader2, Play, Layout, Shield, Globe, Check, ChevronDown } from 'lucide-react';
+import { Upload as UploadIcon, X, CheckCircle2, Loader2, Check, ChevronDown, Video } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Platform, Region, Rating } from '../services/policyEngine';
@@ -141,7 +141,6 @@ const UploadZone: React.FC<UploadZoneProps> = ({
         }
     };
 
-
     const reset = () => {
         if (videoUrl) URL.revokeObjectURL(videoUrl);
         setVideoUrl(null);
@@ -151,11 +150,15 @@ const UploadZone: React.FC<UploadZoneProps> = ({
     };
 
     return (
-        <div className="h-full flex flex-col items-center justify-center p-8 bg-background">
-            <div className="w-full max-w-3xl">
-                <div className="mb-8 text-center animate-in fade-in slide-in-from-top-4 duration-700">
-                    <h1 className="text-4xl font-black mb-3 tracking-tighter bg-gradient-to-r from-foreground to-foreground/50 bg-clip-text text-transparent">Compliance Engine</h1>
-                    <p className="text-muted-foreground font-medium">Verify your content against global broadcasting standards.</p>
+        <div className="h-full flex flex-col items-center justify-center p-6 bg-background">
+            <div className="w-full max-w-4xl">
+                <div className="mb-10 text-center animate-in fade-in slide-in-from-top-4 duration-700">
+                    <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-white/10 bg-white/5 mb-4">
+                        <Video className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Compliance Unit v2</span>
+                    </div>
+                    <h1 className="text-4xl font-black mb-2 tracking-tight text-foreground">Content Engine</h1>
+                    <p className="text-muted-foreground font-medium text-sm max-w-sm mx-auto leading-relaxed opacity-60">Systematic verification for global broadcasting standards.</p>
                 </div>
 
                 <div
@@ -163,55 +166,48 @@ const UploadZone: React.FC<UploadZoneProps> = ({
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     className={cn(
-                        "relative rounded-[2.5rem] border-2 border-dashed transition-all duration-700 flex flex-col items-center justify-center p-8 min-h-[500px] overflow-hidden bg-card/10 backdrop-blur-xl shadow-2xl ",
-                        isDragging ? "border-accent bg-accent/5 scale-[1.01] shadow-[0_0_80px_rgba(59,130,246,0.15)]" : "border-white/5 hover:border-accent/30 hover:bg-card/20",
-                        status !== 'idle' && "border-solid border-white/5 p-4"
+                        "relative rounded-[2rem] border border-white/5 transition-all duration-500 flex flex-col items-center justify-center p-8 min-h-[480px] overflow-hidden bg-card/20 backdrop-blur-xl shadow-2xl",
+                        isDragging ? "border-white/20 bg-white/5 scale-[1.002]" : "hover:border-white/10",
+                        status !== 'idle' && "border-white/5 p-6"
                     )}
                 >
-                    {/* Ambient Glows */}
-                    <div className="absolute -top-24 -left-24 w-64 h-64 bg-accent/10 rounded-full blur-[100px] pointer-events-none" />
-                    <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-accent/10 rounded-full blur-[100px] pointer-events-none" />
+                    {/* Minimal Overlay Pattern */}
+                    <div className="absolute inset-0 opacity-[0.01] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
 
                     {status === 'idle' && (
                         <>
                             <div
-                                className="w-24 h-24 rounded-3xl bg-gradient-to-br from-accent to-accent/80 flex items-center justify-center mb-8 shadow-[0_20px_40px_rgba(59,130,246,0.4)] relative group cursor-pointer"
+                                className="w-16 h-16 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-center mb-8 shadow-2xl relative group cursor-pointer hover:bg-zinc-800 transition-all"
                                 onClick={() => fileInputRef.current?.click()}
                             >
-                                <UploadIcon className="w-10 h-10 text-white animate-bounce-slow" />
-                                <div className="absolute inset-0 rounded-3xl bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+                                <UploadIcon className="w-5 h-5 text-zinc-100" />
+                                <div className="absolute inset-0 rounded-2xl border border-white/5 opacity-0 group-hover:opacity-100 transition-all duration-500 scale-105" />
                             </div>
                             <div className="text-center space-y-8 z-10">
-                                <div className="space-y-3">
-                                    <p className="text-2xl font-black text-foreground tracking-tight">Ready to Analyze?</p>
-                                    <p className="text-muted-foreground max-w-sm mx-auto font-medium leading-relaxed">Drop your video here or click below to start the high-fidelity compliance detection.</p>
+                                <div className="space-y-2">
+                                    <p className="text-xl font-black text-foreground tracking-tight">Select Source</p>
+                                    <p className="text-muted-foreground max-w-[280px] mx-auto text-xs font-medium leading-relaxed opacity-40">Provide media for compliance analysis.</p>
                                 </div>
                                 <div className="flex flex-col gap-4 items-center">
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="px-10 py-4 bg-foreground text-background rounded-2xl font-black text-lg shadow-2xl hover:opacity-90 hover:translate-y-[-4px] transition-all active:scale-95 flex items-center gap-3"
+                                        className="px-8 py-3 bg-zinc-100 text-zinc-950 rounded-lg font-black text-[10px] tracking-[0.2em] shadow-xl hover:bg-white transition-all active:scale-95 uppercase"
                                     >
-                                        Select Video File
+                                        CHOOSE FILE
                                     </button>
                                     {onBrowseLibrary && (
                                         <button
                                             onClick={onBrowseLibrary}
-                                            className="px-10 py-4 bg-white/5 border border-white/10 text-foreground rounded-2xl font-bold hover:bg-white/10 hover:translate-y-[-4px] transition-all active:scale-95"
+                                            className="text-[10px] font-black text-muted-foreground hover:text-foreground transition-all tracking-[0.2em] uppercase opacity-30 hover:opacity-100"
                                         >
-                                            📚 Browse Demo Library
+                                            Library Search
                                         </button>
                                     )}
                                 </div>
-                                <div className="flex gap-6 justify-center items-center mt-12">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest opacity-60">Durations</span>
-                                        <span className="text-xs font-bold px-3 py-1 rounded-full bg-white/5 border border-white/5">Up to 120s</span>
-                                    </div>
-                                    <div className="w-[1px] h-6 bg-white/10" />
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest opacity-60">Format</span>
-                                        <span className="text-xs font-bold px-3 py-1 rounded-full bg-white/5 border border-white/5">MP4 / MOV</span>
-                                    </div>
+                                <div className="flex gap-8 justify-center items-center mt-12 opacity-20">
+                                    <span className="text-[9px] font-black uppercase tracking-[0.2em]">MAX 120S</span>
+                                    <div className="w-[1px] h-3 bg-white" />
+                                    <span className="text-[9px] font-black uppercase tracking-[0.2em]">MP4 / MOV</span>
                                 </div>
                             </div>
                             <input
@@ -225,170 +221,92 @@ const UploadZone: React.FC<UploadZoneProps> = ({
                     )}
 
                     {status !== 'idle' && (
-                        <div className="w-full h-full flex flex-col z-10 p-4">
-                            {/* Header Section */}
-                            <div className="flex items-center gap-6 p-6 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-2xl shadow-inner mb-8 transition-all hover:bg-white/[0.08]">
-                                <div className="w-32 h-20 rounded-2xl bg-black flex items-center justify-center flex-shrink-0 shadow-2xl overflow-hidden relative border border-white/10 group/preview">
+                        <div className="w-full h-full flex flex-col z-10">
+                            {/* Compact Video Info */}
+                            <div className="flex items-center gap-6 p-6 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-3xl mb-8 transition-all">
+                                <div className="w-32 h-20 rounded-xl bg-black flex items-center justify-center flex-shrink-0 shadow-2xl overflow-hidden border border-white/5 group/preview relative">
                                     {videoUrl && (
-                                        <video
-                                            src={videoUrl}
-                                            className="w-full h-full object-cover transition-transform duration-700 group-hover/preview:scale-110"
-                                            autoPlay
-                                            muted
-                                            loop
-                                            playsInline
-                                        />
+                                        <video src={videoUrl} className="w-full h-full object-cover opacity-60 group-hover/preview:opacity-100 transition-opacity" autoPlay muted loop playsInline />
                                     )}
-                                    <div className="absolute inset-0 bg-accent/5 pointer-events-none" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between mb-3">
-                                        <h3 className="font-black truncate pr-4 text-2xl tracking-tighter">{metadata?.name}</h3>
-                                        <button onClick={reset} className="p-2.5 hover:bg-red-500/20 hover:text-red-400 rounded-2xl transition-all border border-transparent hover:border-red-500/30">
-                                            <X className="w-5 h-5" />
+                                        <h3 className="font-black truncate pr-4 text-lg tracking-tight text-foreground/80">{metadata?.name}</h3>
+                                        <button onClick={reset} className="p-2 hover:bg-white/10 text-muted-foreground hover:text-foreground rounded-lg transition-all">
+                                            <X className="w-4 h-4" />
                                         </button>
                                     </div>
-                                    <div className="flex gap-3 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">
-                                        <span className="bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">{metadata?.size}</span>
-                                        <span className="bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">{metadata?.duration}</span>
-                                        <span className="bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">{metadata?.resolution}</span>
+                                    <div className="flex gap-3 text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-40">
+                                        <span>{metadata?.size}</span>
+                                        <span>{metadata?.duration}</span>
+                                        <span>{metadata?.resolution}</span>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Main Configuration Section */}
-                            <div className="flex-1 flex flex-col">
+                            <div className="flex-1 flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 {status === 'uploading' || status === 'processing' ? (
-                                    <div className="flex-1 flex flex-col justify-center gap-8 py-12">
-                                        <div className="space-y-4">
-                                            <div className="flex justify-between items-end">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2 rounded-xl bg-accent/10 border border-accent/20">
-                                                        <Loader2 className="w-5 h-5 animate-spin text-accent" />
-                                                    </div>
-                                                    <span className="text-sm font-black uppercase tracking-[0.2em] animate-pulse">
-                                                        {status === 'uploading' ? 'Initializing Secure Stream...' : 'Calibrating AI Engine...'}
-                                                    </span>
-                                                </div>
-                                                <span className="text-2xl font-black font-mono text-accent">{Math.floor(progress)}%</span>
+                                    <div className="flex-1 flex flex-col justify-center gap-6">
+                                        <div className="flex justify-between items-end mb-2">
+                                            <div className="flex items-center gap-3">
+                                                <Loader2 className="w-4 h-4 animate-spin text-foreground opacity-30" />
+                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-50">
+                                                    {status === 'uploading' ? 'Ingesting...' : 'Analyzing...'}
+                                                </span>
                                             </div>
-                                            <div className="h-2.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                                <div
-                                                    className="h-full bg-gradient-to-r from-accent via-accent/80 to-accent transition-all duration-300 ease-out shadow-[0_0_20px_rgba(59,130,246,0.4)] relative"
-                                                    style={{ width: `${progress}%` }}
-                                                >
-                                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
-                                                </div>
-                                            </div>
+                                            <span className="text-xs font-black font-mono text-foreground opacity-50">{Math.floor(progress)}%</span>
+                                        </div>
+                                        <div className="h-0.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                            <div className="h-full bg-white transition-all duration-300" style={{ width: `${progress}%` }} />
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="flex-1 flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                                    <>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            {/* Platform Selector */}
-                                            <div className="space-y-3">
-                                                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                                                    <Layout className="w-3 h-3" />
-                                                    Target Platform
-                                                </label>
-                                                <div className="relative group/sel">
-                                                    <div className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 hover:border-accent/50 hover:bg-white/10 cursor-pointer transition-all">
-                                                        <span className="font-bold text-sm tracking-tight">{platform}</span>
-                                                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                                                    </div>
-                                                    <div className="absolute bottom-full left-0 w-full mb-2 p-1.5 bg-background/90 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-3xl opacity-0 group-hover/sel:opacity-100 translate-y-2 group-hover/sel:translate-y-0 pointer-events-none group-hover/sel:pointer-events-auto transition-all z-50">
-                                                        {platforms.map(p => (
-                                                            <button
-                                                                key={p}
-                                                                onClick={() => onPlatformChange(p)}
-                                                                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold hover:bg-accent/10 hover:text-accent transition-all"
-                                                            >
-                                                                {p}
-                                                                {platform === p && <Check className="w-3 h-3" />}
-                                                            </button>
-                                                        ))}
+                                            {[
+                                                { label: 'Platform', value: platform, options: platforms, onChange: onPlatformChange },
+                                                { label: 'Rating', value: rating, options: ratings, onChange: onRatingChange },
+                                                { label: 'Region', value: region, options: regions, onChange: onRegionChange }
+                                            ].map((sel, idx) => (
+                                                <div key={idx} className="space-y-3">
+                                                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-30 ml-1">{sel.label}</label>
+                                                    <div className="relative group/sel">
+                                                        <div className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5 hover:border-white/20 hover:bg-white/5 cursor-pointer transition-all">
+                                                            <span className="font-bold text-[10px] tracking-widest text-foreground/70 uppercase">{sel.value}</span>
+                                                            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground opacity-30" />
+                                                        </div>
+                                                        <div className="absolute bottom-full left-0 w-full mb-2 p-1.5 bg-[#0c0c0e] border border-white/10 rounded-xl shadow-2xl backdrop-blur-3xl opacity-0 scale-95 origin-bottom group-hover/sel:opacity-100 group-hover/sel:scale-100 pointer-events-none group-hover/sel:pointer-events-auto transition-all z-50">
+                                                            {sel.options.map(opt => (
+                                                                <button key={opt} onClick={() => sel.onChange(opt)} className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[9px] font-black tracking-widest hover:bg-white/10 transition-all text-muted-foreground hover:text-foreground uppercase">
+                                                                    {opt}
+                                                                    {sel.value === opt && <Check className="w-3 h-3 text-white" />}
+                                                                </button>
+                                                            ))}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-
-                                            {/* Rating Selector */}
-                                            <div className="space-y-3">
-                                                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                                                    <Shield className="w-3 h-3" />
-                                                    Content Rating
-                                                </label>
-                                                <div className="relative group/sel">
-                                                    <div className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 hover:border-accent/50 hover:bg-white/10 cursor-pointer transition-all">
-                                                        <span className="font-bold text-sm tracking-tight">{rating}</span>
-                                                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                                                    </div>
-                                                    <div className="absolute bottom-full left-0 w-full mb-2 p-1.5 bg-background/90 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-3xl opacity-0 group-hover/sel:opacity-100 translate-y-2 group-hover/sel:translate-y-0 pointer-events-none group-hover/sel:pointer-events-auto transition-all z-50">
-                                                        {ratings.map(r => (
-                                                            <button
-                                                                key={r}
-                                                                onClick={() => onRatingChange(r)}
-                                                                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold hover:bg-accent/10 hover:text-accent transition-all"
-                                                            >
-                                                                {r}
-                                                                {rating === r && <Check className="w-3 h-3" />}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Region Selector */}
-                                            <div className="space-y-3">
-                                                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                                                    <Globe className="w-3 h-3" />
-                                                    Global Region
-                                                </label>
-                                                <div className="relative group/sel">
-                                                    <div className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 hover:border-accent/50 hover:bg-white/10 cursor-pointer transition-all">
-                                                        <span className="font-bold text-sm tracking-tight">{region}</span>
-                                                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                                                    </div>
-                                                    <div className="absolute bottom-full left-0 w-full mb-2 p-1.5 bg-background/90 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-3xl opacity-0 group-hover/sel:opacity-100 translate-y-2 group-hover/sel:translate-y-0 pointer-events-none group-hover/sel:pointer-events-auto transition-all z-50">
-                                                        {regions.map(r => (
-                                                            <button
-                                                                key={r}
-                                                                onClick={() => onRegionChange(r)}
-                                                                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold hover:bg-accent/10 hover:text-accent transition-all"
-                                                            >
-                                                                {r}
-                                                                {region === r && <Check className="w-3 h-3" />}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
+                                            ))}
                                         </div>
 
-                                        <div className="mt-auto space-y-6">
+                                        <div className="mt-auto">
                                             <button
                                                 onClick={() => metadata && onUploadComplete(metadata)}
                                                 disabled={!metadata}
                                                 className={cn(
-                                                    "w-full py-6 text-white rounded-3xl font-black text-xl flex items-center justify-center gap-3 shadow-[0_20px_50px_rgba(59,130,246,0.3)] transition-all relative overflow-hidden group/btn",
-                                                    metadata
-                                                        ? "bg-accent hover:translate-y-[-4px] hover:shadow-[0_25px_60px_rgba(59,130,246,0.4)] active:scale-[0.98]"
-                                                        : "bg-muted cursor-not-allowed opacity-50"
+                                                    "w-full py-4 text-zinc-950 rounded-lg font-black text-[10px] tracking-[0.3em] transition-all relative overflow-hidden group/btn uppercase",
+                                                    metadata ? "bg-zinc-100 hover:bg-white active:scale-[0.99] shadow-lg shadow-white/5" : "bg-zinc-800 cursor-not-allowed opacity-20"
                                                 )}
                                             >
-                                                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover/btn:animate-shimmer" />
-                                                <Play className="w-6 h-6 fill-current" />
-                                                RUN COMPLIANCE ANALYSIS
+                                                PROCESS COMPLIANCE MATRIX
                                             </button>
-                                            <div className="flex items-center justify-center gap-4">
-                                                <div className="h-[1px] flex-1 bg-white/5" />
-                                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-black uppercase tracking-[0.4em] opacity-50">
-                                                    <CheckCircle2 className="w-3 h-3 text-emerald-500/50" />
-                                                    Validation Complete
-                                                </div>
-                                                <div className="h-[1px] flex-1 bg-white/5" />
+                                            <div className="mt-6 flex items-center justify-center gap-4 opacity-5">
+                                                <div className="h-[1px] w-8 bg-white" />
+                                                <span className="text-[8px] font-black uppercase tracking-[0.4em]">Verified Unit</span>
+                                                <div className="h-[1px] w-8 bg-white" />
                                             </div>
                                         </div>
-                                    </div>
+                                    </>
                                 )}
                             </div>
                         </div>
