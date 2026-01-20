@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, EyeOff, ShieldCheck, Info, Play, RefreshCw, Grid, Plus, Search, X, AlertCircle, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertCircle, Scissors, VolumeX, EyeOff, ShieldCheck, Info, Play, RefreshCw, Grid, Plus, Search, X } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import ActionModal, { type ActionType } from './ActionModal';
@@ -46,8 +45,8 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
             finding: f,
             violation: f.content,
             action: action,
-            reason: `Regulation: ${f.type}`,
-            summary: f.context || 'System verified compliance point.',
+            reason: `Compliance Risk: ${f.type}`,
+            summary: f.context || 'No additional reasoning provided by Gemini.',
             confidence: confidenceMap[f.confidence] || 75,
             iconType
         };
@@ -89,7 +88,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
 
     // Check if object is already in queue
     const isObjectInQueue = (objectName: string) => {
-        return customObjects.some((obj: CustomObject) => obj.name.toLowerCase() === objectName.toLowerCase());
+        return customObjects.some(obj => obj.name.toLowerCase() === objectName.toLowerCase());
     };
 
     // Add object to queue (for blur/pixelate - no modal)
@@ -111,7 +110,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
         };
 
         // Add to queue (not processed yet)
-        setCustomObjects((prev: CustomObject[]) => [...prev, newCustomObject]);
+        setCustomObjects(prev => [...prev, newCustomObject]);
 
         // Clear input for next object
         setCustomObjectInput('');
@@ -161,7 +160,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
 
     // Remove object from queue
     const removeCustomObject = (id: string) => {
-        setCustomObjects((prev: CustomObject[]) => prev.filter((obj: CustomObject) => obj.id !== id));
+        setCustomObjects(prev => prev.filter(obj => obj.id !== id));
     };
 
     // State for batch processing
@@ -253,6 +252,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
         }
     };
 
+
     // Apply All - process queue sequentially to ensure Smart Clipping works correctly for each item
     const handleApplyAll = async () => {
         if (customObjects.length === 0 || !jobId) return;
@@ -313,6 +313,15 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
         }
     };
 
+    const getIcon = (type: string) => {
+        switch (type) {
+            case 'blur': return <EyeOff className="w-4 h-4" />;
+            case 'mute': return <VolumeX className="w-4 h-4" />;
+            case 'replace': return <ShieldCheck className="w-4 h-4" />;
+            case 'cut': return <Scissors className="w-4 h-4" />;
+            default: return <AlertCircle className="w-4 h-4" />;
+        }
+    };
 
     // Determine which action buttons to show based on iconType
     const getActionButtons = (step: EditStep) => {
@@ -373,249 +382,246 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
         return buttons;
     };
 
+    // Extract replacement prompt from suggested action
+    const getReplacementPrompt = (step: EditStep): string => {
+        const action = step.action.toLowerCase();
+        // Try to extract what to replace with from the action text
+        if (action.includes('replace with')) {
+            const match = action.match(/replace with\s+(.+)/i);
+            return match ? match[1] : '';
+        }
+        if (action.includes('inpaint')) {
+            return 'generic object';
+        }
+        return '';
+    };
 
     return (
-        <div className="flex flex-col h-full bg-transparent">
-            {/* Custom Object Input Section */}
-            <div className="p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-xs uppercase tracking-[0.15em] text-muted-foreground">Manual Targeting</h3>
-                    <div className="px-2 py-0.5 rounded-full bg-secondary text-primary text-[9px] font-black uppercase tracking-[0.2em] border border-border">
-                        Targeting Logic
-                    </div>
+        <div className="flex flex-col h-full bg-card">
+            <div className="p-4 border-b border-border bg-muted/20 flex items-center justify-between">
+                <h3 className="font-bold text-sm tracking-tight flex items-center gap-2">
+                    <Scissors className="w-4 h-4 text-accent" />
+                    Gemini Remediation Plan
+                </h3>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    {jobId ? 'Ready' : 'Optimized'}
                 </div>
+            </div>
 
-                <div className="glass-card p-4 space-y-4 bg-primary/[0.02]">
-                    <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Target Object</span>
-                        <button
-                            onClick={() => setShowCustomInput(!showCustomInput)}
-                            className="text-primary hover:text-primary/80 transition-colors cursor-pointer"
-                        >
-                            {showCustomInput ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                        </button>
-                    </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-0 custom-scrollbar relative">
+                {/* Custom Object Input Section */}
+                <div className="mb-4 rounded-xl border border-dashed border-accent/40 bg-accent/5 p-3">
+                    <button
+                        onClick={() => setShowCustomInput(!showCustomInput)}
+                        className="w-full flex items-center gap-2 text-sm font-medium text-accent hover:text-accent/80 transition-colors"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Add Custom Object to Edit
+                        <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${showCustomInput ? 'rotate-180' : ''}`} />
+                    </button>
 
-                    <AnimatePresence>
-                        {showCustomInput && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="space-y-4 overflow-hidden"
-                            >
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/60" />
-                                    <input
-                                        type="text"
-                                        value={customObjectInput}
-                                        onChange={(e) => setCustomObjectInput(e.target.value)}
-                                        placeholder="Describe object (e.g. 'red car')"
-                                        className="w-full pl-9 pr-4 py-2.5 bg-secondary/30 border border-border rounded-xl text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/50"
-                                    />
+                    {showCustomInput && (
+                        <div className="mt-3 space-y-3">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <input
+                                    type="text"
+                                    value={customObjectInput}
+                                    onChange={(e) => setCustomObjectInput(e.target.value)}
+                                    placeholder="Describe any object (e.g., 'red car', 'person in blue shirt', 'company logo')"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-background/60 border border-border rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent"
+                                />
+                            </div>
+
+                            {customObjectInput.trim() && (
+                                <div className="flex flex-wrap gap-2">
+                                    <span className="text-[10px] text-muted-foreground w-full mb-1">Add to queue with effect:</span>
+                                    <button
+                                        onClick={() => handleAddToQueue('blur')}
+                                        className="flex items-center gap-1.5 px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-lg text-xs font-medium transition-colors"
+                                    >
+                                        <EyeOff className="w-3.5 h-3.5" />
+                                        + Blur
+                                    </button>
+                                    <button
+                                        onClick={() => handleAddToQueue('pixelate')}
+                                        className="flex items-center gap-1.5 px-3 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg text-xs font-medium transition-colors"
+                                    >
+                                        <Grid className="w-3.5 h-3.5" />
+                                        + Pixelate
+                                    </button>
+                                    <button
+                                        onClick={() => handleReplaceWithModal('replace-vace')}
+                                        disabled={!jobId}
+                                        className="flex items-center gap-1.5 px-3 py-2 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                                    >
+                                        <RefreshCw className="w-3.5 h-3.5" />
+                                        VACE Replace
+                                    </button>
+                                    <button
+                                        onClick={() => handleReplaceWithModal('replace-pika')}
+                                        disabled={!jobId}
+                                        className="flex items-center gap-1.5 px-3 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                                    >
+                                        <Play className="w-3.5 h-3.5" />
+                                        Pika Replace
+                                    </button>
                                 </div>
+                            )}
 
-                                {customObjectInput.trim() && (
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {[
-                                            { id: 'blur', label: 'Blur', icon: EyeOff, color: 'text-amber-400', bg: 'bg-amber-400/10' },
-                                            { id: 'pixelate', label: 'Pixel', icon: Grid, color: 'text-cyan-400', bg: 'bg-cyan-400/10' },
-                                            { id: 'replace-vace', label: 'VACE', icon: RefreshCw, color: 'text-primary', bg: 'bg-primary/10', needsJob: true },
-                                            { id: 'replace-pika', label: 'Pika', icon: Play, color: 'text-purple-400', bg: 'bg-purple-400/10', needsJob: true },
-                                        ].map((action) => (
-                                            <button
-                                                key={action.id}
-                                                onClick={() => {
-                                                    if (action.id === 'blur' || action.id === 'pixelate') handleAddToQueue(action.id as any);
-                                                    else handleReplaceWithModal(action.id as any);
-                                                }}
-                                                disabled={action.needsJob && !jobId}
-                                                className={cn(
-                                                    "flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border hover:border-border transition-all active:scale-95 group cursor-pointer",
-                                                    action.bg, action.color,
-                                                    action.needsJob && !jobId && "opacity-40 cursor-not-allowed"
-                                                )}
-                                            >
-                                                <action.icon className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">{action.label}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                            {!jobId && (
+                                <p className="text-[10px] text-muted-foreground italic">Upload a video first to enable actions</p>
+                            )}
+                        </div>
+                    )}
 
                     {/* Queue display */}
                     {customObjects.length > 0 && (
-                        <div className="pt-4 border-t border-border space-y-3">
-                            <div className="flex items-center justify-between">
-                                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Active Queue</span>
-                                <span className="text-[9px] text-primary tabular-nums font-black">{customObjects.length}</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                {customObjects.map((obj: CustomObject) => (
-                                    <motion.div
-                                        layout
-                                        initial={{ scale: 0.9, opacity: 0 }}
-                                        animate={{ scale: 1, opacity: 1 }}
+                        <div className="mt-3 pt-3 border-t border-border/50">
+                            <p className="text-[10px] font-bold text-muted-foreground mb-2 uppercase tracking-wider">
+                                Edit Queue ({customObjects.length} objects):
+                            </p>
+                            <div className="flex flex-wrap gap-2 mb-3">
+                                {customObjects.map((obj) => (
+                                    <div
                                         key={obj.id}
-                                        className={cn(
-                                            "flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold",
-                                            obj.appliedEffect === 'pixelate' ? "bg-cyan-400/5 border-cyan-400/20 text-cyan-400" : "bg-amber-400/5 border-amber-400/20 text-amber-400"
-                                        )}
+                                        className={`flex items-center gap-1.5 px-2 py-1 border rounded-lg text-xs ${obj.appliedEffect === 'pixelate'
+                                            ? 'bg-cyan-500/10 border-cyan-500/30'
+                                            : 'bg-amber-500/10 border-amber-500/30'
+                                            }`}
                                     >
-                                        <span>{obj.name}</span>
-                                        <button onClick={() => removeCustomObject(obj.id)} className="hover:text-primary transition-colors cursor-pointer">
+                                        <span className="text-foreground">{obj.name}</span>
+                                        <span className={obj.appliedEffect === 'pixelate' ? 'text-cyan-400' : 'text-amber-400'}>
+                                            ({obj.appliedEffect})
+                                        </span>
+                                        <button
+                                            onClick={() => removeCustomObject(obj.id)}
+                                            className="ml-1 p-0.5 hover:bg-red-500/20 rounded text-muted-foreground hover:text-red-400 transition-colors"
+                                            title="Remove"
+                                        >
                                             <X className="w-3 h-3" />
                                         </button>
-                                    </motion.div>
+                                    </div>
                                 ))}
                             </div>
 
+                            {/* Apply All button */}
                             <button
                                 onClick={handleApplyAll}
                                 disabled={isProcessingBatch || !jobId}
-                                className="w-full py-3 bg-primary text-primary-foreground rounded-lg hover:brightness-105 transition-all active:scale-[0.98] disabled:opacity-20 disabled:scale-100 flex items-center justify-center gap-2 overflow-hidden relative cursor-pointer"
+                                className="w-full py-2.5 bg-gradient-to-r from-accent to-emerald-500 hover:from-accent/90 hover:to-emerald-500/90 text-white rounded-lg text-sm font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {isProcessingBatch ? (
                                     <>
-                                        <div className="w-3.5 h-3.5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                                        <span className="text-[10px] uppercase font-black tracking-widest">Authorizing...</span>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Processing...
                                     </>
                                 ) : (
                                     <>
-                                        <Play className="w-3.5 h-3.5" />
-                                        <span className="text-[10px] uppercase font-black tracking-widest">Execute Batch Apply</span>
+                                        <Play className="w-4 h-4" />
+                                        Apply All ({customObjects.length} objects)
                                     </>
                                 )}
-                                {isProcessingBatch && (
-                                    <motion.div
-                                        className="absolute bottom-0 left-0 h-0.5 bg-primary-foreground/40"
-                                        initial={{ width: 0 }}
-                                        animate={{ width: '100%' }}
-                                        transition={{ duration: 2 }}
-                                    />
-                                )}
                             </button>
+
+                            {/* Progress display */}
                             {batchProgress && (
-                                <p className="text-[9px] font-medium text-center opacity-60 uppercase tracking-widest">
+                                <p className={`text-[10px] mt-2 text-center ${batchProgress.includes('Error') ? 'text-red-400' : 'text-emerald-400'}`}>
                                     {batchProgress}
                                 </p>
                             )}
                         </div>
                     )}
                 </div>
-            </div>
 
-            <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4 custom-scrollbar">
-                <div className="flex items-center justify-between sticky top-0 py-2 bg-[var(--background)]/80 backdrop-blur-sm z-20">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Remediation Steps</span>
-                    <span className="text-[10px] text-muted-foreground/60">{steps.length} actions planned</span>
-                </div>
+                {/* Vertical Line */}
+                <div className="absolute left-[27px] top-[140px] bottom-6 w-[2px] bg-gradient-to-b from-accent/50 via-accent/20 to-transparent pointer-events-none" />
 
                 {steps.length === 0 ? (
-                    <div className="h-40 flex flex-col items-center justify-center text-center p-8 space-y-4 rounded-2xl bg-white/[0.02] border border-dashed border-border/50 opacity-40">
-                        <ShieldCheck className="w-8 h-8" />
-                        <p className="text-[10px] font-black uppercase tracking-widest">Clean Environment</p>
+                    <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4 opacity-40">
+                        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                            <ShieldCheck className="w-8 h-8" />
+                        </div>
+                        <p className="text-xs font-bold uppercase tracking-[0.2em]">No Remediation Needed</p>
                     </div>
                 ) : (
-                    <div className="space-y-4 relative">
-                        {/* Vertical Timeline Line */}
-                        <div className="absolute left-[19px] top-6 bottom-6 w-px bg-gradient-to-b from-primary/40 via-primary/10 to-transparent" />
+                    steps.map((step) => {
+                        const isExpanded = expandedIds.has(step.id);
+                        return (
+                            <div key={step.id} className="relative pl-10 pb-8 last:pb-0 group">
+                                {/* Connector Circle */}
+                                <div className={cn(
+                                    "absolute left-4 top-1 w-6 h-6 rounded-full flex items-center justify-center z-10 transition-all duration-300 border-2",
+                                    isExpanded ? "bg-accent border-accent text-white scale-110 shadow-[0_0_15px_rgba(59,130,246,0.5)]" : "bg-card border-border text-muted-foreground group-hover:border-accent group-hover:text-accent"
+                                )}>
+                                    {getIcon(step.iconType)}
+                                </div>
 
-                        {steps.map((step) => {
-                            const isExpanded = expandedIds.has(step.id);
-                            return (
-                                <div key={step.id} className="relative pl-10 group">
-                                    {/* Timeline Node */}
-                                    <div className={cn(
-                                        "absolute left-2.5 top-1.5 w-3.5 h-3.5 rounded-full z-10 transition-all duration-300 border-2",
-                                        isExpanded ? "bg-primary border-primary shadow-[0_0_10px_rgba(59,130,246,0.6)]" : "bg-background border-border group-hover:border-primary"
-                                    )} />
-
-                                    <motion.div
-                                        layout
-                                        className={cn(
-                                            "glass-card overflow-hidden transition-all duration-300",
-                                            isExpanded ? "ring-1 ring-primary/30 bg-primary/[0.02]" : "hover:border-white/20"
-                                        )}
-                                    >
-                                        <div
-                                            className="p-4 cursor-pointer flex items-start justify-between gap-4"
-                                            onClick={() => toggleExpand(step.id)}
-                                        >
-                                            <div className="space-y-1.5 flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[9px] font-black uppercase tracking-widest text-primary opacity-60">Step {step.id}</span>
-                                                    <div className="h-px w-4 bg-white/10" />
-                                                    <span className="text-[10px] font-bold bg-red-400/10 text-red-400 px-1.5 py-0.5 rounded border border-red-400/20 uppercase tracking-tighter truncate">{step.violation}</span>
-                                                </div>
-                                                <h4 className="text-sm font-bold tracking-tight">{step.action}</h4>
-                                                <div className="flex items-center gap-1.5">
-                                                    <div className="w-3.5 h-3.5 rounded flex items-center justify-center bg-primary/10 text-primary">
-                                                        <Info className="w-2.5 h-2.5" />
-                                                    </div>
-                                                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">{step.reason}</p>
-                                                </div>
+                                <div
+                                    className={cn(
+                                        "flex flex-col rounded-xl border transition-all duration-300 cursor-pointer overflow-hidden",
+                                        isExpanded
+                                            ? "bg-accent/5 border-accent shadow-[0_0_20px_rgba(59,130,246,0.05)]"
+                                            : "bg-background/40 border-border/50 hover:bg-muted/10 hover:border-border"
+                                    )}
+                                    onClick={() => toggleExpand(step.id)}
+                                >
+                                    <div className="p-3 flex items-start justify-between gap-3">
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                                <span>Violation:</span>
+                                                <span className="text-white bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">{step.violation}</span>
                                             </div>
-                                            <div className={cn("p-1.5 rounded-lg bg-white/5 transition-transform", isExpanded && "rotate-180")}>
-                                                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-                                            </div>
+                                            <h4 className="text-sm font-bold text-foreground mt-1">{step.action}</h4>
+                                            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                                <Info className="w-3 h-3 text-accent" />
+                                                {step.reason}
+                                            </p>
                                         </div>
+                                        <div className="flex flex-col items-end gap-2">
+                                            {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                                        </div>
+                                    </div>
 
-                                        <AnimatePresence>
-                                            {isExpanded && (
-                                                <motion.div
-                                                    initial={{ height: 0, opacity: 0 }}
-                                                    animate={{ height: 'auto', opacity: 1 }}
-                                                    exit={{ height: 0, opacity: 0 }}
-                                                    className="border-t border-white/[0.03]"
-                                                >
-                                                    <div className="p-4 space-y-4">
-                                                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
-                                                            <p className="text-[11px] leading-relaxed text-muted-foreground/80 italic">
-                                                                "{step.summary}"
-                                                            </p>
-                                                        </div>
+                                    {isExpanded && (
+                                        <div className="px-3 pb-3 pt-1 border-t border-accent/10 animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <div className="space-y-3">
+                                                <div className="bg-background/60 rounded-lg p-2.5 space-y-2 border border-border/50">
+                                                    <p className="text-xs leading-relaxed text-muted-foreground italic">
+                                                        "{step.summary}"
+                                                    </p>
+                                                </div>
 
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="space-y-1">
-                                                                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Trust Rating</span>
-                                                                <div className="flex gap-1">
-                                                                    {[...Array(5)].map((_, i) => (
-                                                                        <div
-                                                                            key={i}
-                                                                            className={cn(
-                                                                                "w-3 h-1 rounded-full transition-colors",
-                                                                                i < Math.round(step.confidence / 20) ? "bg-primary" : "bg-white/10"
-                                                                            )}
-                                                                        />
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <span className="text-lg font-black tracking-tighter text-primary">{step.confidence}%</span>
-                                                                <p className="text-[8px] font-medium text-muted-foreground/40 uppercase tracking-widest">Confidence</p>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex flex-wrap gap-2 pt-2 border-t border-white/5">
-                                                            {getActionButtons(step).map((btn, i) => (
-                                                                <div key={i} className="contents shadow-lg shadow-black/20">
-                                                                    {btn}
-                                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Confidence Score</div>
+                                                        <div className="flex gap-0.5">
+                                                            {[...Array(5)].map((_, i) => (
+                                                                <div
+                                                                    key={i}
+                                                                    className={cn(
+                                                                        "w-3 h-1 rounded-full",
+                                                                        i < Math.round(step.confidence / 20) ? "bg-accent" : "bg-muted"
+                                                                    )}
+                                                                />
                                                             ))}
                                                         </div>
                                                     </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </motion.div>
+                                                    <span className="text-lg font-black italic text-accent tabular-nums">{step.confidence}%</span>
+                                                </div>
+
+                                                {/* Action Buttons */}
+                                                <div className="flex flex-wrap gap-2 pt-2 border-t border-border/30">
+                                                    {getActionButtons(step)}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                            );
-                        })}
-                    </div>
+                            </div>
+                        );
+                    })
                 )}
 
                 {/* Process All Findings Button */}
@@ -624,44 +630,35 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                         <button
                             onClick={initializeBatchConfigs}
                             disabled={isProcessingBatch}
-                            className="w-full py-3.5 bg-secondary hover:brightness-110 border border-border text-primary rounded-lg font-black text-[10px] uppercase tracking-[0.3em] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-2xl cursor-pointer"
+                            className="w-full py-3 bg-gradient-to-r from-accent via-purple-600 to-pink-600 hover:from-accent/90 hover:via-purple-600/90 hover:to-pink-600/90 text-white rounded-xl font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                         >
                             {isProcessingBatch ? (
                                 <>
-                                    <Loader2 className="w-4 h-4 animate-spin opacity-40" />
-                                    Authorizing...
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Processing...
                                 </>
                             ) : (
                                 <>
-                                    <ShieldCheck className="w-4 h-4" />
-                                    EXECUTE COMPLIANCE MATRIX ({steps.length} ITEMS)
+                                    🚀 Process All Findings ({steps.length} items)
                                 </>
                             )}
                         </button>
                         {batchProgress && (
-                            <p className={cn(
-                                "text-[9px] mt-3 text-center font-black uppercase tracking-[0.2em]",
-                                batchProgress.includes('Error') || batchProgress.includes('❌') ? 'text-red-400' : 'text-zinc-500'
-                            )}>
-                                {batchProgress.replace('✅', '').replace('❌', '')}
+                            <p className={`text-sm mt-2 text-center font-medium ${batchProgress.includes('Error') || batchProgress.includes('❌') ? 'text-red-400' : 'text-emerald-400'}`}>
+                                {batchProgress}
                             </p>
                         )}
                     </div>
                 )}
             </div>
 
-            <div className="p-4 mt-auto border-t border-border bg-secondary/10">
-                <div className="flex items-center justify-between mb-2">
-                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Workflow Engine</span>
-                    <span className="text-[9px] text-emerald-400 font-bold uppercase tabular-nums">Integrity Validated</span>
+            <div className="p-4 border-t border-border bg-muted/5">
+                <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
+                    <span>Processing Status</span>
+                    <span className="text-accent">{jobId ? 'Actions Available' : 'Ready for Export'}</span>
                 </div>
-                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                    <motion.div
-                        className="h-full bg-emerald-400"
-                        initial={{ width: 0 }}
-                        animate={{ width: '100%' }}
-                        transition={{ duration: 1.5, ease: "easeOut" }}
-                    />
+                <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+                    <div className="w-full h-full bg-accent animate-pulse" />
                 </div>
             </div>
 
@@ -675,13 +672,12 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     {/* Modal */}
                     <div className="relative z-10 w-full max-w-4xl max-h-[90vh] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col">
                         {/* Header */}
-                        <div className="flex items-center justify-between p-4 border-b border-border bg-secondary/80">
-                            <h2 className="font-black text-xs uppercase tracking-[0.2em] flex items-center gap-3">
-                                <ShieldCheck className="w-4 h-4 text-primary" />
-                                Review Batch Configuration
+                        <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20">
+                            <h2 className="font-bold text-lg flex items-center gap-2">
+                                🚀 Batch Process Findings
                             </h2>
-                            <button onClick={() => setShowBatchReviewModal(false)} className="p-1 rounded-lg hover:bg-secondary transition-colors">
-                                <X className="w-4 h-4" />
+                            <button onClick={() => setShowBatchReviewModal(false)} className="p-1 rounded-lg hover:bg-muted transition-colors">
+                                <X className="w-5 h-5" />
                             </button>
                         </div>
 
@@ -828,7 +824,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                                 <button
                                     onClick={processBatchFindings}
                                     disabled={batchConfigs.filter(c => c.selected).length === 0}
-                                    className="px-6 py-2 bg-gradient-to-r from-accent to-purple-600 hover:brightness-110 text-primary rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-6 py-2 bg-gradient-to-r from-accent to-purple-600 hover:from-accent/90 hover:to-purple-600/90 text-white rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     Process Selected ({batchConfigs.filter(c => c.selected).length})
                                 </button>
