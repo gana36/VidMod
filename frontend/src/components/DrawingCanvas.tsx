@@ -18,7 +18,7 @@ interface Box {
 interface DrawingCanvasProps {
     jobId: string;
     currentTime: number;
-    onConfirm: (box: Box, action: 'blur' | 'replace' | 'mute', label?: string, reasoning?: string) => void;
+    onConfirm: (box: Box, action: 'blur' | 'replace' | 'replace-pika' | 'mute', label?: string, reasoning?: string) => void;
     onCancel: () => void;
 }
 
@@ -94,7 +94,15 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ jobId, currentTime, onCon
         }
     };
 
-    const handleAction = (action: 'blur' | 'replace' | 'mute', label?: string) => {
+    const [showReplaceOptions, setShowReplaceOptions] = useState(false);
+
+    const handleAction = (action: 'blur' | 'replace' | 'replace-pika' | 'mute', label?: string) => {
+        // If replace is clicked, show options instead of directly confirming
+        if (action === 'replace') {
+            setShowReplaceOptions(true);
+            return;
+        }
+
         if (currentBox) {
             onConfirm(currentBox, action, label || analysisResult?.itemName, analysisResult?.reasoning);
             reset();
@@ -117,10 +125,12 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ jobId, currentTime, onCon
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
         >
-            <div className="absolute top-4 left-4 px-3 py-1.5 bg-background/80 backdrop-blur border border-border rounded-lg flex items-center gap-2 pointer-events-none animate-in fade-in slide-in-from-top-2">
-                <MousePointer2 className="w-3.5 h-3.5 text-accent" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Drag to draw remediation zone</span>
-            </div>
+            {!isConfirmedBox && (
+                <div className="absolute top-4 left-4 px-3 py-1.5 bg-background/80 backdrop-blur border border-border rounded-lg flex items-center gap-2 pointer-events-none animate-in fade-in slide-in-from-top-2">
+                    <MousePointer2 className="w-3.5 h-3.5 text-accent" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Drag to draw remediation zone</span>
+                </div>
+            )}
 
             {currentBox && (
                 <div
@@ -246,12 +256,70 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ jobId, currentTime, onCon
                 </div>
             )}
 
+            {/* Escape Button - Always Visible */}
             <button
                 onClick={onCancel}
-                className="absolute top-4 right-4 px-4 py-2 bg-background/80 backdrop-blur border border-border rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-background transition-colors shadow-lg"
+                className="absolute top-4 right-4 px-4 py-2.5 bg-red-500/90 hover:bg-red-600 backdrop-blur border-2 border-red-400 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all shadow-2xl shadow-red-500/50 hover:scale-105 z-[1000] animate-in fade-in slide-in-from-top-2 flex items-center gap-2"
             >
+                <X className="w-4 h-4" />
                 Exit Edit Mode
             </button>
+
+            {/* Replace Options Modal */}
+            {showReplaceOptions && isConfirmedBox && (
+                <div className="absolute inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-background border-2 border-accent rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 animate-in zoom-in-95">
+                        <h3 className="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <ShieldAlert className="w-4 h-4 text-accent" />
+                            Choose Replacement Method
+                        </h3>
+                        <div className="space-y-3 mb-4">
+                            <button
+                                onClick={() => {
+                                    setShowReplaceOptions(false);
+                                    if (currentBox) {
+                                        onConfirm(currentBox, 'replace-pika', analysisResult?.itemName, analysisResult?.reasoning);
+                                        reset();
+                                    }
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border-2 border-purple-500/30 hover:border-purple-500 transition-all group"
+                            >
+                                <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400">
+                                    <Sparkles className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1 text-left">
+                                    <div className="text-sm font-bold text-purple-400">Pika Labs Replace</div>
+                                    <div className="text-[10px] text-muted-foreground">Best for shape-changing swaps (cup → bottle)</div>
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowReplaceOptions(false);
+                                    if (currentBox) {
+                                        onConfirm(currentBox, 'replace', analysisResult?.itemName, analysisResult?.reasoning);
+                                        reset();
+                                    }
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-accent/10 hover:bg-accent/20 border-2 border-accent/30 hover:border-accent transition-all group"
+                            >
+                                <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center text-accent">
+                                    <ShieldAlert className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1 text-left">
+                                    <div className="text-sm font-bold text-accent">VACE Replace</div>
+                                    <div className="text-[10px] text-muted-foreground">Best for texture/color changes</div>
+                                </div>
+                            </button>
+                        </div>
+                        <button
+                            onClick={() => setShowReplaceOptions(false)}
+                            className="w-full px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
