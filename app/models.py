@@ -265,6 +265,29 @@ class PikaReplaceResponse(BaseModel):
     message: str = ""
 
 
+class RunwayReplaceRequest(BaseModel):
+    """Request for Runway Gen-4 object replacement."""
+    job_id: str = Field(..., description="Job ID from video upload")
+    prompt: str = Field(
+        ...,
+        description="Description of desired edit (e.g., 'replace cigarette with lollipop')"
+    )
+    negative_prompt: str = Field(
+        "blurry, distorted, low quality, deformed",
+        description="What to avoid in generation"
+    )
+    duration: int = Field(5, ge=1, le=10, description="Output duration in seconds")
+
+
+class RunwayReplaceResponse(BaseModel):
+    """Response from Runway Gen-4 object replacement."""
+    job_id: str
+    status: str
+    download_path: Optional[str] = None
+    video_url: Optional[str] = None
+    message: str = ""
+
+
 class BlurEffectRequest(BaseModel):
     """Request to apply blur effect to masked region (like Meta's Segment Anything demo)."""
     job_id: str = Field(..., description="Job ID from video upload")

@@ -189,6 +189,37 @@ export async function replaceWithVACE(
 }
 
 /**
+ * Replace object using Runway Gen-4 (text-only, reference image not supported)
+ */
+export async function replaceWithRunway(
+    jobId: string,
+    prompt: string,
+    referenceImage?: File,  // Optional - Runway's direct API is text-only
+    negativePrompt: string = 'blurry, distorted, low quality, deformed',
+    duration: number = 5
+): Promise<ReplaceResponse> {
+    const formData = new FormData();
+    formData.append('job_id', jobId);
+    formData.append('prompt', prompt);
+    if (referenceImage) {
+        formData.append('reference_image', referenceImage);
+    }
+    formData.append('negative_prompt', negativePrompt);
+    formData.append('duration', duration.toString());
+
+    const response = await fetch(`${API_BASE}/replace-with-runway`, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error(`Runway replacement failed: ${response.statusText}`);
+    }
+
+    return response.json();
+}
+
+/**
  * Get job status
  */
 export async function getJobStatus(jobId: string): Promise<JobStatusResponse> {

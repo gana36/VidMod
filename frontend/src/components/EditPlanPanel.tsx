@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, AlertCircle, Scissors, VolumeX, EyeOff, ShieldCheck, Info, Play, RefreshCw, Grid, Plus, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertCircle, Scissors, VolumeX, EyeOff, ShieldCheck, Info, Play, RefreshCw, Grid, Plus, Search, X, Zap } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import ActionModal, { type ActionType } from './ActionModal';
@@ -253,47 +253,81 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
     };
 
 
-    // Apply All - process queue sequentially to ensure Smart Clipping works correctly for each item
+    // Apply All - process queue with timeline-based grouping for efficiency
     const handleApplyAll = async () => {
         if (customObjects.length === 0 || !jobId) return;
 
         setIsProcessingBatch(true);
 
         try {
-            console.log('Processing objects sequentially:', customObjects);
+            console.log('Processing objects with timeline grouping:', customObjects);
 
-            // Process each object sequentially to respect individual timestamps for Smart Clipping
-            for (let i = 0; i < customObjects.length; i++) {
-                const obj = customObjects[i];
-                setBatchProgress(`Processing ${i + 1}/${customObjects.length}: ${obj.name}`);
-
-                // Get timestamp from the matching finding
-                // Use the FIRST finding that matches the content
+            // Step 1: Match each object with its finding to get timeline
+            const objectsWithTimeline = customObjects.map(obj => {
                 const matchingFinding = findings.find(f =>
                     f.content.toLowerCase().includes(obj.name.toLowerCase()) ||
                     obj.name.toLowerCase().includes(f.content.toLowerCase())
                 );
 
-                // Effective Prompt: Use the object name
-                const effectType = obj.appliedEffect || 'blur';
+                return {
+                    ...obj,
+                    startTime: matchingFinding?.startTime,
+                    endTime: matchingFinding?.endTime,
+                    effectType: obj.appliedEffect || 'blur'
+                };
+            });
 
-                // Call API for this single object/effect
-                const response = await fetch('http://localhost:8000/api/blur-object', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        job_id: jobId,
-                        text_prompt: obj.name,
-                        effect_type: effectType === 'pixelate' ? 'pixelate' : 'blur',
-                        blur_strength: 30,
-                        start_time: matchingFinding?.startTime,
-                        end_time: matchingFinding?.endTime
-                    })
-                });
+            // Step 2: Group by timeline + effect type
+            // Key format: "startTime-endTime-effectType"
+            const grouped = new Map<string, typeof objectsWithTimeline>();
 
-                if (!response.ok) {
-                    throw new Error(`Failed to process ${obj.name}`);
+            objectsWithTimeline.forEach(obj => {
+                const key = `${obj.startTime ?? 'none'}-${obj.endTime ?? 'none'}-${obj.effectType}`;
+                const existing = grouped.get(key) || [];
+                grouped.set(key, [...existing, obj]);
+            });
+
+            console.log(`Grouped ${customObjects.length} objects into ${grouped.size} batches`);
+
+            // Step 3: Process each group
+            let processedCount = 0;
+            for (const [, group] of grouped.entries()) {
+                const effectType = group[0].effectType;
+                const objectNames = group.map(obj => obj.name);
+
+                setBatchProgress(`Processing ${processedCount + 1}-${processedCount + group.length}/${customObjects.length}: ${objectNames.join(', ')}`);
+
+                // Route to appropriate API based on effect type
+                if (effectType === 'blur' || effectType === 'pixelate') {
+                    // Combine all object names into a single prompt for SAM3
+                    const combinedPrompt = objectNames.join(', ');
+
+                    const response = await fetch('http://localhost:8000/api/blur-object', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            job_id: jobId,
+                            text_prompt: combinedPrompt,
+                            effect_type: effectType === 'pixelate' ? 'pixelate' : 'blur',
+                            blur_strength: 30,
+                            start_time: group[0].startTime,
+                            end_time: group[0].endTime
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Failed to ${effectType} ${combinedPrompt}`);
+                    }
+
+                    console.log(`✓ Grouped ${group.length} objects: ${combinedPrompt}`);
+                } else if (effectType === 'replace-pika' || effectType === 'replace-vace' || effectType === 'replace-runway') {
+                    // Replacement: Need reference image (skip if not available)
+                    console.warn(`Skipping ${effectType} for ${objectNames.join(', ')} - reference image required`);
+                    setBatchProgress(`Skipped ${objectNames.join(', ')} (${effectType} requires reference image)`);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 }
+
+                processedCount += group.length;
             }
 
             // Clear queue logic 
@@ -375,6 +409,17 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                 >
                     <Play className="w-3 h-3" />
                     Pika Replace
+                </button>
+            );
+            buttons.push(
+                <button
+                    key="replace-runway"
+                    onClick={(e) => handleApplyAction(step, 'replace-runway', e)}
+                    disabled={!jobId}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <Zap className="w-3 h-3" />
+                    Runway Replace
                 </button>
             );
         }

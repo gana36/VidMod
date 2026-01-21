@@ -3,12 +3,13 @@ VidMod Video Processing Router
 API endpoints for video upload, detection, replacement, and download.
 """
 
+import os
 import shutil
 import logging
 from pathlib import Path
 from typing import Optional, List
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Depends, Form
 from fastapi.responses import FileResponse
 
 from ..config import Settings, get_settings
@@ -36,6 +37,8 @@ from ..models import (
     NanoBananaResponse,
     PikaReplaceRequest,
     PikaReplaceResponse,
+    RunwayReplaceRequest,
+    RunwayReplaceResponse,
     BlurEffectRequest,
     BlurEffectResponse,
     ManualAction,
@@ -1648,4 +1651,169 @@ async def analyze_manual(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Manual analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/replace-with-pika", response_model=PikaReplaceResponse)
+async def replace_with_pika(
+    job_id: str = Form(...),
+    prompt: str = Form(...),
+    reference_image: UploadFile = File(...),
+    negative_prompt: str = Form("blurry, distorted, low quality, deformed"),
+    duration: int = Form(5),
+    pipeline: VideoPipeline = Depends(get_pipeline),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Replace object in video using Pika Labs Pikadditions. ⭐⭐
+    
+    BEST FOR: Shape-changing object replacement (cup → bottle).
+    Uses Pika v2 which is better at complete object swaps than VACE.
+    
+    Workflow:
+    1. Upload video
+    2. Call this endpoint with prompt + reference image
+    
+    Note: Pika processes the whole video, no SAM mask required!
+    """
+    from pathlib import Path
+    from core.pika_engine import PikaEngine
+    
+    job = pipeline.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if not job.video_path:
+        raise HTTPException(status_code=400, detail="No video found. Upload video first.")
+    
+    # Save reference image
+    job_dir = Path(f"storage/jobs/{job_id}")
+    reference_path = job_dir / f"pika_ref_{reference_image.filename}"
+    with open(reference_path, 'wb') as f:
+        content = await reference_image.read()
+        f.write(content)
+    
+    logger.info(f"Saved Pika reference image: {reference_path}")
+    
+    try:
+        engine = PikaEngine(api_key=settings.fal_key)
+        
+        output_path = job_dir / "replaced_pika.mp4"
+        
+        result_path = engine.replace_and_download(
+            video_path=job.video_path,
+            output_path=output_path,
+            prompt=prompt,
+            reference_image_path=reference_path,
+            negative_prompt=negative_prompt,
+            duration=duration
+        )
+        
+        job.output_path = result_path
+        
+        return PikaReplaceResponse(
+            job_id=job_id,
+            status="completed",
+            download_path=f"/api/download/{job_id}",
+            message=f"Object replaced using Pika Labs: {prompt}"
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Pika replacement failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/replace-with-runway", response_model=RunwayReplaceResponse)
+async def replace_with_runway(
+    job_id: str = Form(...),
+    prompt: str = Form(...),
+    reference_image: Optional[UploadFile] = File(None),  # Optional - Runway's direct API is text-only
+    negative_prompt: str = Form("blurry, distorted, low quality, deformed"),
+    duration: int = Form(5),
+    pipeline: VideoPipeline = Depends(get_pipeline),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Replace object in video using Runway Gen-4 Aleph. ⭐⭐⭐
+    
+    BEST FOR: Premium quality AI video editing.
+    Advanced in-context editing with text prompts.
+    Note: Runway's direct API is text-only, reference images are not supported.
+    
+    Workflow:
+    1. Upload video
+    2. Call this endpoint with prompt
+    
+    Note: Runway Gen-4 is the most advanced but also most expensive option.
+    """
+    from pathlib import Path
+    from core.runway_engine import RunwayEngine
+    
+    job = pipeline.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if not job.video_path:
+        raise HTTPException(status_code=400, detail="No video found. Upload video first.")
+    
+    job_dir = Path(f"storage/jobs/{job_id}")
+    
+    # Reference image is optional for Runway (not actually used by the API)
+    reference_path = None
+    if reference_image and reference_image.filename:
+        reference_path = job_dir / f"runway_ref_{reference_image.filename}"
+        with open(reference_path, 'wb') as f:
+            content = await reference_image.read()
+            f.write(content)
+        logger.info(f"Saved Runway reference image: {reference_path}")
+    else:
+        logger.info("No reference image provided (Runway uses text-only)")
+    
+    try:
+
+        # Use Runway's direct API key from settings
+        runway_key = settings.runway_api_key
+        if not runway_key:
+            raise HTTPException(status_code=500, detail="RUNWAY_API_KEY not configured in .env")
+        
+        engine = RunwayEngine(api_key=runway_key)
+        
+        output_path = job_dir / "replaced_runway.mp4"
+        
+        # Get S3 URL - Runway requires a publicly accessible URL
+        # s3_url is stored directly on JobState, not in video_info
+        video_url = job.s3_url
+        
+        if not video_url:
+            raise HTTPException(
+                status_code=400, 
+                detail="Runway requires a publicly accessible video URL. Please re-upload the video to generate an S3 URL."
+            )
+        
+        logger.info(f"Using video URL for Runway: {video_url}")
+        
+        result_path = engine.replace_and_download(
+            video_path=job.video_path,
+            output_path=output_path,
+            prompt=prompt,
+            reference_image_path=reference_path,
+            duration=duration,
+            video_url=video_url
+        )
+        
+        job.output_path = result_path
+        
+        return RunwayReplaceResponse(
+            job_id=job_id,
+            status="completed",
+            download_path=f"/api/download/{job_id}",
+            message=f"Object replaced using Runway Gen-4: {prompt}"
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Runway replacement failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

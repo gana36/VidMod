@@ -6,6 +6,7 @@ import {
     segmentWithSAM3,
     replaceWithPika,
     replaceWithVACE,
+    replaceWithRunway,
     blurObject,
     getDownloadUrl,
     getSegmentedDownloadUrl,
@@ -16,7 +17,7 @@ function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-export type ActionType = 'blur' | 'pixelate' | 'mask' | 'replace-pika' | 'replace-vace';
+export type ActionType = 'blur' | 'pixelate' | 'mask' | 'replace-pika' | 'replace-vace' | 'replace-runway';
 
 interface ActionModalProps {
     isOpen: boolean;
@@ -134,6 +135,13 @@ const ActionModal: React.FC<ActionModalProps> = ({
                     finalDownloadUrl = getDownloadUrl(jobId);
                     break;
 
+                case 'replace-runway':
+                    // Use Runway Gen-4 for replacement (text-only, no reference image needed)
+                    // Note: Runway's direct API doesn't support reference images
+                    await replaceWithRunway(jobId, replacementPrompt, referenceImage || undefined);
+                    finalDownloadUrl = getDownloadUrl(jobId);
+                    break;
+
                 default:
                     throw new Error(`Unknown action type: ${actionType}`);
             }
@@ -155,6 +163,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
             case 'mask': return 'Highlight Object (Mask Overlay)';
             case 'replace-pika': return 'Replace with Pika Labs';
             case 'replace-vace': return 'Replace with VACE';
+            case 'replace-runway': return 'Replace with Runway Gen-4';
             default: return 'Execute Action';
         }
     };
@@ -166,6 +175,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
             case 'mask': return `Highlight "${objectPrompt}" with a colored overlay.`;
             case 'replace-pika': return `Replace "${objectPrompt}" using Pika Labs.`;
             case 'replace-vace': return `Replace "${objectPrompt}" using VACE inpainting.`;
+            case 'replace-runway': return `Replace "${objectPrompt}" using Runway Gen-4.`;
             default: return '';
         }
     };
@@ -264,6 +274,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                 />
                             </div>
 
+                            {/* Reference image only for Pika - Runway is text-only */}
                             {actionType === 'replace-pika' && (
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Reference Image (Required)</label>

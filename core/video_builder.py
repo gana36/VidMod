@@ -194,17 +194,19 @@ class VideoBuilder:
         
         # FFmpeg filter (PURE BLACK/WHITE MASK from SAM3):
         # SAM3 with mask_only=True gives us: white pixels = blur, black pixels = keep original
-        # Use modern scale filter to match mask dimensions to original video
+        # Dynamically scale mask to match original video dimensions
         filter_complex = (
             # Split original into two streams
             f"[0:v]split[original][toblur];"
             # Blur one stream
             f"[toblur]boxblur={blur_strength}:1[blurred];"
-            # Scale mask to match original video dimensions (both inputs must be same size for maskedmerge)
-            # IMPORTANT: Negate mask to invert it (SAM3 seems to give inverted mask)
-            f"[1:v]format=gray,scale=iw:ih-8,negate[mask_scaled];"
+            # Scale mask to match original video dimensions exactly
+            # Use scale2ref to automatically match dimensions of reference stream
+            f"[1:v][0:v]scale2ref[mask_scaled][ref];"
+            # Convert to grayscale and negate (SAM3 seems to give inverted mask)
+            f"[mask_scaled]format=gray,negate[mask_final];"
             # Blend: where mask is white, show blurred; where black, show original
-            f"[blurred][original][mask_scaled]maskedmerge[out]"
+            f"[blurred][original][mask_final]maskedmerge[out]"
         )
         
         cmd = [
@@ -255,15 +257,15 @@ class VideoBuilder:
         
         # Pixelate filter: Scale down and up to create pixelation
         # Then use mask to merge (maskedmerge)
-        # Using the same robust mask logic as blur (scale mask + negate)
+        # Using the same robust mask logic as blur (dynamic scaling)
         filter_complex = (
             f"[0:v]split[original][topix];"
             # Pixelate effect: scale down, then scale back up to original size using modern syntax
             f"[topix]scale=iw/{pixel_size}:ih/{pixel_size}:flags=neighbor[small];"
             # Use setsar to ensure correct aspect ratio, then scale to original dimensions
             f"[small]setsar=1,scale=1920:1080:flags=neighbor[pixelated];"
-            # Scale mask to match video dimensions (handling 1088p vs 1080p issue)
-            f"[1:v]scale=iw:ih-8[mask_scaled];"
+            # Scale mask to match video dimensions dynamically
+            f"[1:v][0:v]scale2ref[mask_scaled][ref];"
             # Invert mask (SAM3 mask is white=include, maskedmerge uses white=second_input i.e. original)
             f"[mask_scaled]negate[mask_inverted];"
             f"[pixelated][original][mask_inverted]maskedmerge[out]"

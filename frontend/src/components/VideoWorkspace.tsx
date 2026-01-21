@@ -229,14 +229,15 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
         return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     };
 
-    const handleManualEditConfirm = (box: any, action: 'blur' | 'replace' | 'replace-pika' | 'mute', label?: string, reasoning?: string) => {
+    const handleManualEditConfirm = (box: any, action: 'blur' | 'replace' | 'replace-pika' | 'replace-runway' | 'mute', label?: string, reasoning?: string) => {
         if (!onAddFinding) return;
 
         const type = action === 'blur' ? 'Manual Blur'
             : action === 'replace' ? 'Manual Replace (VACE)'
                 : action === 'replace-pika' ? 'Manual Replace (Pika)'
-                    : 'Manual Mute';
-        const category = action === 'blur' || action === 'replace' || action === 'replace-pika' ? 'logo' : 'language';
+                    : action === 'replace-runway' ? 'Manual Replace (Runway)'
+                        : 'Manual Mute';
+        const category = action === 'blur' || action === 'replace' || action === 'replace-pika' || action === 'replace-runway' ? 'logo' : 'language';
         const content = label || `User defined ${action} area`;
 
         onAddFinding({
