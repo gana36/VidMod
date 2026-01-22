@@ -1732,6 +1732,8 @@ async def replace_with_runway(
     reference_image: Optional[UploadFile] = File(None),  # Optional - Runway's direct API is text-only
     negative_prompt: str = Form("blurry, distorted, low quality, deformed"),
     duration: int = Form(5),
+    start_time: Optional[float] = Form(None),  # Smart Clipping start
+    end_time: Optional[float] = Form(None),    # Smart Clipping end
     pipeline: VideoPipeline = Depends(get_pipeline),
     settings: Settings = Depends(get_settings)
 ):
@@ -1740,11 +1742,12 @@ async def replace_with_runway(
     
     BEST FOR: Premium quality AI video editing.
     Advanced in-context editing with text prompts.
-    Note: Runway's direct API is text-only, reference images are not supported.
+    Supports Smart Clipping - pass start_time/end_time to process only a portion.
     
     Workflow:
     1. Upload video
-    2. Call this endpoint with prompt
+    2. Call this endpoint with prompt + timestamps (optional)
+    3. If timestamps provided, only that portion is processed
     
     Note: Runway Gen-4 is the most advanced but also most expensive option.
     """
@@ -1772,7 +1775,6 @@ async def replace_with_runway(
         logger.info("No reference image provided (Runway uses text-only)")
     
     try:
-
         # Use Runway's direct API key from settings
         runway_key = settings.runway_api_key
         if not runway_key:
@@ -1782,9 +1784,62 @@ async def replace_with_runway(
         
         output_path = job_dir / "replaced_runway.mp4"
         
-        # Get S3 URL - Runway requires a publicly accessible URL
-        # s3_url is stored directly on JobState, not in video_info
-        video_url = job.s3_url
+        # SMART CLIPPING: If timestamps provided, clip the video first
+        use_smart_clipping = start_time is not None and end_time is not None
+        video_url = None
+        
+        if use_smart_clipping:
+            logger.info(f"🚀 Smart Clipping enabled: processing {start_time:.2f}s to {end_time:.2f}s")
+            
+            # Determine source video for extraction
+            if job.output_path and job.output_path.exists():
+                source_video_for_clip = job.output_path
+                logger.info(f"✨ Chaining effect: extracting clip from previous output")
+            else:
+                source_video_for_clip = job.video_path
+                logger.info(f"📹 First effect: extracting clip from original video")
+            
+            # Runway requires at least 1 second of video
+            MIN_RUNWAY_DURATION = 1.0
+            clip_duration = end_time - start_time
+            
+            # If clip is too short, expand it to meet minimum requirement
+            actual_start = start_time
+            actual_end = end_time
+            if clip_duration < MIN_RUNWAY_DURATION:
+                # Expand equally on both sides, but ensure we don't go negative
+                expand_needed = MIN_RUNWAY_DURATION - clip_duration
+                half_expand = expand_needed / 2
+                actual_start = max(0, start_time - half_expand)
+                actual_end = end_time + half_expand
+                logger.info(f"⚠️ Clip too short ({clip_duration:.2f}s). Expanding to {actual_start:.2f}s - {actual_end:.2f}s ({actual_end - actual_start:.2f}s)")
+            
+            # Step 1: Extract clip from video
+            clip_path = job_dir / f"runway_clip_{actual_start}_{actual_end}.mp4"
+            pipeline.frame_extractor.extract_clip(
+                video_path=source_video_for_clip,
+                output_path=clip_path,
+                start_time=actual_start,
+                end_time=actual_end,
+                buffer_seconds=0.5  # Small buffer for smooth transitions
+            )
+            
+            # Step 2: Upload clip to S3 for Runway
+            if pipeline.s3_uploader:
+                try:
+                    logger.info(f"📤 Uploading clip to S3 for Runway...")
+                    clip_s3_key = f"jobs/{job_id}/runway_clip_{actual_start}_{actual_end}.mp4"
+                    video_url = pipeline.s3_uploader.upload_video(clip_path, clip_s3_key)
+                    logger.info(f"✅ Clip uploaded to S3: {video_url}")
+                except Exception as e:
+                    logger.warning(f"Failed to upload clip to S3: {e}")
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Failed to upload clip to S3. Runway requires a publicly accessible URL."
+                    )
+        else:
+            # No smart clipping - use the full video
+            video_url = job.s3_url
         
         if not video_url:
             raise HTTPException(

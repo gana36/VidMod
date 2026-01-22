@@ -174,8 +174,9 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
     interface BatchFindingConfig {
         finding: Finding;
         selected: boolean;
-        effectType: 'blur' | 'pixelate';
-        prompt: string;
+        effectType: 'blur' | 'pixelate' | 'replace-runway';
+        prompt: string;  // Object to target
+        replacementPrompt: string;  // What to replace with (Runway only)
         startTime: number;  // Editable timestamp
         endTime: number;    // Editable timestamp
     }
@@ -187,8 +188,9 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
         const configs: BatchFindingConfig[] = findings.map(f => ({
             finding: f,
             selected: true, // All selected by default
-            effectType: (f.suggestedAction?.toLowerCase().includes('pixelate') ? 'pixelate' : 'blur') as 'blur' | 'pixelate',
+            effectType: (f.suggestedAction?.toLowerCase().includes('runway') ? 'replace-runway' : f.suggestedAction?.toLowerCase().includes('pixelate') ? 'pixelate' : 'blur') as 'blur' | 'pixelate' | 'replace-runway',
             prompt: f.content,
+            replacementPrompt: '',  // User fills this for Runway
             startTime: f.startTime,
             endTime: f.endTime
         }));
@@ -196,7 +198,6 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
         setShowBatchReviewModal(true);
     };
 
-    // Process selected findings
     // Process selected findings
     const processBatchFindings = async () => {
         const selected = batchConfigs.filter(c => c.selected);
@@ -215,20 +216,45 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
 
                 setBatchProgress(`Processing ${i + 1}/${selected.length}: ${shortPrompt}`);
 
-                // Import blurObject from api
-                const { blurObject } = await import('../services/api');
+                if (config.effectType === 'blur' || config.effectType === 'pixelate') {
+                    // Import blurObject from api
+                    const { blurObject } = await import('../services/api');
 
-                const result = await blurObject(
-                    jobId,
-                    config.prompt,
-                    30,
-                    config.effectType,
-                    config.startTime,  // Use editable timestamp
-                    config.endTime     // Use editable timestamp
-                );
+                    const result = await blurObject(
+                        jobId,
+                        config.prompt,
+                        30,
+                        config.effectType,
+                        config.startTime,  // Use editable timestamp
+                        config.endTime     // Use editable timestamp
+                    );
 
-                if (result && result.download_path) {
-                    lastDownloadUrl = `http://localhost:8000${result.download_path}`;
+                    if (result && result.download_path) {
+                        lastDownloadUrl = `http://localhost:8000${result.download_path}`;
+                    }
+                } else if (config.effectType === 'replace-runway') {
+                    // Runway: text-only replacement with Smart Clipping
+                    if (!config.replacementPrompt.trim()) {
+                        setBatchProgress(`⚠️ Skipped "${config.prompt}" - no replacement prompt provided`);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        continue;
+                    }
+
+                    const { replaceWithRunway } = await import('../services/api');
+
+                    const result = await replaceWithRunway(
+                        jobId,
+                        config.replacementPrompt,  // What to replace with
+                        undefined,      // No reference image (text-only)
+                        undefined,      // Default negative prompt
+                        5,              // Duration
+                        config.startTime,
+                        config.endTime
+                    );
+
+                    if (result && result.download_path) {
+                        lastDownloadUrl = `http://localhost:8000${result.download_path}`;
+                    }
                 }
             }
 
@@ -675,16 +701,16 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                         <button
                             onClick={initializeBatchConfigs}
                             disabled={isProcessingBatch}
-                            className="w-full py-3 bg-gradient-to-r from-accent via-purple-600 to-pink-600 hover:from-accent/90 hover:via-purple-600/90 hover:to-pink-600/90 text-white rounded-xl font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                            className="w-full py-3 bg-white hover:bg-gray-100 text-gray-900 rounded-full font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-gray-200"
                         >
                             {isProcessingBatch ? (
                                 <>
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    Processing...
+                                    <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
+                                    PROCESSING...
                                 </>
                             ) : (
                                 <>
-                                    🚀 Process All Findings ({steps.length} items)
+                                    🚀 PROCESS ALL FINDINGS ({steps.length} ITEMS)
                                 </>
                             )}
                         </button>
@@ -824,13 +850,12 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                                                             updated[index].effectType = 'blur';
                                                             setBatchConfigs(updated);
                                                         }}
-                                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${config.effectType === 'blur'
-                                                            ? 'bg-amber-500/20 text-amber-400 border-2 border-amber-500'
-                                                            : 'bg-muted border border-border text-muted-foreground hover:bg-muted-foreground/10'
+                                                        className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${config.effectType === 'blur'
+                                                            ? 'bg-white text-gray-900 border-2 border-white'
+                                                            : 'bg-transparent text-gray-400 border border-gray-600 hover:border-gray-400 hover:text-gray-300'
                                                             }`}
                                                     >
-                                                        <EyeOff className="w-3 h-3 inline mr-1" />
-                                                        Blur
+                                                        BLUR
                                                     </button>
                                                     <button
                                                         onClick={() => {
@@ -838,18 +863,51 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                                                             updated[index].effectType = 'pixelate';
                                                             setBatchConfigs(updated);
                                                         }}
-                                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${config.effectType === 'pixelate'
-                                                            ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500'
-                                                            : 'bg-muted border border-border text-muted-foreground hover:bg-muted-foreground/10'
+                                                        className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${config.effectType === 'pixelate'
+                                                            ? 'bg-white text-gray-900 border-2 border-white'
+                                                            : 'bg-transparent text-gray-400 border border-gray-600 hover:border-gray-400 hover:text-gray-300'
                                                             }`}
                                                     >
-                                                        <Grid className="w-3 h-3 inline mr-1" />
-                                                        Pixelate
+                                                        PIXELATE
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            const updated = [...batchConfigs];
+                                                            updated[index].effectType = 'replace-runway';
+                                                            setBatchConfigs(updated);
+                                                        }}
+                                                        className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${config.effectType === 'replace-runway'
+                                                            ? 'bg-white text-gray-900 border-2 border-white'
+                                                            : 'bg-transparent text-gray-400 border border-gray-600 hover:border-gray-400 hover:text-gray-300'
+                                                            }`}
+                                                    >
+                                                        REPLACE
                                                     </button>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* Runway Replacement Prompt - Full Width Row */}
+                                    {config.effectType === 'replace-runway' && (
+                                        <div className="mt-4 pt-4 border-t border-border">
+                                            <label className="text-sm font-semibold text-foreground block mb-2">
+                                                ✨ Replace "{config.prompt}" with:
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={config.replacementPrompt}
+                                                onChange={(e) => {
+                                                    const updated = [...batchConfigs];
+                                                    updated[index].replacementPrompt = e.target.value;
+                                                    setBatchConfigs(updated);
+                                                }}
+                                                placeholder="Describe what should replace this object (e.g., red lollipop, empty table, blue coffee mug)"
+                                                className="w-full px-4 py-3 text-sm bg-background border-2 border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent placeholder:text-muted-foreground/50"
+                                            />
+                                            <p className="text-xs text-muted-foreground mt-2">Runway AI will generate a replacement based on your description</p>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -859,19 +917,19 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                             <span className="text-sm text-muted-foreground">
                                 {batchConfigs.filter(c => c.selected).length} of {batchConfigs.length} selected
                             </span>
-                            <div className="flex gap-2">
+                            <div className="flex gap-3">
                                 <button
                                     onClick={() => setShowBatchReviewModal(false)}
-                                    className="px-4 py-2 bg-muted hover:bg-muted-foreground/20 rounded-lg font-medium transition-colors"
+                                    className="px-6 py-2.5 bg-transparent hover:bg-gray-100 text-foreground rounded-full font-bold uppercase tracking-wider transition-colors border border-gray-300"
                                 >
-                                    Cancel
+                                    CANCEL
                                 </button>
                                 <button
                                     onClick={processBatchFindings}
                                     disabled={batchConfigs.filter(c => c.selected).length === 0}
-                                    className="px-6 py-2 bg-gradient-to-r from-accent to-purple-600 hover:from-accent/90 hover:to-purple-600/90 text-white rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-6 py-2.5 bg-white hover:bg-gray-100 text-gray-900 rounded-full font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200"
                                 >
-                                    Process Selected ({batchConfigs.filter(c => c.selected).length})
+                                    PROCESS SELECTED ({batchConfigs.filter(c => c.selected).length})
                                 </button>
                             </div>
                         </div>

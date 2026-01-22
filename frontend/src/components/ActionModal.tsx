@@ -137,8 +137,8 @@ const ActionModal: React.FC<ActionModalProps> = ({
 
                 case 'replace-runway':
                     // Use Runway Gen-4 for replacement (text-only, no reference image needed)
-                    // Note: Runway's direct API doesn't support reference images
-                    await replaceWithRunway(jobId, replacementPrompt, referenceImage || undefined);
+                    // Supports Smart Clipping - pass timestamps to process only the relevant portion
+                    await replaceWithRunway(jobId, replacementPrompt, referenceImage || undefined, undefined, 5, startTime, endTime);
                     finalDownloadUrl = getDownloadUrl(jobId);
                     break;
 
@@ -285,6 +285,26 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                         className="w-full px-3 py-2 bg-muted/30 rounded-lg border border-border text-sm file:mr-3 file:px-3 file:py-1 file:rounded-md file:border-0 file:bg-accent file:text-white file:text-xs file:font-medium"
                                     />
                                     {referenceImage && <p className="text-xs text-emerald-500">✓ {referenceImage.name}</p>}
+                                </div>
+                            )}
+
+                            {/* Smart Clipping info for Runway */}
+                            {actionType === 'replace-runway' && startTime !== undefined && endTime !== undefined && (
+                                <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className="text-xs font-bold text-purple-400">🚀 Smart Clipping Active</span>
+                                    </div>
+                                    <div className="flex gap-4 text-sm">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-muted-foreground">Start:</span>
+                                            <span className="font-mono text-purple-300">{startTime.toFixed(2)}s</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-muted-foreground">End:</span>
+                                            <span className="font-mono text-purple-300">{endTime.toFixed(2)}s</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-2">Only this clip will be sent to Runway for processing.</p>
                                 </div>
                             )}
                         </>

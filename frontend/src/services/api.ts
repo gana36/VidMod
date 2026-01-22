@@ -190,13 +190,16 @@ export async function replaceWithVACE(
 
 /**
  * Replace object using Runway Gen-4 (text-only, reference image not supported)
+ * Supports Smart Clipping - pass startTime/endTime to process only a portion of video
  */
 export async function replaceWithRunway(
     jobId: string,
     prompt: string,
     referenceImage?: File,  // Optional - Runway's direct API is text-only
     negativePrompt: string = 'blurry, distorted, low quality, deformed',
-    duration: number = 5
+    duration: number = 5,
+    startTime?: number,
+    endTime?: number
 ): Promise<ReplaceResponse> {
     const formData = new FormData();
     formData.append('job_id', jobId);
@@ -206,6 +209,14 @@ export async function replaceWithRunway(
     }
     formData.append('negative_prompt', negativePrompt);
     formData.append('duration', duration.toString());
+
+    // Smart Clipping - if timestamps provided, only process that portion
+    if (startTime !== undefined) {
+        formData.append('start_time', startTime.toString());
+    }
+    if (endTime !== undefined) {
+        formData.append('end_time', endTime.toString());
+    }
 
     const response = await fetch(`${API_BASE}/replace-with-runway`, {
         method: 'POST',
