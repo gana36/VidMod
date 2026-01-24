@@ -1863,6 +1863,27 @@ async def replace_with_runway(
             video_url=video_url
         )
         
+        # If we used smart clipping, we MUST stitch the result back into the main video
+        if use_smart_clipping:
+            logger.info(f"🧵 Stitching processed clip back into timeline: {actual_start:.2f}s - {actual_end:.2f}s")
+            final_stitched_path = job_dir / "final_runway_output.mp4"
+            
+            # Use insert_segment to merge
+            # Note: start_time/end_time here refer to the clip's position in original
+            # We use actual_start/actual_end because those were the exact timestamps we clipped
+            pipeline.video_builder.insert_segment(
+                original_video=source_video_for_clip,
+                processed_segment=result_path,
+                output_path=final_stitched_path,
+                start_time=actual_start,
+                end_time=actual_end,
+                buffer_seconds=0.0  # Zero buffer as we want exact replacement
+            )
+            
+            # Update result path to be the full stitched video
+            result_path = final_stitched_path
+            logger.info(f"✅ Video stitching complete: {result_path}")
+        
         job.output_path = result_path
         
         return RunwayReplaceResponse(
