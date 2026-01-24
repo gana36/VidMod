@@ -175,38 +175,25 @@ class VideoBuilder:
     ) -> Path:
         """
         Apply Gaussian blur to masked region of video.
-        
-        This is the same approach Meta uses in their Segment Anything demos:
-        1. SAM3 creates a mask (white = area to blur)
-        2. FFmpeg applies blur only to the masked region
-        
-        Args:
-            input_video: Original video file
-            mask_video: Mask video from SAM3 (white = blur region)
-            output_path: Where to save the blurred result
-            blur_strength: Blur intensity (10-50 recommended)
-            audio_path: Optional audio to include
-            
-        Returns:
-            Path to the blurred video
+        Uses scale2ref to ensure mask matches input dimensions.
         """
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # FFmpeg filter (PURE BLACK/WHITE MASK from SAM3):
-        # SAM3 with mask_only=True gives us: white pixels = blur, black pixels = keep original
-        # Dynamically scale mask to match original video dimensions
+        # FFmpeg filter Explanation:
+        # 1. Split input into [original] and [toblur]
+        # 2. Blur [toblur] to create [blurred]
+        # 3. Scale mask [1:v] to match [original] dimensions using scale2ref.
+        #    This outputs [mask_scaled] and [original_ref].
+        #    IMPORTANT: We MUST use [original_ref] later, otherwise FFmpeg errors with "unconnected output"
+        # 4. Negate mask (if needed based on SAM3 output)
+        # 5. Merge [blurred] and [original_ref] using [mask_inverted]
+        
         filter_complex = (
-            # Split original into two streams
-            f"[0:v]split[original][toblur];"
-            # Blur one stream
+            f"[0:v]split[toscale][toblur];"
             f"[toblur]boxblur={blur_strength}:1[blurred];"
-            # Scale mask to match original video dimensions exactly
-            # Use scale2ref to automatically match dimensions of reference stream
-            f"[1:v][0:v]scale2ref[mask_scaled][ref];"
-            # Convert to grayscale and negate (SAM3 seems to give inverted mask)
-            f"[mask_scaled]format=gray,negate[mask_final];"
-            # Blend: where mask is white, show blurred; where black, show original
-            f"[blurred][original][mask_final]maskedmerge[out]"
+            f"[1:v][toscale]scale2ref[mask_scaled][original_ref];"
+            f"[mask_scaled]format=gray,negate[mask_inverted];"
+            f"[blurred][original_ref][mask_inverted]maskedmerge[out]"
         )
         
         cmd = [
@@ -233,7 +220,7 @@ class VideoBuilder:
         logger.info(f"Applying blur with mask: {' '.join(cmd)}")
         
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            subprocess.run(cmd, capture_output=True, text=True, check=True)
             logger.info(f"Blurred video created: {output_path}")
             return output_path
         except subprocess.CalledProcessError as e:
@@ -250,25 +237,41 @@ class VideoBuilder:
     ) -> Path:
         """
         Apply pixelation effect to masked region.
-        
-        Similar to blur but creates a mosaic/pixelated effect.
+        Fixed to avoid unconnected output errors and hardcoded scaling.
         """
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Pixelate filter: Scale down and up to create pixelation
-        # Then use mask to merge (maskedmerge)
-        # Using the same robust mask logic as blur (dynamic scaling)
         filter_complex = (
-            f"[0:v]split[original][topix];"
-            # Pixelate effect: scale down, then scale back up to original size using modern syntax
+            f"[0:v]split[toscale][topix];"
+            # Pixelate: Scale down by pixel_size, then scale back up to input dimensions (iw*pixel_size)
+            # We use scale2ref style logic implicitly by just multiplying back, but exact iw/ih is safer.
+            # actually better: scale=iw/N:-1, then scale=iw:ih.
             f"[topix]scale=iw/{pixel_size}:ih/{pixel_size}:flags=neighbor[small];"
-            # Use setsar to ensure correct aspect ratio, then scale to original dimensions
-            f"[small]setsar=1,scale=1920:1080:flags=neighbor[pixelated];"
-            # Scale mask to match video dimensions dynamically
-            f"[1:v][0:v]scale2ref[mask_scaled][ref];"
-            # Invert mask (SAM3 mask is white=include, maskedmerge uses white=second_input i.e. original)
+            f"[small]scale=iw*{pixel_size}:ih*{pixel_size}:flags=neighbor[pixelated_raw];"
+            # Ensure pixelated stream matches original size exactly (rounding errors might occur with simple math)
+            f"[pixelated_raw][0:v]scale2ref[pixelated][unused_ref];"
+            # Now handle mask scaling
+            f"[1:v][toscale]scale2ref[mask_scaled][original_ref];"
             f"[mask_scaled]negate[mask_inverted];"
-            f"[pixelated][original][mask_inverted]maskedmerge[out]"
+            f"[pixelated][original_ref][mask_inverted]maskedmerge[out]"
+        )
+        # Simplified Pixelation without extra scale2ref check if we trust math, but let's be safe:
+        # Actually simplest valid graph:
+        # Pixelate filter logic:
+        # 1. Resize mask [1:v] to match original [0:v]. This outputs [mask_scaled] and [original_ref].
+        # 2. Split [original_ref] so we have a base for merging and a source for pixelating.
+        # 3. Downscale [toscale] to create the low-res mosaic blocks.
+        # 4. Upscale [small] BACK to [base] dimensions. IMPORTANT: We use scale2ref again here
+        #    to guarantee the upscaled version matches the base EXACTLY (avoiding odd-pixel rounding errors).
+        # 5. Negate mask and merge.
+        
+        filter_complex = (
+            f"[1:v][0:v]scale2ref[mask_scaled][original_ref];"
+            f"[original_ref]split[base][toscale];"
+            f"[toscale]scale=iw/{pixel_size}:ih/{pixel_size}:flags=neighbor[small];"
+            f"[small][base]scale2ref=flags=neighbor[pixelated][base_ready];"
+            f"[mask_scaled]negate[mask_inverted];"
+            f"[pixelated][base_ready][mask_inverted]maskedmerge[out]"
         )
         
         cmd = [
@@ -293,7 +296,7 @@ class VideoBuilder:
         logger.info(f"Applying pixelation with mask: {' '.join(cmd)}")
         
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            subprocess.run(cmd, capture_output=True, text=True, check=True)
             logger.info(f"Pixelated video created: {output_path}")
             return output_path
         except subprocess.CalledProcessError as e:
