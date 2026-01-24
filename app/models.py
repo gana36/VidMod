@@ -364,3 +364,48 @@ class UseExistingVideoRequest(BaseModel):
     """Request to create a job from existing S3 video."""
     s3_url: str = Field(..., description="S3 URL of the video")
     filename: Optional[str] = Field(None, description="Optional filename for the video")
+
+
+# ============================================================================
+# Audio Censoring Models
+# ============================================================================
+
+class CensorAudioRequest(BaseModel):
+    """Request to censor profanity in video audio."""
+    job_id: str = Field(..., description="Job ID from video upload")
+    mode: str = Field(..., description="Censoring mode: 'beep' or 'dub'")
+    voice_sample_start: Optional[float] = Field(
+        None, 
+        description="Start time for voice cloning sample (required for 'dub' mode)"
+    )
+    voice_sample_end: Optional[float] = Field(
+        None,
+        description="End time for voice cloning sample (required for 'dub' mode)"
+    )
+    custom_words: Optional[List[str]] = Field(
+        None,
+        description="Optional list of custom words to detect in addition to standard profanity"
+    )
+
+
+class ProfanityMatch(BaseModel):
+    """A detected profanity instance."""
+    word: str
+    start_time: float
+    end_time: float
+    replacement: str
+    confidence: str
+    context: str
+
+
+class CensorAudioResponse(BaseModel):
+    """Response from audio censoring."""
+    job_id: str
+    status: str
+    profanity_count: int
+    words_detected: List[str]
+    matches: List[ProfanityMatch] = Field(default_factory=list)
+    download_path: Optional[str] = None
+    message: str
+    mode: str  # "beep" or "dub"
+

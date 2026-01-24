@@ -47,7 +47,10 @@ from ..models import (
     ObjectDetectionRequest,
     ObjectDetectionResponse,
     VideoMetadata,
-    UseExistingVideoRequest
+    UseExistingVideoRequest,
+    CensorAudioRequest,
+    CensorAudioResponse,
+    ProfanityMatch as ProfanityMatchModel
 )
 from core.pipeline import VideoPipeline, PipelineStage
 from core.gemini_video_analyzer import GeminiVideoAnalyzer
@@ -1874,3 +1877,187 @@ async def replace_with_runway(
     except Exception as e:
         logger.error(f"Runway replacement failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/censor-audio", response_model=CensorAudioResponse)
+async def censor_audio(
+    request: CensorAudioRequest,
+    pipeline: VideoPipeline = Depends(get_pipeline),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Censor profanity in video audio using either beep or voice dubbing. ⭐⭐⭐
+    
+    MODES:
+    - **beep**: Fast, free - overlays beep sounds over profanity (like TV censoring)
+    - **dub**: Premium - uses ElevenLabs to clone voice and dub clean replacements
+    
+    WORKFLOW:
+    1. Upload video
+    2. Call this endpoint with mode "beep" or "dub"
+    3. For "dub" mode, provide voice_sample_start/end from clean speech (no profanity)
+    4. Get censored video with profanity removed/replaced
+    
+    COSTS:
+    - Beep mode: ~$0.001/video (Gemini only)
+    - Dub mode: ~$0.01-0.10/video (Gemini + ElevenLabs)
+    
+    Example:
+        POST /api/censor-audio
+        {
+            "job_id": "abc123",
+            "mode": "beep"
+        }
+        
+        Or for voice dubbing:
+        {
+            "job_id": "abc123",
+            "mode": "dub",
+            "voice_sample_start": 5.0,
+            "voice_sample_end": 15.0
+        }
+    """
+    from pathlib import Path
+    from core.audio_analyzer import AudioAnalyzer
+    from core.audio_beep_processor import AudioBeepProcessor
+    from core.elevenlabs_dubber import ElevenLabsDubber
+    
+    # Validate mode
+    if request.mode not in ["beep", "dub"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Mode must be 'beep' or 'dub'"
+        )
+    
+    # For dub mode, require voice sample timestamps
+    if request.mode == "dub":
+        if request.voice_sample_start is None or request.voice_sample_end is None:
+            raise HTTPException(
+                status_code=400,
+                detail="voice_sample_start and voice_sample_end required for 'dub' mode"
+            )
+        
+        if not settings.elevenlabs_api_key:
+            raise HTTPException(
+                status_code=500,
+                detail="ELEVENLABS_API_KEY not configured in .env"
+            )
+    
+    job = pipeline.get_job(request.job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if not job.video_path or not job.video_path.exists():
+        raise HTTPException(status_code=400, detail="Video file not found")
+    
+    job_dir = Path(f"storage/jobs/{request.job_id}")
+    
+    try:
+        logger.info(f"Starting audio censoring in '{request.mode}' mode")
+        
+        # Step 1: Analyze audio for profanity using Gemini
+        logger.info("Step 1: Analyzing audio for profanity with Gemini...")
+        analyzer = AudioAnalyzer(api_key=settings.gemini_api_key)
+        profanity_matches = analyzer.analyze_profanity(
+            video_path=job.video_path,
+            custom_words=request.custom_words
+        )
+        
+        if not profanity_matches:
+            logger.info("No profanity detected, returning original video")
+            return CensorAudioResponse(
+                job_id=request.job_id,
+                status="completed",
+                profanity_count=0,
+                words_detected=[],
+                matches=[],
+                download_path=f"/api/download/{request.job_id}",
+                message="No profanity detected in audio",
+                mode=request.mode
+            )
+        
+        logger.info(f"Detected {len(profanity_matches)} instances of profanity")
+        
+        # Step 2: Apply censoring based on mode
+        if request.mode == "beep":
+            logger.info("Step 2: Applying beep censoring with FFmpeg...")
+            processor = AudioBeepProcessor(ffmpeg_path=pipeline.ffmpeg_path)
+            output_path = job_dir / "censored_beep.mp4"
+            
+            processor.apply_beeps(
+                video_path=job.video_path,
+                profanity_matches=profanity_matches,
+                output_path=output_path
+            )
+            
+        else:  # dub mode
+            logger.info("Step 2: Applying voice dubbing with ElevenLabs...")
+            dubber = ElevenLabsDubber(
+                api_key=settings.elevenlabs_api_key,
+                ffmpeg_path=pipeline.ffmpeg_path
+            )
+            
+            # Clone voice from clean sample
+            logger.info(f"Cloning voice from {request.voice_sample_start}s to {request.voice_sample_end}s...")
+            voice_id = dubber.clone_voice_from_video(
+                video_path=job.video_path,
+                start_time=request.voice_sample_start,
+                end_time=request.voice_sample_end
+            )
+            
+            # Apply dubs
+            output_path = job_dir / "censored_dubbed.mp4"
+            dubber.apply_dubs(
+                video_path=job.video_path,
+                profanity_matches=profanity_matches,
+                voice_id=voice_id,
+                output_path=output_path
+            )
+            
+            # Clean up cloned voice
+            try:
+                dubber.delete_voice(voice_id)
+            except:
+                pass
+        
+        # Update job with censored video
+        job.output_path = output_path
+        
+        # Build response
+        unique_words = list(set(m.word for m in profanity_matches))
+        
+        # Convert profanity matches to Pydantic models for response
+        match_models = [
+            ProfanityMatchModel(
+                word=m.word,
+                start_time=m.start_time,
+                end_time=m.end_time,
+                replacement=m.replacement,
+                confidence=m.confidence,
+                context=m.context
+            )
+            for m in profanity_matches
+        ]
+        
+        mode_name = "Beep" if request.mode == "beep" else "Voice Dub"
+        
+        return CensorAudioResponse(
+            job_id=request.job_id,
+            status="completed",
+            profanity_count=len(profanity_matches),
+            words_detected=unique_words,
+            matches=match_models,
+            download_path=f"/api/download/{request.job_id}",
+            message=f"Audio censored using {mode_name} mode - {len(profanity_matches)} instances removed",
+            mode=request.mode
+        )
+        
+    except ValueError as e:
+        logger.error(f"Audio censoring validation error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Audio censoring failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+

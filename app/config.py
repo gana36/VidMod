@@ -73,6 +73,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""  # Gemini API key for Nano Banana image editing
     fal_key: str = ""  # fal.ai API key for VACE video inpainting
     runway_api_key: str = ""  # Runway API key for direct Gen-4 API
+    elevenlabs_api_key: str = ""  # ElevenLabs API key for voice dubbing
     
     # AWS S3 Configuration (optional - for cloud storage)
     aws_access_key_id: str = ""
