@@ -1,25 +1,30 @@
 """
-ElevenLabs Voice Dubber Module
-Uses ElevenLabs API for voice cloning and seamless profanity replacement.
+ElevenLabs Voice Dubber Module  
+Uses ElevenLabs API with pre-built voices for audio replacement.
 """
 
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict
 import tempfile
 import subprocess
 
 logger = logging.getLogger(__name__)
 
+# Pre-built ElevenLabs voice IDs (these are free tier voices)
+VOICE_PRESETS = {
+    "female": "21m00Tcm4TlvDq8ikWAM",  # Rachel - natural female voice
+    "male": "pNInz6obpgDQGcFmaJgB"      # Adam - natural male voice
+}
+
 
 class ElevenLabsDubber:
     """
-    Uses ElevenLabs to clone voices and dub clean replacements over profanity.
+    Uses ElevenLabs pre-built voices to dub clean replacements over profanity.
     
     Example:
         dubber = ElevenLabsDubber(api_key="your_key")
-        voice_id = dubber.clone_voice_from_video(video_path, start=5.0, end=15.0)
-        dubber.apply_dubs(video_path, profanity_matches, voice_id, output_path)
+        dubber.apply_dubs(video_path, word_replacements, output_path, voice_type="female")
     """
     
     def __init__(self, api_key: str, ffmpeg_path: str = "ffmpeg"):
@@ -35,146 +40,46 @@ class ElevenLabsDubber:
         
         # Configure ElevenLabs client
         try:
-            from elevenlabs import ElevenLabs
+            from elevenlabs.client import ElevenLabs
             self.client = ElevenLabs(api_key=api_key)
-            logger.info("ElevenLabsDubber initialized")
+            logger.info("ElevenLabsDubber initialized with pre-built voices")
         except ImportError:
             raise ImportError("elevenlabs package not installed. Run: pip install elevenlabs")
         except Exception as e:
             logger.error(f"Failed to initialize ElevenLabs: {e}")
             raise
     
-    def extract_audio_sample(
-        self,
-        video_path: Path,
-        output_path: Path,
-        start_time: float,
-        end_time: float
-    ) -> Path:
-        """
-        Extract audio segment from video for voice cloning.
-        
-        Args:
-            video_path: Input video
-            output_path: Where to save audio sample
-            start_time: Start time in seconds
-            end_time: End time in seconds
-            
-        Returns:
-            Path to extracted audio sample
-        """
-        duration = end_time - start_time
-        
-        cmd = [
-            self.ffmpeg_path,
-            "-y",
-            "-i", str(video_path),
-            "-ss", str(start_time),
-            "-t", str(duration),
-            "-vn",  # No video
-            "-acodec", "libmp3lame",  # MP3 format (supported by ElevenLabs)
-            "-ar", "22050",  # Sample rate
-            "-ac", "1",  # Mono
-            str(output_path)
-        ]
-        
-        logger.info(f"Extracting audio sample: {start_time}s - {end_time}s")
-        
-        try:
-            subprocess.run(cmd, check=True, capture_output=True, text=True)
-            logger.info(f"Audio sample extracted: {output_path}")
-            return output_path
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to extract audio: {e.stderr}")
-            raise
-    
-    def clone_voice_from_video(
-        self,
-        video_path: Path,
-        start_time: float = 0.0,
-        end_time: Optional[float] = None,
-        voice_name: Optional[str] = None
-    ) -> str:
-        """
-        Clone voice from video audio.
-        
-        Args:
-            video_path: Video file to extract voice from
-            start_time: Start of clean speech sample (no profanity!)
-            end_time: End of sample (if None, uses start + 10 seconds)
-            voice_name: Name for the cloned voice
-            
-        Returns:
-            Voice ID for use in generation
-        """
-        if end_time is None:
-            end_time = start_time + 10.0
-        
-        if voice_name is None:
-            voice_name = f"Voice_{video_path.stem}"
-        
-        logger.info(f"Cloning voice from {video_path}")
-        
-        try:
-            # Extract audio sample
-            with tempfile.TemporaryDirectory() as temp_dir:
-                sample_path = Path(temp_dir) / "voice_sample.mp3"
-                self.extract_audio_sample(video_path, sample_path, start_time, end_time)
-                
-                # Clone voice using ElevenLabs
-                logger.info(f"Uploading to ElevenLabs for cloning...")
-                
-                voice = self.client.clone(
-                    name=voice_name,
-                    description=f"Cloned from {video_path.name}",
-                    files=[str(sample_path)]
-                )
-                
-                voice_id = voice.voice_id
-                logger.info(f"✅ Voice cloned successfully: {voice_id}")
-                return voice_id
-                
-        except Exception as e:
-            logger.error(f"Voice cloning failed: {e}")
-            raise
-    
     def generate_speech(
         self,
         text: str,
-        voice_id: str,
-        output_path: Path,
-        stability: float = 0.5,
-        similarity_boost: float = 0.75
+        voice_type: str = "female",
+        output_path: Path = None
     ) -> Path:
         """
-        Generate speech audio using cloned voice.
+        Generate speech audio using pre-built ElevenLabs voice.
         
         Args:
             text: Text to speak
-            voice_id: ElevenLabs voice ID
+            voice_type: "male" or "female"
             output_path: Where to save audio
-            stability: Voice stability (0-1)
-            similarity_boost: How much to match voice (0-1)
             
         Returns:
             Path to generated audio file
         """
-        logger.info(f"Generating speech: '{text}'")
+        voice_id = VOICE_PRESETS.get(voice_type, VOICE_PRESETS["female"])
+        logger.info(f"Generating speech with {voice_type} voice: '{text}'")
         
         try:
-            audio_generator = self.client.generate(
+            # Generate audio using text_to_speech
+            audio = self.client.text_to_speech.convert(
+                voice_id=voice_id,
                 text=text,
-                voice=voice_id,
-                model="eleven_multilingual_v2",
-                voice_settings={
-                    "stability": stability,
-                    "similarity_boost": similarity_boost
-                }
+                model_id="eleven_multilingual_v2"
             )
             
-            # Save audio
+            # Save audio - audio is an iterator of bytes
             with open(output_path, 'wb') as f:
-                for chunk in audio_generator:
+                for chunk in audio:
                     f.write(chunk)
             
             logger.info(f"Speech generated: {output_path}")
@@ -187,22 +92,19 @@ class ElevenLabsDubber:
     def apply_dubs(
         self,
         video_path: Path,
-        profanity_matches: List,  # List[ProfanityMatch]
-        voice_id: str,
+        word_replacements: Dict[str, str],
         output_path: Path,
-        stability: float = 0.5,
-        similarity_boost: float = 0.75
+        voice_type: str = "female"
     ) -> Path:
         """
-        Replace profanity with dubbed clean audio in video.
+        Replace words with dubbed clean audio in video.
+        Detects ALL instances of target words and replaces them.
         
         Args:
             video_path: Input video file
-            profanity_matches: List of ProfanityMatch objects
-            voice_id: ElevenLabs voice ID for dubbing
+            word_replacements: Dictionary mapping words to their replacements
             output_path: Output video path
-            stability: Voice stability
-            similarity_boost: Voice similarity
+            voice_type: "male" or "female" voice
             
         Returns:
             Path to dubbed video
@@ -210,44 +112,103 @@ class ElevenLabsDubber:
         if not video_path.exists():
             raise FileNotFoundError(f"Video not found: {video_path}")
         
-        if not profanity_matches:
-            logger.warning("No profanity to dub, copying original video")
+        if not word_replacements:
+            logger.warning("No words to replace, copying original video")
             import shutil
             shutil.copy(video_path, output_path)
             return output_path
         
-        logger.info(f"Dubbing {len(profanity_matches)} segments with voice {voice_id}")
+        logger.info(f"Dubbing {len(word_replacements)} word replacements with {voice_type} voice")
         
         try:
+            # Step 1: Analyze audio to find word occurrences
+            from core.audio_analyzer import AudioAnalyzer
+            from app.config import get_settings
+            
+            settings = get_settings()
+            analyzer = AudioAnalyzer(api_key=settings.gemini_api_key)
+            
+            # Build custom words list from user's input
+            custom_words = list(word_replacements.keys())
+            logger.info(f"Detecting instances of: {custom_words}")
+            
+            # Detect all instances of these words
+            matches = analyzer.analyze_profanity(
+                video_path,
+                custom_words=custom_words
+            )
+            
+            # Override replacements with user's custom replacements
+            for match in matches:
+                if match.word in word_replacements:
+                    match.replacement = word_replacements[match.word]
+            
+            if not matches:
+                logger.warning("No instances of target words found in video")
+                import shutil
+                shutil.copy(video_path, output_path)
+                return output_path
+            
+            logger.info(f"Found {len(matches)} instances to replace")
+            
+            # Step 2: Generate dubbed audio for each instance and match duration
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
                 
-                # Generate dubbed audio for each profanity
                 dub_files = []
-                for i, match in enumerate(profanity_matches):
-                    dub_audio = temp_path / f"dub_{i}.mp3"
+                for i, match in enumerate(matches):
+                    # Generate raw ElevenLabs audio
+                    raw_dub = temp_path / f"dub_raw_{i}.mp3"
                     self.generate_speech(
                         text=match.replacement,
-                        voice_id=voice_id,
-                        output_path=dub_audio,
-                        stability=stability,
-                        similarity_boost=similarity_boost
+                        voice_type=voice_type,
+                        output_path=raw_dub
                     )
-                    dub_files.append((dub_audio, match.start_time))
+                    
+                    # Calculate exact duration needed to replace original word
+                    word_duration = match.end_time - match.start_time
+                    
+                    # Stretch/compress the ElevenLabs audio to match exact duration
+                    # This ensures seamless replacement with no gaps
+                    stretched_dub = temp_path / f"dub_stretched_{i}.mp3"
+                    
+                    # Use atempo filter to adjust speed while maintaining pitch
+                    # If duration doesn't match, we use asetrate+atempo for precise control
+                    stretch_cmd = [
+                        self.ffmpeg_path,
+                        "-y",
+                        "-i", str(raw_dub),
+                        "-filter_complex",
+                        f"[0:a]apad,atrim=0:{word_duration}[out]",  # Pad or trim to exact duration
+                        "-map", "[out]",
+                        str(stretched_dub)
+                    ]
+                    
+                    logger.info(f"Stretching replacement audio to match {word_duration:.2f}s")
+                    subprocess.run(stretch_cmd, check=True, capture_output=True, text=True)
+                    
+                    dub_files.append((stretched_dub, match.start_time, match.end_time))
                 
-                # Build FFmpeg filter to overlay dubs
+                # Step 3: Mute original audio during word occurrences and overlay dubs
+                # Build volume filter to mute original audio at exact timestamps
+                volume_conditions = []
+                for match in matches:
+                    volume_conditions.append(f"between(t,{match.start_time},{match.end_time})")
+                
+                volume_filter = f"volume=enable='{'|'.join(volume_conditions)}':volume=0"
+                
                 filter_parts = []
                 
-                # Split original audio
-                filter_parts.append("[0:a]asplit=1[original]")
+                # Apply volume filter to completely mute words in original audio
+                filter_parts.append(f"[0:a]{volume_filter}[muted]")
                 
-                # For each dub, add delay
-                for i, (dub_path, start_time) in enumerate(dub_files):
+                # For each dub, add delay to align with exact timestamp
+                for i, (dub_path, start_time, _) in enumerate(dub_files):
                     delay_ms = int(start_time * 1000)
                     filter_parts.append(f"[{i+1}:a]adelay={delay_ms}|{delay_ms}[dub{i}]")
                 
-                # Mix all dubs with original audio
-                inputs_to_mix = ["original"] + [f"dub{i}" for i in range(len(dub_files))]
+                # Mix muted audio with all dubs at full volume for clean replacement
+                inputs_to_mix = ["muted"] + [f"dub{i}" for i in range(len(dub_files))]
                 mix_inputs = "".join(f"[{inp}]" for inp in inputs_to_mix)
                 filter_parts.append(
                     f"{mix_inputs}amix=inputs={len(inputs_to_mix)}:duration=first:dropout_transition=0[out]"
@@ -262,8 +223,8 @@ class ElevenLabsDubber:
                     "-i", str(video_path)
                 ]
                 
-                # Add dub files as inputs
-                for dub_path, _ in dub_files:
+                # Add stretched dub files as inputs
+                for dub_path, _, _ in dub_files:
                     cmd.extend(["-i", str(dub_path)])
                 
                 # Add filter and output
@@ -277,10 +238,11 @@ class ElevenLabsDubber:
                     str(output_path)
                 ])
                 
-                logger.info(f"Mixing {len(dub_files)} dubbed segments")
+                logger.info(f"Replacing {len(dub_files)} word instances with seamless ElevenLabs audio")
                 logger.debug(f"FFmpeg command: {' '.join(cmd)}")
                 
                 subprocess.run(cmd, check=True, capture_output=True, text=True)
+
                 
                 logger.info(f"✅ Voice dubbing complete: {output_path}")
                 return output_path
@@ -291,16 +253,3 @@ class ElevenLabsDubber:
         except Exception as e:
             logger.error(f"Dubbing error: {e}")
             raise
-    
-    def delete_voice(self, voice_id: str):
-        """
-        Delete a cloned voice from ElevenLabs.
-        
-        Args:
-            voice_id: Voice ID to delete
-        """
-        try:
-            self.client.voices.delete(voice_id)
-            logger.info(f"Deleted voice: {voice_id}")
-        except Exception as e:
-            logger.warning(f"Failed to delete voice {voice_id}: {e}")

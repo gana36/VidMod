@@ -386,6 +386,10 @@ class CensorAudioRequest(BaseModel):
         None,
         description="Optional list of custom words to detect in addition to standard profanity"
     )
+    custom_replacements: Optional[dict] = Field(
+        None,
+        description="Optional dictionary mapping words to their replacements (e.g., {'damn': 'darn'})"
+    )
 
 
 class ProfanityMatch(BaseModel):

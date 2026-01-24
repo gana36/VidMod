@@ -1879,6 +1879,54 @@ async def replace_with_runway(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/analyze-audio/{job_id}")
+async def analyze_audio(
+    job_id: str,
+    pipeline: VideoPipeline = Depends(get_pipeline),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Analyze audio for profanity detection only (no censoring).
+    Returns detected profanity words with AI-suggested replacements.
+    Used by frontend to populate editable word list for voice dubbing.
+    """
+    logger.info(f"Analyzing audio for profanity: {job_id}")
+    
+    try:
+        # Get video path
+        video_path = pipeline.get_video_path(job_id)
+        if not video_path.exists():
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        #Import audio analyzer
+        from core.audio_analyzer import AudioAnalyzer
+        
+        # Analyze for profanity
+        analyzer = AudioAnalyzer(api_key=settings.gemini_api_key)
+        matches = analyzer.analyze_profanity(video_path)
+        
+        # Return matches for frontend
+        return {
+            "job_id": job_id,
+            "profanity_count": len(matches),
+            "matches": [
+                {
+                    "word": m.word,
+                    "start_time": m.start_time,
+                    "end_time": m.end_time,
+                    "replacement": m.replacement,
+                    "confidence": m.confidence,
+                    "context": m.context
+                }
+                for m in matches
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Audio analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/censor-audio", response_model=CensorAudioResponse)
 async def censor_audio(
     request: CensorAudioRequest,
@@ -1929,19 +1977,7 @@ async def censor_audio(
             detail="Mode must be 'beep' or 'dub'"
         )
     
-    # For dub mode, require voice sample timestamps
-    if request.mode == "dub":
-        if request.voice_sample_start is None or request.voice_sample_end is None:
-            raise HTTPException(
-                status_code=400,
-                detail="voice_sample_start and voice_sample_end required for 'dub' mode"
-            )
-        
-        if not settings.elevenlabs_api_key:
-            raise HTTPException(
-                status_code=500,
-                detail="ELEVENLABS_API_KEY not configured in .env"
-            )
+    logger.info(f"Audio censoring request: {request.job_id}, mode: {request.mode}")
     
     job = pipeline.get_job(request.job_id)
     if not job:
@@ -1997,28 +2033,23 @@ async def censor_audio(
                 ffmpeg_path=pipeline.ffmpeg_path
             )
             
-            # Clone voice from clean sample
-            logger.info(f"Cloning voice from {request.voice_sample_start}s to {request.voice_sample_end}s...")
-            voice_id = dubber.clone_voice_from_video(
-                video_path=job.video_path,
-                start_time=request.voice_sample_start,
-                end_time=request.voice_sample_end
-            )
+            # Use custom replacements if provided, otherwise use AI suggestions
+            word_replacements = request.custom_replacements if request.custom_replacements else {
+                match.word: match.replacement for match in profanity_matches
+            }
             
-            # Apply dubs
+            # Detect voice type from video (default to female)
+            # TODO: Could add gender detection from audio in the future
+            voice_type = "female"  # Simple default for now
+            
+            # Apply dubs with pre-built voice
             output_path = job_dir / "censored_dubbed.mp4"
             dubber.apply_dubs(
                 video_path=job.video_path,
-                profanity_matches=profanity_matches,
-                voice_id=voice_id,
-                output_path=output_path
+                word_replacements=word_replacements,
+                output_path=output_path,
+                voice_type=voice_type
             )
-            
-            # Clean up cloned voice
-            try:
-                dubber.delete_voice(voice_id)
-            except:
-                pass
         
         # Update job with censored video
         job.output_path = output_path

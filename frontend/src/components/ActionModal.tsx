@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Download, EyeOff, RefreshCw, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
+import { X, Loader2, Download, EyeOff, RefreshCw, CheckCircle2, AlertTriangle, Sparkles, Plus } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -59,8 +59,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
     const [referenceImage, setReferenceImage] = useState<File | null>(null);
     const [maskOnly, setMaskOnly] = useState(true);
     const [suggestions, setSuggestions] = useState<string[]>([]);
-    const [voiceSampleStart, setVoiceSampleStart] = useState<number>(0);
-    const [voiceSampleEnd, setVoiceSampleEnd] = useState<number>(10);
+    const [profanityMatches, setProfanityMatches] = useState<Array<{ word: string, replacement: string }>>([]);
 
     // Reset state when modal opens
     useEffect(() => {
@@ -69,6 +68,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
             setSuggestions([]);
             setStatus('idle');
             setDownloadUrl('');
+            setProfanityMatches([]);
         }
     }, [isOpen, initialPrompt]);
 
@@ -152,8 +152,12 @@ const ActionModal: React.FC<ActionModalProps> = ({
                     break;
 
                 case 'censor-dub':
-                    // Censor audio with voice dubbing
-                    await censorAudio(jobId, 'dub', voiceSampleStart, voiceSampleEnd);
+                    // Censor audio with voice dubbing using custom replacements
+                    const customReplacements = profanityMatches.reduce((acc, match) => {
+                        acc[match.word] = match.replacement;
+                        return acc;
+                    }, {} as Record<string, string>);
+                    await censorAudio(jobId, 'dub', undefined, undefined, undefined, customReplacements);
                     finalDownloadUrl = getDownloadUrl(jobId);
                     break;
 
@@ -329,41 +333,78 @@ const ActionModal: React.FC<ActionModalProps> = ({
                         </>
                     )}
 
-                    {/* Audio Censoring Voice Sample (for dub mode only) */}
+
+                    {/* Manual Word Replacement List (for voice dub mode) */}
                     {actionType === 'censor-dub' && (
-                        <div className="space-y-3 p-3 bg-violet-500/10 border border-violet-500/30 rounded-lg">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-violet-400">🎙️ Voice Sample for Cloning</span>
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                    Words to Replace
+                                </label>
+                                <button
+                                    onClick={() => setProfanityMatches([...profanityMatches, { word: '', replacement: '' }])}
+                                    className="flex items-center gap-1 px-2 py-1 bg-violet-500/20 hover:bg-violet-500/30 text-violet-400 rounded text-xs font-medium transition-colors"
+                                >
+                                    <Plus className="w-3 h-3" />
+                                    Add Word
+                                </button>
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                                Select a 10-15 second segment of clean speech (NO profanity) from the video for voice cloning.
-                            </p>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-muted-foreground">Start Time (sec)</label>
-                                    <input
-                                        type="number"
-                                        value={voiceSampleStart}
-                                        onChange={(e) => setVoiceSampleStart(parseFloat(e.target.value))}
-                                        step="0.1"
-                                        min="0"
-                                        className="w-full px-3 py-2 bg-muted/30 rounded-lg border border-border text-sm focus:border-violet-500 focus:outline-none"
-                                    />
+
+                            {profanityMatches.length === 0 ? (
+                                <div className="p-4 bg-muted/20 rounded-lg text-xs text-muted-foreground text-center">
+                                    <p className="mb-2">No words added yet</p>
+                                    <p className="text-[10px]">Click "Add Word" to specify words to replace</p>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-muted-foreground">End Time (sec)</label>
-                                    <input
-                                        type="number"
-                                        value={voiceSampleEnd}
-                                        onChange={(e) => setVoiceSampleEnd(parseFloat(e.target.value))}
-                                        step="0.1"
-                                        min="0"
-                                        className="w-full px-3 py-2 bg-muted/30 rounded-lg border border-border text-sm focus:border-violet-500 focus:outline-none"
-                                    />
+                            ) : (
+                                <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                    {profanityMatches.map((match, index) => (
+                                        <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2 p-2 bg-muted/20 rounded-lg border border-border">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-muted-foreground uppercase">Target Word</label>
+                                                <input
+                                                    type="text"
+                                                    value={match.word}
+                                                    onChange={(e) => {
+                                                        const updated = [...profanityMatches];
+                                                        updated[index].word = e.target.value;
+                                                        setProfanityMatches(updated);
+                                                    }}
+                                                    placeholder="e.g., damn"
+                                                    className="w-full px-2 py-1.5 bg-background border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-accent"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-muted-foreground uppercase">Replace With</label>
+                                                <input
+                                                    type="text"
+                                                    value={match.replacement}
+                                                    onChange={(e) => {
+                                                        const updated = [...profanityMatches];
+                                                        updated[index].replacement = e.target.value;
+                                                        setProfanityMatches(updated);
+                                                    }}
+                                                    placeholder="e.g., darn"
+                                                    className="w-full px-2 py-1.5 bg-background border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-violet-500"
+                                                />
+                                            </div>
+                                            <div className="flex items-end">
+                                                <button
+                                                    onClick={() => {
+                                                        const updated = profanityMatches.filter((_, i) => i !== index);
+                                                        setProfanityMatches(updated);
+                                                    }}
+                                                    className="p-1.5 hover:bg-red-500/20 rounded text-muted-foreground hover:text-red-400 transition-colors"
+                                                    title="Remove"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            </div>
-                            <p className="text-xs text-violet-300">
-                                ⏱️ Duration: {(voiceSampleEnd - voiceSampleStart).toFixed(1)}s
+                            )}
+                            <p className="text-xs text-muted-foreground italic">
+                                💡 Add any words you want to replace. ElevenLabs will dub them with the replacement words.
                             </p>
                         </div>
                     )}

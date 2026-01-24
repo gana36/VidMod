@@ -420,7 +420,8 @@ export async function censorAudio(
     mode: 'beep' | 'dub',
     voiceSampleStart?: number,
     voiceSampleEnd?: number,
-    customWords?: string[]
+    customWords?: string[],
+    customReplacements?: Record<string, string>
 ): Promise<CensorAudioResponse> {
     const response = await fetch(`${API_BASE}/censor-audio`, {
         method: 'POST',
@@ -431,6 +432,7 @@ export async function censorAudio(
             voice_sample_start: voiceSampleStart,
             voice_sample_end: voiceSampleEnd,
             custom_words: customWords,
+            custom_replacements: customReplacements,
         }),
     });
 
