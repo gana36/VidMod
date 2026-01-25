@@ -387,6 +387,32 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
     const getActionButtons = (step: EditStep) => {
         const buttons = [];
 
+        // Audio Censoring - for language/profanity findings
+        if (step.iconType === 'mute' || step.finding.category === 'language') {
+            buttons.push(
+                <button
+                    key="censor-beep"
+                    onClick={(e) => handleApplyAction(step, 'censor-beep' as any, e)}
+                    disabled={!jobId}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <VolumeX className="w-3 h-3" />
+                    Beep
+                </button>
+            );
+            buttons.push(
+                <button
+                    key="censor-dub"
+                    onClick={(e) => handleApplyAction(step, 'censor-dub' as any, e)}
+                    disabled={!jobId}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-violet-500/20 hover:bg-violet-500/30 text-violet-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <VolumeX className="w-3 h-3" />
+                    Voice Dub
+                </button>
+            );
+        }
+
         // Blur/Mask action - always available
         if (step.iconType === 'blur' || step.iconType === 'alert' || step.iconType === 'cut') {
             buttons.push(
@@ -452,6 +478,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
 
         return buttons;
     };
+
 
     // Extract replacement prompt from suggested action
     const getReplacementPrompt = (step: EditStep): string => {

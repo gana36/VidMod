@@ -89,7 +89,9 @@ class VideoPipeline:
         ffmpeg_path: str = "ffmpeg",
         ffprobe_path: str = "ffprobe",
         aws_bucket_name: Optional[str] = None,
-        aws_region: str = 'us-east-1'
+        aws_region: str = 'us-east-1',
+        aws_access_key_id: Optional[str] = None,
+        aws_secret_access_key: Optional[str] = None
     ):
         self.ffmpeg_path = ffmpeg_path  # Store for blur/pixelate effects
         self.ffprobe_path = ffprobe_path
@@ -111,7 +113,9 @@ class VideoPipeline:
             try:
                 self.s3_uploader = S3Uploader(
                     bucket_name=aws_bucket_name,
-                    region=aws_region
+                    region=aws_region,
+                    aws_access_key_id=aws_access_key_id,
+                    aws_secret_access_key=aws_secret_access_key
                 )
                 logger.info(f"S3 integration enabled for bucket: {aws_bucket_name}")
             except Exception as e:
@@ -242,13 +246,11 @@ class VideoPipeline:
             job = JobState(
                 job_id=job_id,
                 video_path=video_files[0],
-                output_dir=job_dir,
                 frames_dir=job_dir / "frames",
                 masks_dir=job_dir / "masks",
                 inpainted_dir=job_dir / "inpainted",
                 output_path=job_dir / "output.mp4",
-                audio_path=job_dir / "audio.aac",
-                status="loaded"
+                audio_path=job_dir / "audio.aac"
             )
             
             # Re-discover frames on disk

@@ -384,3 +384,63 @@ export async function detectObjects(
 
     return response.json();
 }
+
+// ============================================================================
+// Audio Censoring
+// ============================================================================
+
+export interface ProfanityMatch {
+    word: string;
+    start_time: number;
+    end_time: number;
+    replacement: string;
+    confidence: string;
+    context: string;
+}
+
+export interface CensorAudioResponse {
+    job_id: string;
+    status: string;
+    profanity_count: number;
+    words_detected: string[];
+    matches: ProfanityMatch[];
+    download_path?: string;
+    message: string;
+    mode: 'beep' | 'dub';
+}
+
+/**
+ * Censor profanity in video audio
+ * Modes:
+ * - beep: Fast, free - overlay beep sounds (like TV censoring)
+ * - dub: Premium - ElevenLabs voice cloning for seamless replacement
+ */
+export async function censorAudio(
+    jobId: string,
+    mode: 'beep' | 'dub',
+    voiceSampleStart?: number,
+    voiceSampleEnd?: number,
+    customWords?: string[],
+    customReplacements?: Record<string, string>
+): Promise<CensorAudioResponse> {
+    const response = await fetch(`${API_BASE}/censor-audio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            job_id: jobId,
+            mode: mode,
+            voice_sample_start: voiceSampleStart,
+            voice_sample_end: voiceSampleEnd,
+            custom_words: customWords,
+            custom_replacements: customReplacements,
+        }),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Audio censoring failed: ${errorText}`);
+    }
+
+    return response.json();
+}
+

@@ -6,6 +6,7 @@ import RightPanel from './RightPanel';
 import UploadZone, { type VideoMetadata } from './UploadZone';
 import { resolvePolicy } from '../services/policyEngine';
 import { VideoLibrary } from './VideoLibrary';
+import ComplianceReport from './ComplianceReport';
 
 // Edit version interface for tracking history
 export interface EditVersion {
@@ -301,6 +302,15 @@ const AppLayout: React.FC = () => {
                                 />
                             )}
                         </div>
+                    ) : activeTab === 'Compliance' ? (
+                        <ComplianceReport
+                            findings={findings}
+                            editHistory={editHistory}
+                            metadata={videoMetadata}
+                            platform={platform}
+                            region={region}
+                            rating={rating}
+                        />
                     ) : (
                         <div className="flex-1 relative flex overflow-hidden">
                             {/* 1. Video Space (Flex-grow) */}
@@ -369,8 +379,8 @@ const AppLayout: React.FC = () => {
                         </div>
                     )}
                 </main>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

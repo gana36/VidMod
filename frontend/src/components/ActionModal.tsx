@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Download, EyeOff, RefreshCw, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
+import { X, Loader2, Download, EyeOff, RefreshCw, CheckCircle2, AlertTriangle, Sparkles, Plus } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -10,14 +10,15 @@ import {
     blurObject,
     getDownloadUrl,
     getSegmentedDownloadUrl,
-    detectObjects
+    detectObjects,
+    censorAudio
 } from '../services/api';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-export type ActionType = 'blur' | 'pixelate' | 'mask' | 'replace-pika' | 'replace-vace' | 'replace-runway';
+export type ActionType = 'blur' | 'pixelate' | 'mask' | 'replace-pika' | 'replace-vace' | 'replace-runway' | 'censor-beep' | 'censor-dub';
 
 interface ActionModalProps {
     isOpen: boolean;
@@ -58,6 +59,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
     const [referenceImage, setReferenceImage] = useState<File | null>(null);
     const [maskOnly, setMaskOnly] = useState(true);
     const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [profanityMatches, setProfanityMatches] = useState<Array<{ word: string, replacement: string }>>([]);
 
     // Reset state when modal opens
     useEffect(() => {
@@ -66,6 +68,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
             setSuggestions([]);
             setStatus('idle');
             setDownloadUrl('');
+            setProfanityMatches([]);
         }
     }, [isOpen, initialPrompt]);
 
@@ -142,6 +145,22 @@ const ActionModal: React.FC<ActionModalProps> = ({
                     finalDownloadUrl = getDownloadUrl(jobId);
                     break;
 
+                case 'censor-beep':
+                    // Censor audio with beep sounds
+                    await censorAudio(jobId, 'beep');
+                    finalDownloadUrl = getDownloadUrl(jobId);
+                    break;
+
+                case 'censor-dub':
+                    // Censor audio with voice dubbing using custom replacements
+                    const customReplacements = profanityMatches.reduce((acc, match) => {
+                        acc[match.word] = match.replacement;
+                        return acc;
+                    }, {} as Record<string, string>);
+                    await censorAudio(jobId, 'dub', undefined, undefined, undefined, customReplacements);
+                    finalDownloadUrl = getDownloadUrl(jobId);
+                    break;
+
                 default:
                     throw new Error(`Unknown action type: ${actionType}`);
             }
@@ -164,6 +183,8 @@ const ActionModal: React.FC<ActionModalProps> = ({
             case 'replace-pika': return 'Replace with Pika Labs';
             case 'replace-vace': return 'Replace with VACE';
             case 'replace-runway': return 'Replace with Runway Gen-4';
+            case 'censor-beep': return 'Censor Audio (Beep)';
+            case 'censor-dub': return 'Censor Audio (Voice Dub)';
             default: return 'Execute Action';
         }
     };
@@ -176,6 +197,8 @@ const ActionModal: React.FC<ActionModalProps> = ({
             case 'replace-pika': return `Replace "${objectPrompt}" using Pika Labs.`;
             case 'replace-vace': return `Replace "${objectPrompt}" using VACE inpainting.`;
             case 'replace-runway': return `Replace "${objectPrompt}" using Runway Gen-4.`;
+            case 'censor-beep': return `Detect profanity and overlay beep sounds (fast & free).`;
+            case 'censor-dub': return `Detect profanity and replace with clean voice dubs (premium).`;
             default: return '';
         }
     };
@@ -308,6 +331,82 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                 </div>
                             )}
                         </>
+                    )}
+
+
+                    {/* Manual Word Replacement List (for voice dub mode) */}
+                    {actionType === 'censor-dub' && (
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                    Words to Replace
+                                </label>
+                                <button
+                                    onClick={() => setProfanityMatches([...profanityMatches, { word: '', replacement: '' }])}
+                                    className="flex items-center gap-1 px-2 py-1 bg-violet-500/20 hover:bg-violet-500/30 text-violet-400 rounded text-xs font-medium transition-colors"
+                                >
+                                    <Plus className="w-3 h-3" />
+                                    Add Word
+                                </button>
+                            </div>
+
+                            {profanityMatches.length === 0 ? (
+                                <div className="p-4 bg-muted/20 rounded-lg text-xs text-muted-foreground text-center">
+                                    <p className="mb-2">No words added yet</p>
+                                    <p className="text-[10px]">Click "Add Word" to specify words to replace</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                    {profanityMatches.map((match, index) => (
+                                        <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2 p-2 bg-muted/20 rounded-lg border border-border">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-muted-foreground uppercase">Target Word</label>
+                                                <input
+                                                    type="text"
+                                                    value={match.word}
+                                                    onChange={(e) => {
+                                                        const updated = [...profanityMatches];
+                                                        updated[index].word = e.target.value;
+                                                        setProfanityMatches(updated);
+                                                    }}
+                                                    placeholder="e.g., damn"
+                                                    className="w-full px-2 py-1.5 bg-background border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-accent"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-muted-foreground uppercase">Replace With</label>
+                                                <input
+                                                    type="text"
+                                                    value={match.replacement}
+                                                    onChange={(e) => {
+                                                        const updated = [...profanityMatches];
+                                                        updated[index].replacement = e.target.value;
+                                                        setProfanityMatches(updated);
+                                                    }}
+                                                    placeholder="e.g., darn"
+                                                    className="w-full px-2 py-1.5 bg-background border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-violet-500"
+                                                />
+                                            </div>
+                                            <div className="flex items-end">
+                                                <button
+                                                    onClick={() => {
+                                                        const updated = profanityMatches.filter((_, i) => i !== index);
+                                                        setProfanityMatches(updated);
+                                                    }}
+                                                    className="p-1.5 hover:bg-red-500/20 rounded text-muted-foreground hover:text-red-400 transition-colors"
+                                                    title="Remove"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <p className="text-xs text-muted-foreground italic">
+                                💡 Add any words you want to replace. ElevenLabs will dub them with the replacement words.
+                            </p>
+                        </div>
                     )}
 
                     {/* Status Messages */}
