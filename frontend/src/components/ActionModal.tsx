@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Download, EyeOff, RefreshCw, CheckCircle2, AlertTriangle, Sparkles, Plus } from 'lucide-react';
+import { X, Loader2, Download, EyeOff, RefreshCw, CheckCircle2, AlertTriangle, Sparkles, Plus, Zap } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
@@ -11,7 +11,9 @@ import {
     getDownloadUrl,
     getSegmentedDownloadUrl,
     detectObjects,
-    censorAudio
+    censorAudio,
+    analyzeAudio,
+    suggestReplacements
 } from '../services/api';
 
 function cn(...inputs: ClassValue[]) {
@@ -59,7 +61,9 @@ const ActionModal: React.FC<ActionModalProps> = ({
     const [referenceImage, setReferenceImage] = useState<File | null>(null);
     const [maskOnly, setMaskOnly] = useState(true);
     const [suggestions, setSuggestions] = useState<string[]>([]);
-    const [profanityMatches, setProfanityMatches] = useState<Array<{ word: string, replacement: string }>>([]);
+    const [profanityMatches, setProfanityMatches] = useState<Array<{ word: string, replacement: string, suggestions?: string[] }>>([]);
+    const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+    const [manualMode, setManualMode] = useState(false); // Toggle between auto and manual word entry
 
     // Reset state when modal opens
     useEffect(() => {
@@ -69,8 +73,99 @@ const ActionModal: React.FC<ActionModalProps> = ({
             setStatus('idle');
             setDownloadUrl('');
             setProfanityMatches([]);
+            setLoadingSuggestions(false);
+
+            // Auto-load profanity for censor-dub mode
+            if (actionType === 'censor-dub') {
+                loadProfanityAndSuggestions();
+            }
         }
-    }, [isOpen, initialPrompt]);
+    }, [isOpen, initialPrompt, actionType]);
+
+    // Load profanity detection and suggestions
+    const loadProfanityAndSuggestions = async () => {
+        setLoadingSuggestions(true);
+        try {
+            // Step 1: Analyze audio for profanity
+            const audioResult = await analyzeAudio(jobId);
+
+            if (audioResult.profanity_count === 0) {
+                setLoadingSuggestions(false);
+                return;
+            }
+
+            // Step 2: Just populate detected words WITHOUT auto-generating suggestions
+            const uniqueWords = [...new Set(audioResult.matches.map(m => m.word))];
+            const matchesWithoutSuggestions = uniqueWords.map((word) => ({
+                word,
+                replacement: '', // Empty - user must type manually or click Generate
+                suggestions: []
+            }));
+
+            setProfanityMatches(matchesWithoutSuggestions);
+            setLoadingSuggestions(false);
+        } catch (err) {
+            console.error('Failed to load detected words:', err);
+            setLoadingSuggestions(false);
+        }
+    };
+
+    // Regenerate suggestions for all words
+    const handleRegenerateSuggestions = async () => {
+        if (profanityMatches.length === 0) return;
+
+        setLoadingSuggestions(true);
+        try {
+            const words = profanityMatches.map(m => m.word);
+            const suggestionsResult = await suggestReplacements(jobId, words);
+
+            const updatedMatches = profanityMatches.map((match) => {
+                const wordSuggestion = suggestionsResult.suggestions.find(s => s.original_word === match.word);
+                return {
+                    ...match,
+                    replacement: wordSuggestion?.suggestions[0] || match.replacement,
+                    suggestions: wordSuggestion?.suggestions || match.suggestions || []
+                };
+            });
+
+            setProfanityMatches(updatedMatches);
+            setLoadingSuggestions(false);
+        } catch (err) {
+            console.error('Failed to regenerate suggestions:', err);
+            setLoadingSuggestions(false);
+        }
+    };
+
+    // Manually generate suggestions for current word list
+    const handleManualGenerate = async () => {
+        if (profanityMatches.length === 0) return;
+
+        setLoadingSuggestions(true);
+        try {
+            const words = profanityMatches.map(m => m.word).filter(w => w.trim() !== '');
+            if (words.length === 0) {
+                setLoadingSuggestions(false);
+                return;
+            }
+
+            const suggestionsResult = await suggestReplacements(jobId, words);
+
+            const updatedMatches = profanityMatches.map((match) => {
+                const wordSuggestion = suggestionsResult.suggestions.find(s => s.original_word === match.word);
+                return {
+                    ...match,
+                    replacement: wordSuggestion?.suggestions[0] || match.replacement,
+                    suggestions: wordSuggestion?.suggestions || []
+                };
+            });
+
+            setProfanityMatches(updatedMatches);
+            setLoadingSuggestions(false);
+        } catch (err) {
+            console.error('Failed to generate suggestions:', err);
+            setLoadingSuggestions(false);
+        }
+    };
 
     // Auto-detect objects if box is provided
     useEffect(() => {
@@ -334,78 +429,118 @@ const ActionModal: React.FC<ActionModalProps> = ({
                     )}
 
 
-                    {/* Manual Word Replacement List (for voice dub mode) */}
+                    {/* Enhanced Word Replacement with Gemini Suggestions (for voice dub mode) */}
                     {actionType === 'censor-dub' && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                                    Words to Replace
+                                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                    <Sparkles className="w-3 h-3 text-violet-400" />
+                                    AI-Powered Word Replacement
                                 </label>
                                 <button
-                                    onClick={() => setProfanityMatches([...profanityMatches, { word: '', replacement: '' }])}
-                                    className="flex items-center gap-1 px-2 py-1 bg-violet-500/20 hover:bg-violet-500/30 text-violet-400 rounded text-xs font-medium transition-colors"
+                                    onClick={handleManualGenerate}
+                                    disabled={loadingSuggestions || profanityMatches.length === 0}
+                                    className="flex items-center gap-1 px-2 py-1 bg-violet-500/20 hover:bg-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-violet-400 rounded text-xs font-medium transition-colors"
                                 >
-                                    <Plus className="w-3 h-3" />
-                                    Add Word
+                                    {loadingSuggestions ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                        <Sparkles className="w-3 h-3" />
+                                    )}
+                                    Generate
                                 </button>
                             </div>
 
-                            {profanityMatches.length === 0 ? (
+                            {loadingSuggestions ? (
+                                <div className="p-8 bg-muted/20 rounded-lg text-center">
+                                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-violet-400" />
+                                    <p className="text-xs text-muted-foreground">Analyzing audio and generating suggestions...</p>
+                                </div>
+                            ) : profanityMatches.length === 0 ? (
                                 <div className="p-4 bg-muted/20 rounded-lg text-xs text-muted-foreground text-center">
-                                    <p className="mb-2">No words added yet</p>
-                                    <p className="text-[10px]">Click "Add Word" to specify words to replace</p>
+                                    <p className="mb-2">No profanity detected</p>
+                                    <p className="text-[10px]">The video appears to be clean!</p>
                                 </div>
                             ) : (
                                 <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
                                     {profanityMatches.map((match, index) => (
-                                        <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2 p-2 bg-muted/20 rounded-lg border border-border">
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] text-muted-foreground uppercase">Target Word</label>
-                                                <input
-                                                    type="text"
-                                                    value={match.word}
-                                                    onChange={(e) => {
-                                                        const updated = [...profanityMatches];
-                                                        updated[index].word = e.target.value;
+                                        <div key={index} className="p-3 bg-muted/20 rounded-lg border border-border space-y-2">
+                                            {/* Word to Replace */}
+                                            <div className="flex items-center justify-between">
+                                                <div className="space-y-1 flex-1">
+                                                    <label className="text-[10px] text-muted-foreground uppercase">Word to Replace</label>
+                                                    <div className="px-3 py-2 bg-red-500/10 border border-red-500/30 rounded text-sm font-medium text-red-400">
+                                                        {match.word}
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        const updated = profanityMatches.filter((_, i) => i !== index);
                                                         setProfanityMatches(updated);
                                                     }}
-                                                    placeholder="e.g., damn"
-                                                    className="w-full px-2 py-1.5 bg-background border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-accent"
-                                                />
+                                                    className="p-1.5 hover:bg-red-500/20 rounded text-muted-foreground hover:text-red-400 transition-colors ml-2"
+                                                    title="Remove"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
                                             </div>
+
+                                            {/* Replacement Field - Manual Input with Gemini Suggestions */}
                                             <div className="space-y-1">
-                                                <label className="text-[10px] text-muted-foreground uppercase">Replace With</label>
+                                                <label className="text-[10px] text-violet-400 uppercase flex items-center gap-1">
+                                                    <Sparkles className="w-3 h-3" />
+                                                    Replacement {match.suggestions && match.suggestions.length > 0 && `(${match.suggestions.length} suggestions)`}
+                                                </label>
                                                 <input
                                                     type="text"
+                                                    list={`suggestions-${index}`}
                                                     value={match.replacement}
                                                     onChange={(e) => {
                                                         const updated = [...profanityMatches];
                                                         updated[index].replacement = e.target.value;
                                                         setProfanityMatches(updated);
                                                     }}
-                                                    placeholder="e.g., darn"
-                                                    className="w-full px-2 py-1.5 bg-background border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-violet-500"
+                                                    placeholder="Type manually or click Generate for AI suggestions"
+                                                    className="w-full px-3 py-2 bg-violet-500/10 border border-violet-500/30 rounded text-sm focus:outline-none focus:ring-1 focus:ring-violet-500 text-violet-300 font-medium"
                                                 />
-                                            </div>
-                                            <div className="flex items-end">
-                                                <button
-                                                    onClick={() => {
-                                                        const updated = profanityMatches.filter((_, i) => i !== index);
-                                                        setProfanityMatches(updated);
-                                                    }}
-                                                    className="p-1.5 hover:bg-red-500/20 rounded text-muted-foreground hover:text-red-400 transition-colors"
-                                                    title="Remove"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </button>
+                                                {match.suggestions && match.suggestions.length > 0 && (
+                                                    <datalist id={`suggestions-${index}`}>
+                                                        {match.suggestions.map((suggestion, i) => (
+                                                            <option key={i} value={suggestion} />
+                                                        ))}
+                                                    </datalist>
+                                                )}
+                                                {match.suggestions && match.suggestions.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {match.suggestions.map((suggestion, i) => (
+                                                            <button
+                                                                key={i}
+                                                                onClick={() => {
+                                                                    const updated = [...profanityMatches];
+                                                                    updated[index].replacement = suggestion;
+                                                                    setProfanityMatches(updated);
+                                                                }}
+                                                                className="px-2 py-0.5 bg-violet-500/20 hover:bg-violet-500/30 rounded text-[10px] text-violet-300 transition-colors"
+                                                            >
+                                                                {suggestion}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             )}
-                            <p className="text-xs text-muted-foreground italic">
-                                💡 Add any words you want to replace. ElevenLabs will dub them with the replacement words.
-                            </p>
+                            <div className="p-2 bg-violet-500/10 border border-violet-500/20 rounded-lg">
+                                <p className="text-xs text-violet-300 flex items-start gap-2">
+                                    <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
+                                    <span>
+                                        Type your own replacement or click <strong>Generate</strong> for Gemini AI suggestions.
+                                        Click any suggestion chip to quickly use it.
+                                    </span>
+                                </p>
+                            </div>
                         </div>
                     )}
 

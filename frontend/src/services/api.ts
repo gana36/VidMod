@@ -444,3 +444,65 @@ export async function censorAudio(
     return response.json();
 }
 
+// ============================================================================
+// Word Suggestions (Gemini-powered)
+// ============================================================================
+
+export interface WordSuggestion {
+    original_word: string;
+    suggestions: string[];
+    duration: number;
+}
+
+export interface SuggestReplacementsResponse {
+    job_id: string;
+    suggestions: WordSuggestion[];
+    message: string;
+}
+
+/**
+ * Get Gemini-powered word suggestions that match duration
+ */
+export async function suggestReplacements(
+    jobId: string,
+    wordsToReplace: string[]
+): Promise<SuggestReplacementsResponse> {
+    const response = await fetch(`${API_BASE}/suggest-replacements/${jobId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            job_id: jobId,
+            words_to_replace: wordsToReplace,
+        }),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Word suggestion failed: ${errorText}`);
+    }
+
+    return response.json();
+}
+
+export interface AnalyzeAudioResponse {
+    job_id: string;
+    profanity_count: number;
+    matches: ProfanityMatch[];
+}
+
+/**
+ * Analyze audio for profanity detection only (no censoring)
+ * Returns detected words with timestamps for UI display
+ */
+export async function analyzeAudio(
+    jobId: string
+): Promise<AnalyzeAudioResponse> {
+    const response = await fetch(`${API_BASE}/analyze-audio/${jobId}`);
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Audio analysis failed: ${errorText}`);
+    }
+
+    return response.json();
+}
