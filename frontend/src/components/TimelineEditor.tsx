@@ -88,7 +88,7 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ duration, currentTime, 
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/20 border border-border/50">
                         <Clock className="w-3.5 h-3.5 text-accent" />
-                        <span className="text-[10px] font-mono font-bold tracking-wider">
+                        <span className="text-[10px] font-mono font-semibold tracking-wider">
                             {Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')} / {Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}
                         </span>
                     </div>
@@ -108,7 +108,7 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ duration, currentTime, 
                         />
                         <ZoomIn className="w-3.5 h-3.5 text-muted-foreground" />
                     </div>
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{zoom.toFixed(1)}x Zoom</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{zoom.toFixed(1)}x Zoom</span>
                 </div>
             </div>
 
@@ -165,7 +165,7 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({ duration, currentTime, 
                                     }}
                                 >
                                     {/* Tooltip Content (Simple implementation) */}
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground rounded text-[10px] font-bold whitespace-nowrap opacity-0 group-hover/marker:opacity-100 pointer-events-none transition-opacity shadow-xl border border-border">
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground rounded text-[10px] font-semibold whitespace-nowrap opacity-0 group-hover/marker:opacity-100 pointer-events-none transition-opacity shadow-xl border border-border">
                                         {finding.type}: {finding.content} ({finding.confidence})
                                     </div>
 

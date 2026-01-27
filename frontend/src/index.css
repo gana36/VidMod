@@ -9,11 +9,11 @@
   --color-popover-foreground: #cbd5e1;
   --color-primary: #f8fafc;
   --color-primary-foreground: #020617;
-  --color-secondary: #1e293b;
-  --color-secondary-foreground: #f8fafc;
-  --color-muted: #1e293b;
-  --color-muted-foreground: #94a3b8;
-  --color-accent: #334155;
+  --color-secondary: #121214;
+  --color-secondary-foreground: #e2e8f0;
+  --color-muted: #1a1a1c;
+  --color-muted-foreground: #64748b;
+  --color-accent: #3b82f6;
   --color-accent-foreground: #f8fafc;
   --color-destructive: #ef4444;
   --color-destructive-foreground: #f8fafc;
@@ -26,9 +26,9 @@
   --radius-md: 0.5rem;
   --radius-sm: 0.25rem;
 
-  --glass-bg: rgba(15, 23, 42, 0.7);
-  --glass-border: rgba(148, 163, 184, 0.1);
-  --glass-blur: 16px;
+  --glass-bg: rgba(10, 10, 12, 0.4);
+  --glass-border: rgba(255, 255, 255, 0.04);
+  --glass-blur: 8px;
 }
 
 @layer base {
@@ -49,11 +49,11 @@
   }
 
   .glass-card {
-    @apply bg-card/40 border border-white/[0.05] rounded-xl shadow-sm transition-all duration-300;
-    backdrop-filter: blur(12px);
+    @apply bg-card/20 border border-white/[0.03] rounded-xl shadow-none transition-all duration-200;
+    backdrop-filter: blur(4px);
 
     &:hover {
-      @apply border-white/10 bg-card/60 shadow-xl;
+      @apply border-white/10 bg-card/40;
     }
   }
 

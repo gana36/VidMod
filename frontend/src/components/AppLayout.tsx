@@ -328,7 +328,7 @@ const AppLayout: React.FC = () => {
                                 {editedVideoUrl && (
                                     <button
                                         onClick={() => setShowOriginal(!showOriginal)}
-                                        className={`absolute top-10 left-10 z-20 flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-2xl glass-panel border-white/10 cursor-pointer ${showOriginal
+                                        className={`absolute top-10 left-10 z-20 flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs uppercase tracking-widest transition-all shadow-2xl glass-panel border-white/10 cursor-pointer ${showOriginal
                                             ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
                                             : 'bg-primary/20 text-primary border-primary/40 hover:bg-primary/30'
                                             }`}

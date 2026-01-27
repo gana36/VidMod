@@ -413,3 +413,27 @@ class CensorAudioResponse(BaseModel):
     message: str
     mode: str  # "beep" or "dub"
 
+
+# ============================================================================
+# Word Suggestion Models (Gemini-powered alternative word generation)
+# ============================================================================
+
+class SuggestReplacementsRequest(BaseModel):
+    """Request for Gemini to suggest alternative words."""
+    job_id: str = Field(..., description="Job ID from video upload")
+    words_to_replace: List[str] = Field(..., description="List of words to find replacements for")
+
+
+class WordSuggestion(BaseModel):
+    """A single word suggestion with metadata."""
+    original_word: str
+    suggestions: List[str] = Field(default_factory=list, description="List of suggested replacements")
+    duration: float = Field(0.0, description="Approximate speaking duration in seconds")
+
+
+class SuggestReplacementsResponse(BaseModel):
+    """Response with word suggestions."""
+    job_id: str
+    suggestions: List[WordSuggestion]
+    message: str
+

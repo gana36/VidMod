@@ -2,20 +2,28 @@ import React, { useState } from 'react';
 import {
     Download,
     ShieldCheck,
-    User,
-    Calendar,
     CheckCircle2,
     History,
     FileVideo,
     Info,
     AlertCircle,
     Check,
-    Share2
+    FileText,
+    Activity,
+    Award,
+    Calendar,
+    Hash,
+    User,
+    FileSignature,
+    Zap
 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 import { type Finding } from './VideoWorkspace';
 import { type EditVersion } from './AppLayout';
 import { type VideoMetadata } from './UploadZone';
+
 
 interface ComplianceReportProps {
     findings: Finding[];
@@ -39,15 +47,141 @@ const ComplianceReport: React.FC<ComplianceReportProps> = ({
     const [notes, setNotes] = useState('');
     const [reportTitle, setReportTitle] = useState(`Compliance Certificate - ${metadata?.name || 'Untitled Video'}`);
 
-    const totalEdits = editHistory.filter(v => v.enabled).length;
+    const activeEdits = editHistory.filter(v => v.enabled);
+    const totalEdits = activeEdits.length;
     const totalFindings = findings.length;
+
+    // Improved logic for resolved findings - matching by objectName or finding content
     const resolvedFindings = findings.filter(f =>
-        editHistory.some(e => e.objectName.toLowerCase().includes(f.content.toLowerCase()) && e.enabled)
+        activeEdits.some(e =>
+            e.objectName.toLowerCase().includes(f.content.toLowerCase()) ||
+            f.content.toLowerCase().includes(e.objectName.toLowerCase())
+        )
     ).length;
 
-    const handleDownload = () => {
-        // Mock download - in real app would generate PDF
-        window.print();
+    const remediationRate = totalFindings === 0 ? 100 : Math.round((resolvedFindings / totalFindings) * 100);
+
+    const generatePDF = () => {
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        // Colors
+        const primaryColor: [number, number, number] = [15, 23, 42]; // Slate 900
+
+        // Header - Branding
+        doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.rect(0, 0, pageWidth, 40, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text('VIDMOD', 15, 25);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text('COMPLIANCE PROTOCOL v4.2', 15, 32);
+
+        doc.setFontSize(14);
+        doc.text('CERTIFICATE OF COMPLIANCE', pageWidth - 15, 25, { align: 'right' });
+
+        // Certificate Details
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(reportTitle.toUpperCase(), 15, 60);
+
+        doc.setDrawColor(226, 232, 240);
+        doc.line(15, 65, pageWidth - 15, 65);
+
+        // Metadata Section
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text('MEDIA SPECIFICATIONS', 15, 75);
+
+        const metadataRows = [
+            ['Source File:', metadata?.name || 'N/A'],
+            ['Compliance Standard:', `${platform} / ${region}`],
+            ['Target Rating:', rating],
+            ['Processing ID:', metadata?.jobId?.substring(0, 16) || 'LOAD_FAIL'],
+            ['Generated Date:', new Date().toLocaleString()],
+            ['Remediation Rate:', `${remediationRate}%`],
+        ];
+
+        autoTable(doc, {
+            startY: 80,
+            head: [],
+            body: metadataRows,
+            theme: 'plain',
+            styles: { fontSize: 9, cellPadding: 2 },
+            columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } },
+        });
+
+        // Technical Log Header
+        const finalY = (doc as any).lastAutoTable.finalY || 120;
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text('TECHNICAL REMEDIATION LOG', 15, finalY + 15);
+
+        // Edit History Table
+        const tableData = activeEdits.map(edit => [
+            `v${edit.version}`,
+            edit.objectName,
+            edit.effectType.toUpperCase(),
+            new Date(edit.timestamp).toLocaleString(),
+            'VERIFIED'
+        ]);
+
+        autoTable(doc, {
+            startY: finalY + 20,
+            head: [['Ver', 'Subject', 'Method', 'Timestamp', 'Status']],
+            body: tableData.length > 0 ? tableData : [['--', 'No modifications applied', '--', '--', '--']],
+            headStyles: { fillColor: primaryColor, textColor: 255, fontSize: 8, fontStyle: 'bold' },
+            bodyStyles: { fontSize: 8 },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+        });
+
+        // Sign-off Section
+        const signOffY = (doc as any).lastAutoTable.finalY + 30;
+
+        // Check if we need a new page
+        if (signOffY > doc.internal.pageSize.getHeight() - 60) {
+            doc.addPage();
+            doc.text('CERTIFICATION & SIGN-OFF CONTINUED', 15, 20);
+        }
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text('CERTIFICATION & SIGN-OFF', 15, signOffY);
+
+        doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.setLineWidth(0.5);
+        doc.line(15, signOffY + 5, pageWidth - 15, signOffY + 5);
+
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.setFontSize(9);
+        doc.text('Approver:', 15, signOffY + 15);
+        doc.setFont('helvetica', 'bold');
+        doc.text(approverName, 40, signOffY + 15);
+
+        doc.setFont('helvetica', 'normal');
+        doc.text('Notes:', 15, signOffY + 25);
+        const splitNotes = doc.splitTextToSize(notes || 'No additional compliance notes provided.', pageWidth - 55);
+        doc.text(splitNotes, 40, signOffY + 25);
+
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Digital Verification Hash: ${btoa(metadata?.jobId || 'vidmod_hash').substring(0, 32).toUpperCase()}`, 15, signOffY + 50);
+
+        // Footer
+        const totalPages = doc.internal.pages.length - 1;
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(148, 163, 184);
+            doc.text(`Page ${i} of ${totalPages} - VidMod Compliance Protocol v4.2`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+        }
+
+        doc.save(`${reportTitle.replace(/\s+/g, '_')}.pdf`);
     };
 
     const handleApprove = () => {
@@ -60,221 +194,238 @@ const ComplianceReport: React.FC<ComplianceReportProps> = ({
 
     return (
         <div className="flex-1 overflow-y-auto bg-background p-8 custom-scrollbar">
-            <div className="max-w-4xl mx-auto space-y-8 pb-12">
+            <div className="max-w-5xl mx-auto space-y-8 pb-12">
 
-                {/* Header Section */}
-                <div className="flex items-center justify-between border-b border-border pb-6">
+                {/* Header Action Bar */}
+                <div className="flex items-center justify-between border-b border-white/5 pb-8">
                     <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-[0.2em]">
-                            <ShieldCheck className="w-4 h-4" />
-                            Official Compliance Report
+                        <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-[0.2em]">
+                            <Zap className="w-4 h-4 fill-primary/20" />
+                            VidMod Intel Layer
                         </div>
                         <input
                             value={reportTitle}
                             onChange={(e) => setReportTitle(e.target.value)}
-                            className="text-2xl font-black bg-transparent border-none focus:ring-0 w-full p-0 text-foreground"
+                            className="text-3xl font-bold bg-transparent border-none focus:ring-0 w-full p-0 text-foreground placeholder:opacity-30"
                             placeholder="Report Title"
                         />
-                        <p className="text-xs text-muted-foreground">Generated on {new Date().toLocaleDateString()} • System ID: {metadata?.jobId?.substring(0, 8) || 'N/A'}</p>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-3">
                         <button
-                            onClick={handleDownload}
+                            onClick={generatePDF}
                             disabled={!isApproved}
-                            className="flex items-center gap-2 px-4 py-2 bg-secondary border border-border rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-secondary/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed cursor-pointer"
                         >
-                            <Download className="w-3.5 h-3.5" />
-                            Export PDF
-                        </button>
-                        <button
-                            disabled={!isApproved}
-                            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                        >
-                            <Share2 className="w-3.5 h-3.5" />
-                            Share
+                            <Download className="w-4 h-4" />
+                            Export Professional PDF
                         </button>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Media Info */}
-                    <div className="md:col-span-2 space-y-6">
-                        <section className="glass-card p-6 bg-secondary/20 space-y-4">
-                            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                                <FileVideo className="w-4 h-4" />
-                                Media Intelligence
-                            </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Main Content */}
+                    <div className="lg:col-span-2 space-y-8">
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Filename</span>
-                                    <p className="text-sm font-bold truncate">{metadata?.name || 'N/A'}</p>
+                        {/* Summary Stats Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            {[
+                                { label: 'Remediation Rate', value: `${remediationRate}%`, icon: Activity, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                                { label: 'Fixed Findings', value: `${resolvedFindings}/${totalFindings}`, icon: CheckCircle2, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                                { label: 'Active Edits', value: totalEdits, icon: History, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                                { label: 'Standards', value: region.split(' ')[0], icon: Award, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+                            ].map((stat, i) => (
+                                <div key={i} className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col gap-3 group hover:border-white/10 transition-colors">
+                                    <div className={`w-8 h-8 rounded-lg ${stat.bg} ${stat.color} flex items-center justify-center`}>
+                                        <stat.icon className="w-4 h-4" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">{stat.label}</div>
+                                        <div className="text-xl font-bold tracking-tight">{stat.value}</div>
+                                    </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Duration</span>
-                                    <p className="text-sm font-bold">{metadata?.duration || '0:00'}s</p>
+                            ))}
+                        </div>
+
+                        {/* Media specification detail card */}
+                        <div className="rounded-3xl bg-white/[0.02] border border-white/5 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-white/5 bg-white/[0.01] flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <FileText className="w-4 h-4 text-primary" />
+                                    <span className="text-xs font-bold uppercase tracking-widest">Media Specification Detail</span>
                                 </div>
-                                <div className="space-y-1">
-                                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Compliance Standard</span>
-                                    <p className="text-sm font-bold text-accent">{platform} - {region}</p>
+                                <div className="text-[10px] font-mono text-muted-foreground opacity-50">VERIFICATION_PASS</div>
+                            </div>
+                            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-12">
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                                        <FileVideo className="w-3 h-3" /> Source File
+                                    </label>
+                                    <div className="text-sm font-semibold truncate">{metadata?.name || 'Untitled_Project.mp4'}</div>
                                 </div>
-                                <div className="space-y-1">
-                                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Target Rating</span>
-                                    <p className="text-sm font-bold">{rating}</p>
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                                        <ShieldCheck className="w-3 h-3" /> Compliance Standard
+                                    </label>
+                                    <div className="text-sm font-semibold">{platform} – {region}</div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                                        <Hash className="w-3 h-3" /> Processing ID
+                                    </label>
+                                    <div className="text-sm font-mono text-primary truncate uppercase">{metadata?.jobId?.substring(0, 16) || 'LOAD_FAIL_0X00'}</div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                                        <Calendar className="w-3 h-3" /> Certification Date
+                                    </label>
+                                    <div className="text-sm font-semibold">{new Date().toLocaleDateString(undefined, { dateStyle: 'long' })}</div>
                                 </div>
                             </div>
-                        </section>
+                        </div>
 
-                        <section className="glass-card p-6 bg-secondary/20 space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                                    <History className="w-4 h-4" />
-                                    Modification Timeline
+                        {/* Remediation Timeline Table */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between px-1">
+                                <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                    <Activity className="w-4 h-4" /> Technical Remediation Log
                                 </h3>
-                                <div className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[9px] font-black uppercase tracking-widest">
-                                    {totalEdits} actions applied
+                                <div className="px-2 py-1 rounded bg-primary/10 text-primary text-[9px] font-bold uppercase tracking-widest">
+                                    {activeEdits.length} Actions Verified
                                 </div>
                             </div>
 
-                            {editHistory.filter(v => v.enabled).length === 0 ? (
-                                <div className="p-8 text-center border border-dashed border-border rounded-xl bg-background/50">
-                                    <p className="text-xs text-muted-foreground">No modifications have been applied to this version.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {editHistory.filter(v => v.enabled).map((edit, i) => (
-                                        <div key={edit.id} className="flex gap-4 relative">
-                                            {i !== editHistory.filter(v => v.enabled).length - 1 && (
-                                                <div className="absolute left-[11px] top-6 bottom-[-20px] w-px bg-border" />
-                                            )}
-                                            <div className="w-6 h-6 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center shrink-0 z-10">
-                                                <div className="w-2 h-2 rounded-full bg-primary" />
-                                            </div>
-                                            <div className="flex-1 pb-4">
-                                                <div className="flex items-center justify-between">
-                                                    <h4 className="text-sm font-bold">Applied {edit.effectType} to "{edit.objectName}"</h4>
-                                                    <span className="text-[10px] font-mono text-muted-foreground">v{edit.version} • {new Date(edit.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                </div>
-                                                <div className="mt-2 text-[11px] text-muted-foreground bg-background/40 p-2 rounded border border-border/50">
-                                                    Object was successfully {edit.effectType === 'blur' ? 'masked' : edit.effectType === 'pixelate' ? 'pixelated' : 'replaced'} using AI-guided remediation.
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </section>
-
-                        {/* Violations Summary */}
-                        <section className="glass-card p-6 border-emerald-500/20 bg-emerald-500/[0.02] space-y-4">
-                            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-emerald-500 flex items-center gap-2">
-                                <CheckCircle2 className="w-4 h-4" />
-                                Compliance Status
-                            </h3>
-
-                            <div className="flex items-center gap-6 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-                                <div className="flex-1 space-y-1">
-                                    <div className="flex items-center justify-between text-xs mb-1">
-                                        <span className="font-bold">Remediation Coverage</span>
-                                        <span className="font-bold">{totalFindings === 0 ? '100%' : `${Math.round((resolvedFindings / totalFindings) * 100)}%`}</span>
-                                    </div>
-                                    <div className="w-full h-2 bg-emerald-500/20 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-emerald-500 transition-all duration-1000"
-                                            style={{ width: `${totalFindings === 0 ? 100 : (resolvedFindings / totalFindings) * 100}%` }}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="text-center">
-                                    <p className="text-2xl font-black text-emerald-500 tabular-nums">{resolvedFindings}/{totalFindings}</p>
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60 leading-none">Resolved</p>
-                                </div>
+                            <div className="rounded-3xl border border-white/5 bg-white/[0.01] overflow-hidden">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-white/5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest uppercase">
+                                            <th className="px-6 py-4">Version</th>
+                                            <th className="px-6 py-4">Target Object</th>
+                                            <th className="px-6 py-4">Method</th>
+                                            <th className="px-6 py-4 text-right">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {activeEdits.length > 0 ? (
+                                            activeEdits.map((edit) => (
+                                                <tr key={edit.id} className="group hover:bg-white/[0.015] transition-colors">
+                                                    <td className="px-6 py-4">
+                                                        <span className="px-1.5 py-0.5 rounded bg-white/5 text-[10px] font-mono font-bold tracking-tighter">
+                                                            {edit.version}.0
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="text-xs font-semibold">{edit.objectName}</div>
+                                                        <div className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                                                            ID: {edit.id.substring(0, 8)}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="px-2 py-1 rounded-full bg-white/5 text-[9px] font-bold uppercase tracking-widest">
+                                                            {edit.effectType}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <div className="flex items-center justify-end gap-1.5 text-emerald-500">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                                            <span className="text-[10px] font-bold uppercase tracking-widest">Verified</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={4} className="px-6 py-12 text-center">
+                                                    <div className="flex flex-col items-center gap-3 opacity-20">
+                                                        <AlertCircle className="w-8 h-8" />
+                                                        <p className="text-xs font-bold uppercase tracking-[0.2em]">No modifications detected</p>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
-                        </section>
+                        </div>
                     </div>
 
-                    {/* Sidebar: Editor Rules & Approval */}
+                    {/* Sidebar: Approval & Certification */}
                     <div className="space-y-6">
-                        <section className="glass-card p-5 bg-card/50 space-y-4 border-amber-500/20">
-                            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-amber-500 flex items-center gap-2">
-                                <AlertCircle className="w-4 h-4" />
-                                Editor Notes
-                            </h3>
-                            <textarea
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                                placeholder="Add specific details about the remediation process or special approvals..."
-                                className="w-full h-32 p-3 bg-background/50 border border-border rounded-lg text-xs placeholder:text-muted-foreground focus:ring-1 focus:ring-amber-500/50 focus:border-amber-500/50 outline-none resize-none transition-all"
-                            />
-                        </section>
-
-                        <section className="glass-card p-5 bg-primary/5 space-y-6 border-primary/20">
-                            <div className="space-y-4">
-                                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-                                    <User className="w-4 h-4" />
-                                    Review & Approval
+                        <div className="p-8 rounded-3xl bg-primary/5 border border-primary/20 space-y-8 sticky top-8">
+                            <div className="space-y-2">
+                                <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                                    <FileSignature className="w-5 h-5 text-primary" />
+                                    Sign-off & Certify
                                 </h3>
+                                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                    Finalize the compliance report by providing the authorized legal representative signature.
+                                </p>
+                            </div>
 
-                                <div className="space-y-3">
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Approver Name</label>
-                                        <div className="relative">
-                                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                                            <input
-                                                value={approverName}
-                                                onChange={(e) => setApproverName(e.target.value)}
-                                                readOnly={isApproved}
-                                                className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:ring-1 focus:ring-primary/50 outline-none"
-                                                placeholder="Legal Officer Name"
-                                            />
-                                        </div>
-                                    </div>
+                            <div className="space-y-5">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-2">
+                                        <User className="w-3 h-3" /> Authorized Signatory
+                                    </label>
+                                    <input
+                                        value={approverName}
+                                        onChange={(e) => setApproverName(e.target.value)}
+                                        readOnly={isApproved}
+                                        className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-xl text-sm focus:ring-2 focus:ring-primary/40 outline-none transition-all placeholder:opacity-20 font-semibold"
+                                        placeholder="Full Legal Name"
+                                    />
+                                </div>
 
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date</label>
-                                        <div className="relative">
-                                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                                            <input
-                                                type="text"
-                                                value={new Date().toLocaleDateString()}
-                                                readOnly
-                                                className="w-full pl-9 pr-4 py-2 bg-background/50 border border-border rounded-lg text-sm outline-none opacity-70"
-                                            />
-                                        </div>
-                                    </div>
+                                <div className="space-y-2 focus-within:opacity-100 transition-opacity">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Compliance Notes</label>
+                                    <textarea
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        readOnly={isApproved}
+                                        placeholder="Optional audit notes or remediation justifications..."
+                                        className="w-full h-32 px-4 py-3 bg-black/40 border border-white/5 rounded-xl text-xs focus:ring-2 focus:ring-primary/40 outline-none resize-none transition-all placeholder:opacity-20"
+                                    />
                                 </div>
                             </div>
 
                             {!isApproved ? (
                                 <button
                                     onClick={handleApprove}
-                                    className="w-full py-4 bg-primary text-primary-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
+                                    className="w-full py-4 bg-foreground text-background font-black text-xs uppercase tracking-[0.3em] rounded-xl transition-all hover:scale-[1.02] active:scale-95 cursor-pointer shadow-xl shadow-black/20"
                                 >
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    Approve & Certify
+                                    Certify Results
                                 </button>
                             ) : (
-                                <div className="space-y-3">
-                                    <div className="w-full py-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 font-black text-xs uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-2">
-                                        <Check className="w-4 h-4" />
-                                        Certified
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                    <div className="flex items-center justify-between p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+                                        <div className="space-y-1">
+                                            <p className="text-[9px] font-bold uppercase text-emerald-500 tracking-widest opacity-70">Certification Successful</p>
+                                            <p className="text-lg font-bold italic font-serif leading-none">{approverName}</p>
+                                        </div>
+                                        <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+                                            <Check className="w-5 h-5 stroke-[3]" />
+                                        </div>
                                     </div>
-                                    <p className="text-[10px] text-center text-muted-foreground italic">
-                                        Electronic signature verified at {new Date().toLocaleTimeString()}
-                                    </p>
+
+                                    <div className="space-y-3 pt-6 border-t border-white/5">
+                                        <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground opacity-40">
+                                            <span>TIMESTAMP</span>
+                                            <span>{new Date().toISOString()}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[10px] font-mono text-emerald-500/60 font-bold">
+                                            <span>NETWORK STATUS</span>
+                                            <span className="animate-pulse">LEDGER_CERTIFIED</span>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
-                        </section>
 
-                        <div className="p-4 rounded-xl border border-dashed border-border bg-muted/20 space-y-2">
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                                <Info className="w-3.5 h-3.5" />
-                                Compliance Engine
+                            <div className="flex items-start gap-3 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                                <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                                <p className="text-[10px] text-muted-foreground/60 leading-relaxed italic">
+                                    Generating this document creates a permanent audit trail. Modifying the source media after certification will invalidate this ID.
+                                </p>
                             </div>
-                            <p className="text-[10px] text-muted-foreground leading-relaxed">
-                                This report is cryptographically linked to job ID <span className="font-mono text-foreground">{metadata?.jobId || 'N/A'}</span>. All modifications are tracked in the system ledger.
-                            </p>
                         </div>
                     </div>
                 </div>

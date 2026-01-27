@@ -190,11 +190,17 @@ class ElevenLabsDubber:
                     dub_files.append((stretched_dub, match.start_time, match.end_time))
                 
                 # Step 3: Mute original audio during word occurrences and overlay dubs
-                # Build volume filter to mute original audio at exact timestamps
+                # Build volume filter to COMPLETELY MUTE original audio at exact timestamps
+                # Use very aggressive muting with fade to ensure no bleed-through
                 volume_conditions = []
                 for match in matches:
-                    volume_conditions.append(f"between(t,{match.start_time},{match.end_time})")
+                    # Add small padding before/after to ensure complete coverage
+                    padding = 0.05  # 50ms padding on each side
+                    start_padded = max(0, match.start_time - padding)
+                    end_padded = match.end_time + padding
+                    volume_conditions.append(f"between(t,{start_padded},{end_padded})")
                 
+                # Complete muting with volume=0 (absolute silence)
                 volume_filter = f"volume=enable='{'|'.join(volume_conditions)}':volume=0"
                 
                 filter_parts = []
@@ -203,15 +209,18 @@ class ElevenLabsDubber:
                 filter_parts.append(f"[0:a]{volume_filter}[muted]")
                 
                 # For each dub, add delay to align with exact timestamp
+                # Also normalize volume to ensure dubs are clearly audible
                 for i, (dub_path, start_time, _) in enumerate(dub_files):
                     delay_ms = int(start_time * 1000)
-                    filter_parts.append(f"[{i+1}:a]adelay={delay_ms}|{delay_ms}[dub{i}]")
+                    # Normalize and slightly boost dub volume for clarity
+                    filter_parts.append(f"[{i+1}:a]volume=1.5,adelay={delay_ms}|{delay_ms}[dub{i}]")
                 
-                # Mix muted audio with all dubs at full volume for clean replacement
+                # Mix muted audio with all dubs
+                # Use amix with normalize=0 to prevent volume reduction
                 inputs_to_mix = ["muted"] + [f"dub{i}" for i in range(len(dub_files))]
                 mix_inputs = "".join(f"[{inp}]" for inp in inputs_to_mix)
                 filter_parts.append(
-                    f"{mix_inputs}amix=inputs={len(inputs_to_mix)}:duration=first:dropout_transition=0[out]"
+                    f"{mix_inputs}amix=inputs={len(inputs_to_mix)}:duration=first:dropout_transition=0:normalize=0[out]"
                 )
                 
                 filter_complex = ";".join(filter_parts)
