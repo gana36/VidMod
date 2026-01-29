@@ -99,7 +99,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
     return (
         <div className="h-full flex flex-col glass-panel overflow-hidden shadow-2xl">
             {/* Tab Switcher */}
-            <div className="px-2 pt-2 border-b border-border bg-secondary/20">
+            <div className="px-2 pt-2 border-b border-border bg-secondary/10">
                 <div className="flex gap-1">
                     {tabs.map((tab) => {
                         const Icon = tab.icon;
@@ -109,21 +109,21 @@ const RightPanel: React.FC<RightPanelProps> = ({
                                 key={tab.id}
                                 onClick={() => setActivePanel(tab.id)}
                                 className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all rounded-t-lg relative group cursor-pointer",
-                                    isActive ? "text-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                                    "flex-1 flex items-center justify-center gap-2 py-3 text-[10px] font-semibold uppercase tracking-wider transition-all rounded-t-lg relative group cursor-pointer",
+                                    isActive ? "text-primary bg-secondary/30" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                                 )}
                             >
-                                <Icon className={cn("w-3.5 h-3.5 transition-transform", isActive ? "scale-110 opacity-100" : "opacity-40 group-hover:opacity-100 group-hover:scale-110")} />
+                                <Icon className={cn("w-3.5 h-3.5 transition-transform", isActive ? "scale-105 opacity-100" : "opacity-40 group-hover:opacity-100 group-hover:scale-105")} />
                                 <span>{tab.label}</span>
                                 {tab.count !== undefined && tab.count > 0 && (
-                                    <span className="px-1.5 py-0.5 bg-primary/20 text-primary rounded-full text-[8px] tabular-nums font-black">
+                                    <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded-full text-[8px] tabular-nums font-bold">
                                         {tab.count}
                                     </span>
                                 )}
                                 {isActive && (
                                     <motion.div
                                         layoutId="activeTab"
-                                        className="absolute bottom-0 left-0 right-0 h-px bg-primary shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
                                     />
                                 )}
                             </button>
@@ -141,13 +141,12 @@ const RightPanel: React.FC<RightPanelProps> = ({
                         exit={{ opacity: 0, x: 10 }}
                         className="flex-1 flex flex-col overflow-hidden"
                     >
-                        {/* Summary Section */}
                         <div className="p-4 space-y-4">
                             <div className="flex items-center justify-between">
-                                <h3 className="font-bold text-xs uppercase tracking-[0.15em] text-muted-foreground">System Overview</h3>
-                                <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-secondary border border-border">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                                    <span className="text-muted-foreground text-[9px] font-black uppercase tracking-[0.2em] leading-none">Ready for Output</span>
+                                <h3 className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground/80">System Overview</h3>
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded border border-border bg-secondary/30">
+                                    <div className="w-1 h-1 rounded-full bg-emerald-500" />
+                                    <span className="text-muted-foreground/80 text-[8px] font-semibold uppercase tracking-wider">Ready</span>
                                 </div>
                             </div>
 
@@ -157,10 +156,10 @@ const RightPanel: React.FC<RightPanelProps> = ({
                                     { label: 'Rating', value: predictedAgeRating, sub: 'Predicted' },
                                     { label: 'Status', value: riskLevel, sub: 'Risk Level', color: riskColor },
                                 ].map((stat, i) => (
-                                    <div key={i} className="glass-card p-3 flex flex-col items-center justify-center text-center bg-card/40 border-border">
-                                        <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.2em] mb-1">{stat.label}</span>
-                                        <span className={cn("text-lg font-black tracking-tight text-primary", stat.color)}>{stat.value}</span>
-                                        <span className="text-[8px] text-muted-foreground/60 font-medium uppercase mt-0.5 tracking-widest">{stat.sub}</span>
+                                    <div key={i} className="p-2.5 flex flex-col items-center justify-center text-center border border-border bg-secondary/10 rounded">
+                                        <span className="text-[8px] text-muted-foreground/60 font-semibold uppercase tracking-wider mb-0.5">{stat.label}</span>
+                                        <span className={cn("text-sm font-bold tracking-tight", stat.color || "text-foreground")}>{stat.value}</span>
+                                        <span className="text-[7px] text-muted-foreground/40 font-medium uppercase mt-0.5 tracking-wider">{stat.sub}</span>
                                     </div>
                                 ))}
                             </div>
@@ -193,70 +192,80 @@ const RightPanel: React.FC<RightPanelProps> = ({
                                                 key={finding.id}
                                                 onClick={() => onSeekTo?.(`${Math.floor(finding.startTime / 60)}:${Math.floor(finding.startTime % 60).toString().padStart(2, '0')}`)}
                                                 className={cn(
-                                                    "glass-card p-4 cursor-pointer group relative overflow-hidden",
-                                                    isActive && "border-primary/50 bg-primary/[0.03] ring-1 ring-primary/20",
-                                                    !isActive && "opacity-80 hover:opacity-100"
+                                                    "p-3 cursor-pointer group relative border transition-all duration-200 rounded",
+                                                    isActive
+                                                        ? "border-primary/30 bg-primary/[0.02]"
+                                                        : "border-border/50 hover:border-border bg-transparent"
                                                 )}
                                             >
                                                 <div className="flex items-start justify-between gap-4">
-                                                    <div className="flex gap-4">
+                                                    <div className="flex gap-3">
                                                         <div className={cn(
-                                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 shadow-lg",
+                                                            "w-8 h-8 rounded border flex items-center justify-center shrink-0 transition-colors",
                                                             finding.status === 'critical'
-                                                                ? "bg-red-500/10 text-red-500 border border-red-500/20"
-                                                                : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                                                ? "bg-red-500/5 text-red-500/70 border-red-500/10"
+                                                                : "bg-amber-500/5 text-amber-500/70 border-amber-500/10"
                                                         )}>
                                                             {getCategoryIcon(finding.category)}
                                                         </div>
                                                         <div className="flex flex-col gap-0.5">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-[9px] font-black uppercase tracking-widest opacity-60">{finding.type}</span>
+                                                            <div className="flex items-center gap-1.5 leading-none">
+                                                                <span className="text-[9px] font-semibold uppercase tracking-widest opacity-60">{finding.type}</span>
                                                                 <div className={cn(
                                                                     "w-1 h-1 rounded-full",
                                                                     finding.status === 'critical' ? "bg-red-500" : "bg-amber-500"
                                                                 )} />
                                                             </div>
-                                                            <h4 className="text-sm font-bold tracking-tight text-foreground/90">{finding.content}</h4>
+                                                            <h4 className="text-xs font-semibold tracking-tight text-foreground/90">{finding.content}</h4>
                                                             <div className="flex items-center gap-1.5 mt-1">
-                                                                <span className="text-[10px] font-mono text-muted-foreground/80 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
+                                                                <span className="text-[10px] font-mono text-muted-foreground/60 px-1 border-r border-border leading-none">
                                                                     {formatTimeRange(finding.startTime, finding.endTime)}
                                                                 </span>
                                                                 <span className={cn(
-                                                                    "text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full border",
-                                                                    finding.confidence === 'High' ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20" :
-                                                                        finding.confidence === 'Medium' ? "bg-amber-400/10 text-amber-400 border-amber-400/20" :
-                                                                            "bg-red-400/10 text-red-400 border-red-400/20"
+                                                                    "text-[9px] font-semibold flex items-center gap-1",
+                                                                    finding.confidence === 'High' ? "text-emerald-500/80" :
+                                                                        finding.confidence === 'Medium' ? "text-amber-500/80" :
+                                                                            "text-red-500/80"
                                                                 )}>
+                                                                    <div className={cn("w-1 h-1 rounded-full",
+                                                                        finding.confidence === 'High' ? "bg-emerald-500/80" :
+                                                                            finding.confidence === 'Medium' ? "bg-amber-500/80" :
+                                                                                "bg-red-500/80"
+                                                                    )} />
                                                                     {finding.confidence} Match
                                                                 </span>
                                                             </div>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center self-center opacity-0 group-hover:opacity-100 transition-opacity translate-x-1 group-hover:translate-x-0">
-                                                        <ChevronRight className="w-4 h-4 text-primary" />
+                                                        <ChevronRight className="w-3.5 h-3.5 text-primary/50" />
                                                     </div>
                                                 </div>
 
-                                                {finding.context && (
-                                                    <motion.div
-                                                        initial={false}
-                                                        animate={{ height: isActive ? 'auto' : 0, opacity: isActive ? 1 : 0 }}
-                                                        className="overflow-hidden"
-                                                    >
-                                                        <div className="mt-4 pt-4 border-t border-white/[0.05]">
-                                                            <p className="text-[11px] leading-relaxed text-muted-foreground italic bg-white/[0.02] p-2.5 rounded-lg border border-white/[0.05]">
-                                                                "{finding.context}"
-                                                            </p>
-                                                        </div>
-                                                    </motion.div>
-                                                )}
+                                                {
+                                                    finding.context && (
+                                                        <motion.div
+                                                            initial={false}
+                                                            animate={{ height: isActive ? 'auto' : 0, opacity: isActive ? 1 : 0 }}
+                                                            className="overflow-hidden"
+                                                        >
+                                                            <div className="mt-4 pt-4 border-t border-white/[0.05]">
+                                                                <p className="text-[11px] leading-relaxed text-muted-foreground italic bg-white/[0.02] p-2.5 rounded-lg border border-white/[0.05]">
+                                                                    "{finding.context}"
+                                                                </p>
+                                                            </div>
+                                                        </motion.div>
+                                                    )
+                                                }
 
-                                                {isActive && (
-                                                    <motion.div
-                                                        layoutId={`active-glow-${finding.id}`}
-                                                        className="absolute inset-0 bg-primary/5 pointer-events-none"
-                                                    />
-                                                )}
+                                                {
+                                                    isActive && (
+                                                        <motion.div
+                                                            layoutId={`active-glow-${finding.id}`}
+                                                            className="absolute inset-0 bg-primary/5 pointer-events-none"
+                                                        />
+                                                    )
+                                                }
                                             </motion.div>
                                         );
                                     })}
@@ -265,10 +274,10 @@ const RightPanel: React.FC<RightPanelProps> = ({
                         </div>
 
                         {/* Footer Action */}
-                        <div className="p-4 border-t border-border bg-secondary/20 mt-auto">
-                            <button className="w-full flex items-center justify-center gap-3 py-3 bg-secondary hover:brightness-110 border border-border rounded-lg transition-all group cursor-pointer">
-                                <Download className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:-translate-y-0.5 transition-all" />
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground group-hover:text-primary">Export Analysis Data</span>
+                        <div className="p-3 border-t border-border bg-secondary/10 mt-auto">
+                            <button className="w-full flex items-center justify-center gap-2 py-2 bg-secondary hover:bg-secondary/80 border border-border rounded transition-all group cursor-pointer">
+                                <Download className="w-3.5 h-3.5 text-muted-foreground/60 group-hover:text-foreground transition-colors" />
+                                <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/60 group-hover:text-foreground">Analysis Manifest</span>
                             </button>
                         </div>
                     </motion.div>
@@ -290,27 +299,26 @@ const RightPanel: React.FC<RightPanelProps> = ({
                         exit={{ opacity: 0, scale: 0.98 }}
                         className="flex-1 flex flex-col overflow-hidden"
                     >
-                        <div className="p-4 space-y-4">
+                        <div className="p-4 space-y-3">
                             <div className="flex items-center justify-between">
-                                <h3 className="font-bold text-xs uppercase tracking-[0.15em] text-muted-foreground">Version Management</h3>
-                                <div className="px-2 py-0.5 rounded-full bg-secondary border border-border shrink-0">
-                                    <span className="text-muted-foreground text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap">{editHistory.length} SNAPSHOTS</span>
+                                <h3 className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground/80 font-mono">Archive / History</h3>
+                                <div className="px-2 py-0.5 rounded border border-border bg-secondary/30">
+                                    <span className="text-muted-foreground/80 text-[8px] font-semibold uppercase tracking-wider">{editHistory.length} Snapshots</span>
                                 </div>
                             </div>
 
-                            <p className="text-[10px] text-muted-foreground leading-relaxed">
-                                Review and export previous iterations of your compliance workflow. Toggle versions to include in the final render.
+                            <p className="text-[10px] text-muted-foreground/60 leading-relaxed font-mono">
+                                Versioned iterations of the current remediation workflow. Enabled versions will be consolidated in the final render.
                             </p>
                         </div>
 
                         <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3 custom-scrollbar">
                             {editHistory.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4 rounded-2xl bg-white/[0.02] border border-dashed border-border/50 opacity-40">
-                                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                                        <History className="w-6 h-6" />
+                                <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4 opacity-40">
+                                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                                        <History className="w-8 h-8" />
                                     </div>
-                                    <p className="text-xs font-bold uppercase tracking-widest leading-none">No Iterations Found</p>
-                                    <p className="text-[10px] max-w-[160px]">Apply remediation actions to generate version snapshots.</p>
+                                    <p className="text-xs font-bold uppercase tracking-[0.2em]">No Iterations Found</p>
                                 </div>
                             ) : (
                                 <div className="space-y-3">
@@ -318,56 +326,57 @@ const RightPanel: React.FC<RightPanelProps> = ({
                                         <div
                                             key={version.id}
                                             className={cn(
-                                                "glass-card p-4 transition-all duration-300 relative group",
+                                                "p-3 border transition-all duration-200 relative group rounded",
                                                 selectedVersion === version.version
-                                                    ? "border-primary/50 bg-primary/[0.03] ring-1 ring-primary/20 shadow-primary/10"
-                                                    : "bg-secondary/20 border-border"
+                                                    ? "border-primary/50 bg-primary/[0.02]"
+                                                    : "bg-transparent border-border/80"
                                             )}
                                         >
                                             <div className="flex items-center justify-between gap-4">
-                                                <div className="flex items-center gap-4">
+                                                <div className="flex items-center gap-3">
                                                     <div className="relative">
                                                         <input
                                                             type="checkbox"
                                                             checked={version.enabled}
                                                             onChange={() => onToggleVersion?.(version.id)}
-                                                            className="w-4 h-4 rounded border-border bg-transparent text-primary focus:ring-primary/50 cursor-pointer"
+                                                            className="w-4 h-4 rounded border-border text-primary focus:ring-primary/50 cursor-pointer"
                                                         />
                                                     </div>
-                                                    <div>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-[11px] font-black text-primary uppercase">v{version.version}</span>
-                                                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{version.effectType}</span>
+                                                    <div className="font-mono">
+                                                        <div className="flex items-center gap-2 leading-none">
+                                                            <span className="text-[10px] font-semibold text-primary/80 uppercase tracking-widest leading-none">v{version.version}</span>
+                                                            <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                                                            <span className="text-[9px] font-semibold text-muted-foreground/40 uppercase tracking-wider leading-none">{version.effectType}</span>
                                                         </div>
-                                                        <p className="text-sm font-bold text-foreground/90 mt-0.5">"{version.objectName}"</p>
-                                                        <p className="text-[9px] font-black text-muted-foreground/60 mt-1 uppercase tracking-[0.1em] tabular-nums whitespace-nowrap">
-                                                            {new Date(version.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • SYNC SNAPSHOT
+                                                        <p className="text-xs font-semibold text-foreground/90 mt-1 truncate">"{version.objectName}"</p>
+                                                        <p className="text-[9px] font-semibold text-muted-foreground/40 mt-1 uppercase tracking-widest whitespace-nowrap">
+                                                            {new Date(version.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </p>
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-1.5 font-mono">
                                                     <button
                                                         onClick={() => onPreviewVersion?.(version.version)}
-                                                        className="p-2.5 rounded-xl glass-panel hover:bg-white/10 text-primary transition-all active:scale-90 cursor-pointer"
-                                                        title="Stream this version"
+                                                        className="p-1.5 rounded border border-border bg-secondary/10 hover:bg-secondary/20 text-muted-foreground/60 transition-all hover:text-primary"
+                                                        title="Preview Snapshot"
                                                     >
-                                                        <Eye className="w-4 h-4" />
+                                                        <Eye className="w-3.5 h-3.5" />
                                                     </button>
                                                     <a
                                                         href={version.downloadUrl.split('?')[0]}
                                                         download={`vidmod_v${version.version}.mp4`}
-                                                        className="p-2.5 rounded-xl glass-panel hover:bg-emerald-400/10 text-emerald-400 transition-all active:scale-90 cursor-pointer"
-                                                        title="Export Secure Media"
+                                                        className="p-1.5 rounded border border-border bg-secondary/10 hover:bg-secondary/20 text-muted-foreground/60 transition-all hover:text-emerald-500"
+                                                        title="Export Component"
                                                     >
-                                                        <Download className="w-4 h-4" />
+                                                        <Download className="w-3.5 h-3.5" />
                                                     </a>
                                                 </div>
                                             </div>
 
                                             {version.enabled && (
-                                                <div className="absolute top-0 right-0 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <div className="w-1 h-1 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                                                <div className="absolute top-1 right-1 opacity-40 transition-opacity">
+                                                    <div className="w-1 h-1 rounded-full bg-emerald-500" />
                                                 </div>
                                             )}
                                         </div>
@@ -378,7 +387,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     );
 };
 

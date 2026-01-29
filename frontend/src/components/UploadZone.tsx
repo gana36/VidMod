@@ -153,12 +153,12 @@ const UploadZone: React.FC<UploadZoneProps> = ({
         <div className="h-full flex flex-col items-center justify-center p-6 bg-background">
             <div className="w-full max-w-4xl">
                 <div className="mb-10 text-center animate-in fade-in slide-in-from-top-4 duration-700">
-                    <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-white/10 bg-white/5 mb-4">
+                    <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded border border-border bg-secondary/50 mb-4">
                         <Video className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Compliance Engine v4</span>
+                        <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Source Ingestion</span>
                     </div>
-                    <h1 className="text-4xl font-black mb-2 tracking-tighter text-foreground uppercase">Compliance AI</h1>
-                    <p className="text-muted-foreground font-bold text-[10px] uppercase tracking-[0.1em] max-w-sm mx-auto leading-relaxed opacity-40">Systematic verification for global broadcasting standards.</p>
+                    <h1 className="text-3xl font-bold mb-2 tracking-tight text-foreground uppercase">VidMod</h1>
+                    <p className="text-muted-foreground font-medium text-[10px] uppercase tracking-wide max-w-sm mx-auto leading-relaxed opacity-60">Professional media compliance and remediation suite.</p>
                 </div>
 
                 <div
@@ -166,9 +166,9 @@ const UploadZone: React.FC<UploadZoneProps> = ({
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     className={cn(
-                        "relative rounded-[2rem] border border-white/5 transition-all duration-500 flex flex-col items-center justify-center p-8 min-h-[480px] overflow-hidden bg-card/20 backdrop-blur-xl shadow-2xl",
-                        isDragging ? "border-white/20 bg-white/5 scale-[1.002]" : "hover:border-white/10",
-                        status !== 'idle' && "border-white/5 p-6"
+                        "relative rounded-xl border border-border transition-all duration-300 flex flex-col items-center justify-center p-8 min-h-[480px] overflow-hidden bg-secondary/20 shadow-none",
+                        isDragging ? "border-primary/40 bg-primary/5" : "hover:border-border/80",
+                        status !== 'idle' && "p-6"
                     )}
                 >
                     {/* Minimal Overlay Pattern */}
@@ -177,21 +177,20 @@ const UploadZone: React.FC<UploadZoneProps> = ({
                     {status === 'idle' && (
                         <>
                             <div
-                                className="w-16 h-16 rounded-2xl bg-secondary/50 border border-border flex items-center justify-center mb-8 shadow-2xl relative group cursor-pointer hover:bg-secondary transition-all"
+                                className="w-14 h-14 rounded bg-secondary border border-border flex items-center justify-center mb-6 transition-colors group cursor-pointer hover:bg-secondary/80"
                                 onClick={() => fileInputRef.current?.click()}
                             >
-                                <UploadIcon className="w-5 h-5 text-primary" />
-                                <div className="absolute inset-0 rounded-2xl border border-primary/20 opacity-0 group-hover:opacity-100 transition-all duration-500 scale-105" />
+                                <UploadIcon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                             </div>
                             <div className="text-center space-y-8 z-10">
-                                <div className="space-y-2">
-                                    <p className="text-xl font-black text-foreground tracking-tight">Select Source</p>
-                                    <p className="text-muted-foreground max-w-[280px] mx-auto text-xs font-medium leading-relaxed opacity-40">Provide media for compliance analysis.</p>
+                                <div className="space-y-1">
+                                    <p className="text-lg font-semibold text-foreground tracking-tight">Select Media</p>
+                                    <p className="text-muted-foreground max-w-[280px] mx-auto text-xs font-medium leading-relaxed opacity-60">Upload video for compliance verification.</p>
                                 </div>
                                 <div className="flex flex-col gap-4 items-center">
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="px-8 py-3 bg-primary text-primary-foreground rounded-lg font-black text-[10px] tracking-[0.3em] shadow-xl hover:brightness-105 transition-all active:scale-95 uppercase cursor-pointer"
+                                        className="px-8 py-3 bg-primary text-primary-foreground rounded-lg font-bold text-[10px] tracking-wider shadow-xl hover:brightness-105 transition-all active:scale-95 uppercase cursor-pointer"
                                     >
                                         BROWSE SOURCE
                                     </button>
@@ -204,10 +203,10 @@ const UploadZone: React.FC<UploadZoneProps> = ({
                                         </button>
                                     )}
                                 </div>
-                                <div className="flex gap-8 justify-center items-center mt-12 opacity-20">
-                                    <span className="text-[9px] font-black uppercase tracking-[0.2em]">MAX 120S</span>
+                                <div className="flex gap-6 justify-center items-center mt-12 opacity-40">
+                                    <span className="text-[9px] font-semibold uppercase tracking-wider">MAX 120S</span>
                                     <div className="w-[1px] h-3 bg-border" />
-                                    <span className="text-[9px] font-black uppercase tracking-[0.2em]">MP4 / MOV</span>
+                                    <span className="text-[9px] font-semibold uppercase tracking-wider">MP4 / MOV</span>
                                 </div>
                             </div>
                             <input
@@ -272,15 +271,15 @@ const UploadZone: React.FC<UploadZoneProps> = ({
                                                 <div key={idx} className="space-y-3">
                                                     <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-30 ml-1">{sel.label}</label>
                                                     <div className="relative group/sel">
-                                                        <div className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5 hover:border-white/20 hover:bg-white/5 cursor-pointer transition-all">
-                                                            <span className="font-bold text-[10px] tracking-widest text-foreground/70 uppercase">{sel.value}</span>
-                                                            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground opacity-30" />
+                                                        <div className="w-full flex items-center justify-between px-3 py-2 rounded border border-border bg-secondary hover:border-primary/40 hover:bg-secondary/80 cursor-pointer transition-all">
+                                                            <span className="font-semibold text-[10px] tracking-wider text-muted-foreground uppercase">{sel.value}</span>
+                                                            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/50" />
                                                         </div>
-                                                        <div className="absolute bottom-full left-0 w-full mb-2 p-1.5 bg-[#0c0c0e] border border-white/10 rounded-xl shadow-2xl backdrop-blur-3xl opacity-0 scale-95 origin-bottom group-hover/sel:opacity-100 group-hover/sel:scale-100 pointer-events-none group-hover/sel:pointer-events-auto transition-all z-50">
+                                                        <div className="absolute bottom-full left-0 w-full mb-1 p-1 bg-secondary border border-border rounded shadow-xl opacity-0 scale-95 origin-bottom group-hover/sel:opacity-100 group-hover/sel:scale-100 pointer-events-none group-hover/sel:pointer-events-auto transition-all z-50">
                                                             {sel.options.map(opt => (
-                                                                <button key={opt} onClick={() => sel.onChange(opt)} className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[9px] font-black tracking-widest hover:bg-white/10 transition-all text-muted-foreground hover:text-foreground uppercase">
+                                                                <button key={opt} onClick={() => sel.onChange(opt)} className="w-full flex items-center justify-between px-2 py-1.5 rounded text-[9px] font-semibold tracking-wider hover:bg-primary/10 transition-all text-muted-foreground hover:text-primary uppercase">
                                                                     {opt}
-                                                                    {sel.value === opt && <Check className="w-3 h-3 text-white" />}
+                                                                    {sel.value === opt && <Check className="w-3 h-3 text-primary" />}
                                                                 </button>
                                                             ))}
                                                         </div>
@@ -294,11 +293,11 @@ const UploadZone: React.FC<UploadZoneProps> = ({
                                                 onClick={() => metadata && onUploadComplete(metadata)}
                                                 disabled={!metadata}
                                                 className={cn(
-                                                    "w-full py-4 text-primary-foreground rounded-lg font-black text-[10px] tracking-[0.4em] transition-all relative overflow-hidden group/btn uppercase",
-                                                    metadata ? "bg-primary hover:brightness-105 active:scale-[0.99] shadow-lg shadow-white/5" : "bg-muted cursor-not-allowed opacity-20"
+                                                    "w-full py-3.5 text-primary-foreground rounded-lg font-semibold text-[10px] tracking-widest transition-all relative overflow-hidden group/btn uppercase",
+                                                    metadata ? "bg-primary hover:bg-primary/90 active:scale-[0.99] shadow-sm" : "bg-muted cursor-not-allowed opacity-20"
                                                 )}
                                             >
-                                                EXECUTE COMPLIANCE SCAN
+                                                Start Compliance Scan
                                             </button>
                                             <div className="mt-6 flex items-center justify-center gap-4 opacity-5">
                                                 <div className="h-[1px] w-8 bg-white" />

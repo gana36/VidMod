@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, AlertCircle, Scissors, VolumeX, EyeOff, ShieldCheck, Info, Play, RefreshCw, Grid, Plus, Search, X, Zap } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertCircle, VolumeX, EyeOff, ShieldCheck, Play, RefreshCw, Grid, Search, X } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import ActionModal, { type ActionType } from './ActionModal';
@@ -235,7 +235,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                 } else if (config.effectType === 'replace-runway') {
                     // Runway: text-only replacement with Smart Clipping
                     if (!config.replacementPrompt.trim()) {
-                        setBatchProgress(`⚠️ Skipped "${config.prompt}" - no replacement prompt provided`);
+                        setBatchProgress(`Skipped "${config.prompt}" - no replacement prompt provided`);
                         await new Promise(resolve => setTimeout(resolve, 1000));
                         continue;
                     }
@@ -258,7 +258,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                 }
             }
 
-            setBatchProgress(`✅ Successfully processed ${selected.length} findings!`);
+            setBatchProgress(`Successfully processed ${selected.length} findings!`);
 
             // Pass the final video URL to the parent to reload the player
             if (onActionComplete) {
@@ -269,7 +269,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
             }
 
         } catch (error: any) {
-            setBatchProgress(`❌ Error: ${error.message}`);
+            setBatchProgress(`Error: ${error.message}`);
         } finally {
             setTimeout(() => {
                 setIsProcessingBatch(false);
@@ -373,16 +373,6 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
         }
     };
 
-    const getIcon = (type: string) => {
-        switch (type) {
-            case 'blur': return <EyeOff className="w-4 h-4" />;
-            case 'mute': return <VolumeX className="w-4 h-4" />;
-            case 'replace': return <ShieldCheck className="w-4 h-4" />;
-            case 'cut': return <Scissors className="w-4 h-4" />;
-            default: return <AlertCircle className="w-4 h-4" />;
-        }
-    };
-
     // Determine which action buttons to show based on iconType
     const getActionButtons = (step: EditStep) => {
         const buttons = [];
@@ -394,7 +384,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     key="censor-beep"
                     onClick={(e) => handleApplyAction(step, 'censor-beep' as any, e)}
                     disabled={!jobId}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 px-2 py-1 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors disabled:opacity-50"
                 >
                     <VolumeX className="w-3 h-3" />
                     Beep
@@ -405,10 +395,10 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     key="censor-dub"
                     onClick={(e) => handleApplyAction(step, 'censor-dub' as any, e)}
                     disabled={!jobId}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-violet-500/20 hover:bg-violet-500/30 text-violet-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 px-2 py-1 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors disabled:opacity-50"
                 >
                     <VolumeX className="w-3 h-3" />
-                    Voice Dub
+                    Dub
                 </button>
             );
         }
@@ -420,7 +410,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     key="blur"
                     onClick={(e) => handleApplyAction(step, 'blur', e)}
                     disabled={!jobId}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 px-2 py-1 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors disabled:opacity-50"
                 >
                     <EyeOff className="w-3 h-3" />
                     Blur
@@ -431,7 +421,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     key="pixelate"
                     onClick={(e) => handleApplyAction(step, 'pixelate' as any, e)}
                     disabled={!jobId}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 px-2 py-1 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors disabled:opacity-50"
                 >
                     <Grid className="w-3 h-3" />
                     Pixelate
@@ -446,10 +436,10 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     key="replace-vace"
                     onClick={(e) => handleApplyAction(step, 'replace-vace', e)}
                     disabled={!jobId}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 px-2 py-1 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors disabled:opacity-50"
                 >
                     <RefreshCw className="w-3 h-3" />
-                    VACE Replace
+                    VACE
                 </button>
             );
             buttons.push(
@@ -457,10 +447,10 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     key="replace-pika"
                     onClick={(e) => handleApplyAction(step, 'replace-pika', e)}
                     disabled={!jobId}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 px-2 py-1 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors disabled:opacity-50"
                 >
                     <Play className="w-3 h-3" />
-                    Pika Replace
+                    Pika
                 </button>
             );
             buttons.push(
@@ -468,10 +458,10 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     key="replace-runway"
                     onClick={(e) => handleApplyAction(step, 'replace-runway', e)}
                     disabled={!jobId}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 px-2 py-1 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors disabled:opacity-50"
                 >
-                    <Zap className="w-3 h-3" />
-                    Runway Replace
+                    <RefreshCw className="w-3 h-3" />
+                    Runway
                 </button>
             );
         }
@@ -479,44 +469,25 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
         return buttons;
     };
 
-
-    // Extract replacement prompt from suggested action
-    const getReplacementPrompt = (step: EditStep): string => {
-        const action = step.action.toLowerCase();
-        // Try to extract what to replace with from the action text
-        if (action.includes('replace with')) {
-            const match = action.match(/replace with\s+(.+)/i);
-            return match ? match[1] : '';
-        }
-        if (action.includes('inpaint')) {
-            return 'generic object';
-        }
-        return '';
-    };
-
     return (
         <div className="flex flex-col h-full bg-card">
-            <div className="p-4 border-b border-border bg-muted/20 flex items-center justify-between">
-                <h3 className="font-bold text-sm tracking-tight flex items-center gap-2">
-                    <Scissors className="w-4 h-4 text-accent" />
-                    Gemini Remediation Plan
-                </h3>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-wider">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    {jobId ? 'Ready' : 'Optimized'}
+            <div className="p-4 flex items-center justify-between border-b border-border bg-secondary/10">
+                <h3 className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground/80 font-mono">Remediation Engine</h3>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded border border-border bg-secondary/30">
+                    <div className="w-1 h-1 rounded-full bg-emerald-500" />
+                    <span className="text-muted-foreground/80 text-[8px] font-semibold uppercase tracking-wider">{jobId ? 'Ready' : 'Pending'}</span>
                 </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-0 custom-scrollbar relative">
                 {/* Custom Object Input Section */}
-                <div className="mb-4 rounded-xl border border-dashed border-accent/40 bg-accent/5 p-3">
+                <div className="mb-4">
                     <button
                         onClick={() => setShowCustomInput(!showCustomInput)}
-                        className="w-full flex items-center gap-2 text-sm font-medium text-accent hover:text-accent/80 transition-colors"
+                        className="w-full flex items-center justify-between px-3 py-2 rounded border border-border bg-secondary/5 hover:bg-secondary/10 transition-colors"
                     >
-                        <Plus className="w-4 h-4" />
-                        Add Custom Object to Edit
-                        <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${showCustomInput ? 'rotate-180' : ''}`} />
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Manual Ingestion / Translate</span>
+                        <ChevronDown className={cn("w-3 h-3 text-muted-foreground/60 transition-transform", showCustomInput && "rotate-180")} />
                     </button>
 
                     {showCustomInput && (
@@ -527,43 +498,43 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                                     type="text"
                                     value={customObjectInput}
                                     onChange={(e) => setCustomObjectInput(e.target.value)}
-                                    placeholder="Describe any object (e.g., 'red car', 'person in blue shirt', 'company logo')"
-                                    className="w-full pl-10 pr-4 py-2.5 bg-background/60 border border-border rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent"
+                                    placeholder="Describe any object..."
+                                    className="w-full pl-10 pr-4 py-2 bg-background/60 border border-border rounded text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
                                 />
                             </div>
 
                             {customObjectInput.trim() && (
                                 <div className="flex flex-wrap gap-2">
-                                    <span className="text-[10px] text-muted-foreground w-full mb-1">Add to queue with effect:</span>
+                                    <span className="text-[10px] text-muted-foreground w-full mb-1">Queue Action:</span>
                                     <button
                                         onClick={() => handleAddToQueue('blur')}
-                                        className="flex items-center gap-1.5 px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-lg text-xs font-medium transition-colors"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors"
                                     >
-                                        <EyeOff className="w-3.5 h-3.5" />
-                                        + Blur
+                                        <EyeOff className="w-3 h-3" />
+                                        Blur
                                     </button>
                                     <button
                                         onClick={() => handleAddToQueue('pixelate')}
-                                        className="flex items-center gap-1.5 px-3 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg text-xs font-medium transition-colors"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors"
                                     >
-                                        <Grid className="w-3.5 h-3.5" />
-                                        + Pixelate
+                                        <Grid className="w-3 h-3" />
+                                        Pixelate
                                     </button>
                                     <button
                                         onClick={() => handleReplaceWithModal('replace-vace')}
                                         disabled={!jobId}
-                                        className="flex items-center gap-1.5 px-3 py-2 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors disabled:opacity-50"
                                     >
-                                        <RefreshCw className="w-3.5 h-3.5" />
-                                        VACE Replace
+                                        <RefreshCw className="w-3 h-3" />
+                                        VACE
                                     </button>
                                     <button
                                         onClick={() => handleReplaceWithModal('replace-pika')}
                                         disabled={!jobId}
-                                        className="flex items-center gap-1.5 px-3 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors disabled:opacity-50"
                                     >
-                                        <Play className="w-3.5 h-3.5" />
-                                        Pika Replace
+                                        <Play className="w-3 h-3" />
+                                        Pika
                                     </button>
                                 </div>
                             )}
@@ -578,25 +549,19 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     {customObjects.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-border/50">
                             <p className="text-[10px] font-bold text-muted-foreground mb-2 uppercase tracking-wider">
-                                Edit Queue ({customObjects.length} objects):
+                                Edit Queue ({customObjects.length}):
                             </p>
                             <div className="flex flex-wrap gap-2 mb-3">
                                 {customObjects.map((obj) => (
                                     <div
                                         key={obj.id}
-                                        className={`flex items-center gap-1.5 px-2 py-1 border rounded-lg text-xs ${obj.appliedEffect === 'pixelate'
-                                            ? 'bg-cyan-500/10 border-cyan-500/30'
-                                            : 'bg-amber-500/10 border-amber-500/30'
-                                            }`}
+                                        className="flex items-center gap-1.5 px-2 py-1 border border-border/50 bg-secondary/5 rounded text-[10px]"
                                     >
                                         <span className="text-foreground">{obj.name}</span>
-                                        <span className={obj.appliedEffect === 'pixelate' ? 'text-cyan-400' : 'text-amber-400'}>
-                                            ({obj.appliedEffect})
-                                        </span>
+                                        <span className="text-muted-foreground/60 uppercase">({obj.appliedEffect})</span>
                                         <button
                                             onClick={() => removeCustomObject(obj.id)}
-                                            className="ml-1 p-0.5 hover:bg-red-500/20 rounded text-muted-foreground hover:text-red-400 transition-colors"
-                                            title="Remove"
+                                            className="ml-1 p-0.5 hover:bg-secondary rounded transition-colors"
                                         >
                                             <X className="w-3 h-3" />
                                         </button>
@@ -604,37 +569,26 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                                 ))}
                             </div>
 
-                            {/* Apply All button */}
                             <button
                                 onClick={handleApplyAll}
                                 disabled={isProcessingBatch || !jobId}
-                                className="w-full py-2.5 bg-gradient-to-r from-accent to-emerald-500 hover:from-accent/90 hover:to-emerald-500/90 text-white rounded-lg text-sm font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="w-full py-2 bg-secondary/10 border border-border hover:bg-secondary/20 text-foreground rounded text-[10px] font-semibold uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {isProcessingBatch ? (
                                     <>
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Processing...
+                                        <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                        Processing
                                     </>
                                 ) : (
                                     <>
-                                        <Play className="w-4 h-4" />
-                                        Apply All ({customObjects.length} objects)
+                                        <Play className="w-3 h-3" />
+                                        Apply Queue
                                     </>
                                 )}
                             </button>
-
-                            {/* Progress display */}
-                            {batchProgress && (
-                                <p className={`text-[10px] mt-2 text-center ${batchProgress.includes('Error') ? 'text-red-400' : 'text-emerald-400'}`}>
-                                    {batchProgress}
-                                </p>
-                            )}
                         </div>
                     )}
                 </div>
-
-                {/* Vertical Line */}
-                <div className="absolute left-[27px] top-[140px] bottom-6 w-[2px] bg-gradient-to-b from-accent/50 via-accent/20 to-transparent pointer-events-none" />
 
                 {steps.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4 opacity-40">
@@ -647,72 +601,39 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     steps.map((step) => {
                         const isExpanded = expandedIds.has(step.id);
                         return (
-                            <div key={step.id} className="relative pl-10 pb-8 last:pb-0 group">
-                                {/* Connector Circle */}
-                                <div className={cn(
-                                    "absolute left-4 top-1 w-6 h-6 rounded-full flex items-center justify-center z-10 transition-all duration-300 border-2",
-                                    isExpanded ? "bg-accent border-accent text-white scale-110 shadow-[0_0_15px_rgba(59,130,246,0.5)]" : "bg-card border-border text-muted-foreground group-hover:border-accent group-hover:text-accent"
-                                )}>
-                                    {getIcon(step.iconType)}
-                                </div>
-
+                            <div key={step.id} className="pb-3 last:pb-0">
                                 <div
                                     className={cn(
-                                        "flex flex-col rounded-xl border transition-all duration-300 cursor-pointer overflow-hidden",
+                                        "flex flex-col border transition-all duration-200 cursor-pointer overflow-hidden rounded",
                                         isExpanded
-                                            ? "bg-accent/5 border-accent shadow-[0_0_20px_rgba(59,130,246,0.05)]"
-                                            : "bg-background/40 border-border/50 hover:bg-muted/10 hover:border-border"
+                                            ? "bg-primary/[0.02] border-primary/50 shadow-sm"
+                                            : "bg-transparent border-border/80 hover:border-border hover:bg-secondary/[0.02]"
                                     )}
                                     onClick={() => toggleExpand(step.id)}
                                 >
-                                    <div className="p-3 flex items-start justify-between gap-3">
-                                        <div className="flex flex-col gap-1">
-                                            <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                                                <span>Violation:</span>
-                                                <span className="text-white bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">{step.violation}</span>
+                                    <div className="px-3 py-2.5 flex items-start justify-between gap-3 font-mono">
+                                        <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5 leading-none">
+                                                <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest leading-none pr-1.5 border-r border-border truncate">{step.violation}</span>
+                                                <div className={cn("w-1 h-1 rounded-full shrink-0", step.confidence > 80 ? "bg-emerald-500/80" : "bg-amber-500/80")} />
+                                                <span className="text-[9px] font-semibold text-muted-foreground/40 uppercase tracking-wider leading-none whitespace-nowrap">{step.confidence}% Match</span>
                                             </div>
-                                            <h4 className="text-sm font-bold text-foreground mt-1">{step.action}</h4>
-                                            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                                                <Info className="w-3 h-3 text-accent" />
-                                                {step.reason}
-                                            </p>
+                                            <h4 className="text-xs font-semibold text-foreground/90 mt-0.5 truncate">{step.action}</h4>
                                         </div>
-                                        <div className="flex flex-col items-end gap-2">
-                                            {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                                        <div className="flex items-center self-center shrink-0">
+                                            {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground/60" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/60" />}
                                         </div>
                                     </div>
 
                                     {isExpanded && (
-                                        <div className="px-3 pb-3 pt-1 border-t border-accent/10 animate-in fade-in slide-in-from-top-2 duration-300">
-                                            <div className="space-y-3">
-                                                <div className="bg-background/60 rounded-lg p-2.5 space-y-2 border border-border/50">
-                                                    <p className="text-xs leading-relaxed text-muted-foreground italic">
-                                                        "{step.summary}"
-                                                    </p>
-                                                </div>
-
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Confidence Score</div>
-                                                        <div className="flex gap-0.5">
-                                                            {[...Array(5)].map((_, i) => (
-                                                                <div
-                                                                    key={i}
-                                                                    className={cn(
-                                                                        "w-3 h-1 rounded-full",
-                                                                        i < Math.round(step.confidence / 20) ? "bg-accent" : "bg-muted"
-                                                                    )}
-                                                                />
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                    <span className="text-lg font-black italic text-accent tabular-nums">{step.confidence}%</span>
-                                                </div>
-
-                                                {/* Action Buttons */}
-                                                <div className="flex flex-wrap gap-2 pt-2 border-t border-border/30">
-                                                    {getActionButtons(step)}
-                                                </div>
+                                        <div className="px-3 pb-3 pt-0 animate-in fade-in slide-in-from-top-1 duration-200">
+                                            <div className="p-2.5 bg-secondary/5 border border-border/50 rounded-sm mb-3">
+                                                <p className="text-[11px] leading-relaxed text-muted-foreground italic">
+                                                    "{step.summary}"
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-border/40">
+                                                {getActionButtons(step)}
                                             </div>
                                         </div>
                                     )}
@@ -728,21 +649,21 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                         <button
                             onClick={initializeBatchConfigs}
                             disabled={isProcessingBatch}
-                            className="w-full py-3 bg-white hover:bg-gray-100 text-gray-900 rounded-full font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-gray-200"
+                            className="w-full py-2 bg-foreground text-background hover:bg-foreground/90 rounded-sm font-semibold text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {isProcessingBatch ? (
                                 <>
-                                    <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
-                                    PROCESSING...
+                                    <div className="w-4 h-4 border-2 border-background/30 border-t-background rounded-full animate-spin" />
+                                    Processing
                                 </>
                             ) : (
                                 <>
-                                    🚀 PROCESS ALL FINDINGS ({steps.length} ITEMS)
+                                    Batch Process ({steps.length})
                                 </>
                             )}
                         </button>
                         {batchProgress && (
-                            <p className={`text-sm mt-2 text-center font-medium ${batchProgress.includes('Error') || batchProgress.includes('❌') ? 'text-red-400' : 'text-emerald-400'}`}>
+                            <p className={`text-[10px] mt-2 text-center font-medium ${batchProgress.includes('Error') ? 'text-red-400' : 'text-emerald-400'}`}>
                                 {batchProgress}
                             </p>
                         )}
@@ -750,41 +671,32 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                 )}
             </div>
 
-            <div className="p-4 border-t border-border bg-muted/5">
-                <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
-                    <span>Processing Status</span>
-                    <span className="text-accent">{jobId ? 'Actions Available' : 'Ready for Export'}</span>
+            <div className="p-4 border-t border-border bg-secondary/5">
+                <div className="flex items-center justify-between text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest mb-2 font-mono">
+                    <span>Operational Telemetry</span>
+                    <span className="text-primary/60">{jobId ? 'Active' : 'Idle'}</span>
                 </div>
-                <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
-                    <div className="w-full h-full bg-accent animate-pulse" />
+                <div className="w-full h-1 bg-secondary/20 rounded-full overflow-hidden">
+                    <div className={cn("h-full bg-primary/40", jobId && "animate-pulse w-full")} />
                 </div>
             </div>
 
-
             {/* Batch Review Modal */}
             {showBatchReviewModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    {/* Backdrop */}
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowBatchReviewModal(false)} />
-
-                    {/* Modal */}
-                    <div className="relative z-10 w-full max-w-4xl max-h-[90vh] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-                        {/* Header */}
-                        <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20">
-                            <h2 className="font-bold text-lg flex items-center gap-2">
-                                🚀 Batch Process Findings
-                            </h2>
-                            <button onClick={() => setShowBatchReviewModal(false)} className="p-1 rounded-lg hover:bg-muted transition-colors">
-                                <X className="w-5 h-5" />
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setShowBatchReviewModal(false)} />
+                    <div className="relative z-10 w-full max-w-4xl max-h-[90vh] bg-card border border-border rounded shadow-2xl overflow-hidden flex flex-col font-mono">
+                        <div className="flex items-center justify-between p-4 border-b border-border bg-secondary/20">
+                            <h2 className="font-semibold text-[10px] uppercase tracking-widest text-muted-foreground">Batch Pipeline Editor</h2>
+                            <button onClick={() => setShowBatchReviewModal(false)} className="p-1 rounded hover:bg-secondary transition-colors">
+                                <X className="w-4 h-4" />
                             </button>
                         </div>
 
-                        {/* Content */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
                             {batchConfigs.map((config, index) => (
-                                <div key={index} className={`p-4 rounded-xl border transition-all ${config.selected ? 'border-accent bg-accent/5' : 'border-border bg-muted/10'}`}>
-                                    <div className="flex items-start gap-3">
-                                        {/* Checkbox */}
+                                <div key={index} className={cn("p-4 border transition-all rounded", config.selected ? "border-primary/30 bg-primary/[0.02]" : "border-border/50 bg-secondary/5")}>
+                                    <div className="flex items-start gap-4">
                                         <input
                                             type="checkbox"
                                             checked={config.selected}
@@ -793,21 +705,19 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                                                 updated[index].selected = e.target.checked;
                                                 setBatchConfigs(updated);
                                             }}
-                                            className="mt-1 w-5 h-5 rounded border-2 border-accent text-accent focus:ring-2 focus:ring-accent cursor-pointer"
+                                            className="mt-1 w-4 h-4 rounded border-border text-primary focus:ring-primary/50 cursor-pointer"
                                         />
 
                                         <div className="flex-1 space-y-3">
-                                            {/* Finding Info */}
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-xs font-bold text-accent uppercase">{config.finding.type}</span>
-                                                        <span className="text-xs text-muted-foreground">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <span className="text-[10px] font-bold text-primary italic uppercase tracking-wider">{config.finding.type}</span>
+                                                        <span className="text-[10px] text-muted-foreground/60">
                                                             {Math.floor(config.finding.startTime / 60)}:{String(Math.floor(config.finding.startTime % 60)).padStart(2, '0')} - {Math.floor(config.finding.endTime / 60)}:{String(Math.floor(config.finding.endTime % 60)).padStart(2, '0')}
                                                         </span>
                                                     </div>
 
-                                                    {/* Editable Prompt */}
                                                     <textarea
                                                         value={config.prompt}
                                                         onChange={(e) => {
@@ -815,15 +725,13 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                                                             updated[index].prompt = e.target.value;
                                                             setBatchConfigs(updated);
                                                         }}
-                                                        className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+                                                        className="w-full px-3 py-2 text-xs bg-background border border-border rounded focus:outline-none focus:border-primary/50 resize-none font-mono"
                                                         rows={2}
-                                                        placeholder="Object description..."
                                                     />
 
-                                                    {/* Editable Timestamps */}
-                                                    <div className="mt-2 space-y-2">
-                                                        <div className="flex items-center gap-3">
-                                                            <label className="text-xs text-muted-foreground min-w-[60px]">Start:</label>
+                                                    <div className="mt-3 grid grid-cols-2 gap-4">
+                                                        <div className="space-y-1">
+                                                            <label className="text-[9px] uppercase font-bold text-muted-foreground/40 tracking-wider">Start (sec)</label>
                                                             <input
                                                                 type="number"
                                                                 value={config.startTime}
@@ -833,130 +741,96 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                                                                     setBatchConfigs(updated);
                                                                 }}
                                                                 step="0.1"
-                                                                min="0"
-                                                                className="flex-1 px-3 py-1.5 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
-                                                                placeholder="0.0"
+                                                                className="w-full px-2 py-1 text-xs bg-background border border-border rounded focus:outline-none"
                                                             />
-                                                            <span className="text-xs text-muted-foreground">seconds</span>
                                                         </div>
-                                                        <div className="flex items-center gap-3">
-                                                            <label className="text-xs text-muted-foreground min-w-[60px]">End:</label>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[9px] uppercase font-bold text-muted-foreground/40 tracking-wider">End (sec)</label>
                                                             <input
                                                                 type="number"
                                                                 value={config.endTime}
                                                                 onChange={(e) => {
                                                                     const updated = [...batchConfigs];
-                                                                    updated[index].endTime = parseFloat(e.target.value) || 0;
+                                                                    updated[index].endTime = parseFloat(e.target.value) || config.startTime;
                                                                     setBatchConfigs(updated);
                                                                 }}
                                                                 step="0.1"
-                                                                min={config.startTime}
-                                                                className="flex-1 px-3 py-1.5 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
-                                                                placeholder="0.0"
+                                                                className="w-full px-2 py-1 text-xs bg-background border border-border rounded focus:outline-none"
                                                             />
-                                                            <span className="text-xs text-muted-foreground">seconds</span>
                                                         </div>
-
-                                                        {/* Duration Warning */}
-                                                        {(config.endTime - config.startTime) > 15 && (
-                                                            <div className="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                                                                <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                                                                <span className="text-xs text-amber-400">
-                                                                    ⚠️ Clip duration is {(config.endTime - config.startTime).toFixed(1)}s. SAM3 works best with clips ≤ 15 seconds.
-                                                                </span>
-                                                            </div>
-                                                        )}
                                                     </div>
+
+                                                    {(config.endTime - config.startTime) > 15 && (
+                                                        <div className="mt-3 flex items-center gap-2 p-2 bg-amber-500/5 border border-amber-500/20 rounded">
+                                                            <AlertCircle className="w-3 h-3 text-amber-500/60" />
+                                                            <span className="text-[9px] text-amber-500/80 font-semibold uppercase tracking-wider">Extended duration Detected</span>
+                                                        </div>
+                                                    )}
                                                 </div>
 
-                                                {/* Effect Type Toggle */}
-                                                <div className="flex flex-col gap-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            const updated = [...batchConfigs];
-                                                            updated[index].effectType = 'blur';
-                                                            setBatchConfigs(updated);
-                                                        }}
-                                                        className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${config.effectType === 'blur'
-                                                            ? 'bg-white text-gray-900 border-2 border-white'
-                                                            : 'bg-transparent text-gray-400 border border-gray-600 hover:border-gray-400 hover:text-gray-300'
-                                                            }`}
-                                                    >
-                                                        BLUR
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            const updated = [...batchConfigs];
-                                                            updated[index].effectType = 'pixelate';
-                                                            setBatchConfigs(updated);
-                                                        }}
-                                                        className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${config.effectType === 'pixelate'
-                                                            ? 'bg-white text-gray-900 border-2 border-white'
-                                                            : 'bg-transparent text-gray-400 border border-gray-600 hover:border-gray-400 hover:text-gray-300'
-                                                            }`}
-                                                    >
-                                                        PIXELATE
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            const updated = [...batchConfigs];
-                                                            updated[index].effectType = 'replace-runway';
-                                                            setBatchConfigs(updated);
-                                                        }}
-                                                        className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${config.effectType === 'replace-runway'
-                                                            ? 'bg-white text-gray-900 border-2 border-white'
-                                                            : 'bg-transparent text-gray-400 border border-gray-600 hover:border-gray-400 hover:text-gray-300'
-                                                            }`}
-                                                    >
-                                                        REPLACE
-                                                    </button>
+                                                <div className="flex flex-col gap-1.5 shrink-0">
+                                                    {['blur', 'pixelate', 'replace-runway'].map((type) => (
+                                                        <button
+                                                            key={type}
+                                                            onClick={() => {
+                                                                const updated = [...batchConfigs];
+                                                                updated[index].effectType = type as any;
+                                                                setBatchConfigs(updated);
+                                                            }}
+                                                            className={cn(
+                                                                "px-3 py-1.5 rounded text-[9px] font-bold uppercase tracking-widest border transition-all",
+                                                                config.effectType === type
+                                                                    ? "bg-primary/10 border-primary text-primary"
+                                                                    : "bg-transparent border-border text-muted-foreground/40 hover:text-muted-foreground hover:border-border/80"
+                                                            )}
+                                                        >
+                                                            {type.replace('replace-', '').toUpperCase()}
+                                                        </button>
+                                                    ))}
                                                 </div>
                                             </div>
+
+                                            {config.effectType === 'replace-runway' && (
+                                                <div className="mt-3 pt-3 border-t border-border/50">
+                                                    <label className="text-[9px] uppercase font-bold text-muted-foreground/40 tracking-wider mb-2 block">
+                                                        Replacement Prompt
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={config.replacementPrompt}
+                                                        onChange={(e) => {
+                                                            const updated = [...batchConfigs];
+                                                            updated[index].replacementPrompt = e.target.value;
+                                                            setBatchConfigs(updated);
+                                                        }}
+                                                        placeholder="Describe replacement object..."
+                                                        className="w-full px-3 py-2 text-xs bg-background border border-border rounded focus:outline-none font-mono"
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-
-                                    {/* Runway Replacement Prompt - Full Width Row */}
-                                    {config.effectType === 'replace-runway' && (
-                                        <div className="mt-4 pt-4 border-t border-border">
-                                            <label className="text-sm font-semibold text-foreground block mb-2">
-                                                ✨ Replace "{config.prompt}" with:
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={config.replacementPrompt}
-                                                onChange={(e) => {
-                                                    const updated = [...batchConfigs];
-                                                    updated[index].replacementPrompt = e.target.value;
-                                                    setBatchConfigs(updated);
-                                                }}
-                                                placeholder="Describe what should replace this object (e.g., red lollipop, empty table, blue coffee mug)"
-                                                className="w-full px-4 py-3 text-sm bg-background border-2 border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent placeholder:text-muted-foreground/50"
-                                            />
-                                            <p className="text-xs text-muted-foreground mt-2">Runway AI will generate a replacement based on your description</p>
-                                        </div>
-                                    )}
                                 </div>
                             ))}
                         </div>
 
-                        {/* Footer */}
-                        <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">
-                                {batchConfigs.filter(c => c.selected).length} of {batchConfigs.length} selected
+                        <div className="p-4 border-t border-border bg-secondary/10 flex items-center justify-between">
+                            <span className="text-[10px] font-semibold text-muted-foreground/40 uppercase tracking-widest pl-2">
+                                {batchConfigs.filter(c => c.selected).length} / {batchConfigs.length} Target Selection
                             </span>
-                            <div className="flex gap-3">
+                            <div className="flex gap-2">
                                 <button
                                     onClick={() => setShowBatchReviewModal(false)}
-                                    className="px-6 py-2.5 bg-transparent hover:bg-gray-100 text-foreground rounded-full font-bold uppercase tracking-wider transition-colors border border-gray-300"
+                                    className="px-4 py-2 bg-transparent hover:bg-secondary text-foreground rounded border border-border text-[10px] uppercase font-semibold transition-all"
                                 >
-                                    CANCEL
+                                    Cancel
                                 </button>
                                 <button
                                     onClick={processBatchFindings}
                                     disabled={batchConfigs.filter(c => c.selected).length === 0}
-                                    className="px-6 py-2.5 bg-white hover:bg-gray-100 text-gray-900 rounded-full font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200"
+                                    className="px-4 py-2 bg-primary text-primary-foreground hover:opacity-90 rounded border border-primary/50 text-[10px] uppercase font-semibold transition-all disabled:opacity-50"
                                 >
-                                    PROCESS SELECTED ({batchConfigs.filter(c => c.selected).length})
+                                    Push Pipeline
                                 </button>
                             </div>
                         </div>

@@ -327,7 +327,7 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
                                             }}
                                         >
                                             <div className={cn(
-                                                "absolute -top-6 left-0 px-2 py-0.5 rounded text-[10px] font-bold text-white whitespace-nowrap uppercase tracking-wider shadow-lg",
+                                                "absolute -top-6 left-0 px-2 py-0.5 rounded text-[10px] font-semibold text-white whitespace-nowrap uppercase tracking-wider shadow-lg",
                                                 finding.status === 'critical' ? "bg-red-500" : "bg-amber-500"
                                             )}>
                                                 {finding.type}: {finding.content}
@@ -401,9 +401,9 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
                                         if (isPlaying) videoRef.current?.pause();
                                     }}
                                     className={cn(
-                                        "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer",
+                                        "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer",
                                         isEditMode
-                                            ? "bg-accent text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                                            ? "bg-accent text-white shadow-lg"
                                             : "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
                                     )}
                                 >

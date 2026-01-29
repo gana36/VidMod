@@ -50,7 +50,10 @@ from ..models import (
     UseExistingVideoRequest,
     CensorAudioRequest,
     CensorAudioResponse,
-    ProfanityMatch as ProfanityMatchModel
+    ProfanityMatch as ProfanityMatchModel,
+    SuggestReplacementsRequest,
+    SuggestReplacementsResponse,
+    WordSuggestion
 )
 from core.pipeline import VideoPipeline, PipelineStage
 from core.gemini_video_analyzer import GeminiVideoAnalyzer
@@ -1914,17 +1917,20 @@ async def analyze_audio(
     logger.info(f"Analyzing audio for profanity: {job_id}")
     
     try:
-        # Get video path
-        video_path = pipeline.get_video_path(job_id)
-        if not video_path.exists():
+        # Get job and video path
+        job = pipeline.get_job(job_id)
+        if not job:
             raise HTTPException(status_code=404, detail="Job not found")
         
-        #Import audio analyzer
+        if not job.video_path or not job.video_path.exists():
+            raise HTTPException(status_code=400, detail="Video file not found")
+        
+        # Import audio analyzer
         from core.audio_analyzer import AudioAnalyzer
         
         # Analyze for profanity
         analyzer = AudioAnalyzer(api_key=settings.gemini_api_key)
-        matches = analyzer.analyze_profanity(video_path)
+        matches = analyzer.analyze_profanity(job.video_path)
         
         # Return matches for frontend
         return {
@@ -2109,6 +2115,108 @@ async def censor_audio(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Audio censoring failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/suggest-replacements/{job_id}", response_model=SuggestReplacementsResponse)
+async def suggest_word_replacements(
+    job_id: str,
+    request: SuggestReplacementsRequest,
+    pipeline: VideoPipeline = Depends(get_pipeline),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Use Gemini to suggest alternative words that match duration. ⭐
+    
+    This endpoint generates contextually appropriate replacement words
+    for profanity or other words you want to replace. The suggestions
+    are designed to match the speaking duration of the original word.
+    
+    WORKFLOW:
+    1. Upload video and analyze audio to get detected words
+    2. Call this endpoint with words you want replacements for
+    3. Gemini generates 3-5 alternatives for each word
+    4. Use suggestions in the voice dubbing workflow
+    
+    Example:
+        POST /api/suggest-replacements/abc123
+        {
+            "job_id": "abc123",
+            "words_to_replace": ["damn", "shit", "hell"]
+        }
+        
+        Response:
+        {
+            "job_id": "abc123",
+            "suggestions": [
+                {
+                    "original_word": "damn",
+                    "suggestions": ["darn", "dang", "drat", "shoot"],
+                    "duration": 0.4
+                },
+                ...
+            ]
+        }
+    """
+    from core.word_suggester import WordSuggester
+    from core.audio_analyzer import AudioAnalyzer
+    
+    job = pipeline.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if not job.video_path or not job.video_path.exists():
+        raise HTTPException(status_code=400, detail="Video file not found")
+    
+    try:
+        logger.info(f"Generating word suggestions for {len(request.words_to_replace)} words")
+        
+        # First, analyze the video to get word timings
+        analyzer = AudioAnalyzer(api_key=settings.gemini_api_key)
+        matches = analyzer.analyze_profanity(
+            video_path=job.video_path,
+            custom_words=request.words_to_replace
+        )
+        
+        # Create a mapping of words to their durations
+        word_durations = {}
+        for match in matches:
+            word = match.word
+            duration = match.end_time - match.start_time
+            if word not in word_durations:
+                word_durations[word] = duration
+        
+        # Generate suggestions for each word
+        suggester = WordSuggester(api_key=settings.gemini_api_key)
+        suggestions_list = []
+        
+        for word in request.words_to_replace:
+            # Get duration (default to 0.5s if not detected)
+            duration = word_durations.get(word, 0.5)
+            
+            # Generate suggestions
+            alternatives = suggester.suggest_alternatives(word, duration, num_suggestions=5)
+            
+            suggestions_list.append(
+                WordSuggestion(
+                    original_word=word,
+                    suggestions=alternatives,
+                    duration=duration
+                )
+            )
+        
+        logger.info(f"✅ Generated suggestions for {len(suggestions_list)} words")
+        
+        return SuggestReplacementsResponse(
+            job_id=job_id,
+            suggestions=suggestions_list,
+            message=f"Generated {len(suggestions_list)} word suggestions"
+        )
+        
+    except Exception as e:
+        logger.error(f"Word suggestion failed: {e}")
         import traceback
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))

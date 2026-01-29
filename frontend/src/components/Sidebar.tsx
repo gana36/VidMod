@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
     BarChart3,
-    Clock,
     FileText,
     Upload,
     FileVideo,
@@ -33,7 +32,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, metadata, po
     const menuItems = [
         { id: 'Upload', icon: Upload, label: 'Upload' },
         { id: 'Analysis', icon: BarChart3, label: 'Analysis' },
-        { id: 'Timeline', icon: Clock, label: 'Timeline' },
         { id: 'Compliance', icon: FileText, label: 'Compliance Report' },
     ];
 
@@ -52,10 +50,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, metadata, po
         <aside className="w-64 border-r border-border flex flex-col bg-card/50 backdrop-blur-sm">
             <div className="p-6 overflow-y-auto no-scrollbar flex-1">
                 <div className="flex items-center gap-2 mb-8 px-2">
-                    <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center shadow-sm">
-                        <Video className="w-4 h-4 text-zinc-950" />
+                    <div className="w-8 h-8 rounded bg-secondary border border-border flex items-center justify-center">
+                        <Video className="w-4 h-4 text-primary/80" />
                     </div>
-                    <span className="font-black text-xs uppercase tracking-[0.2em] text-zinc-100">Compliance AI</span>
+                    <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">VidMod</span>
                 </div>
 
                 <nav className="space-y-1 mb-8">
@@ -64,10 +62,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, metadata, po
                             key={item.id}
                             onClick={() => setActiveTab(item.id)}
                             className={cn(
-                                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-[0.15em] transition-all group cursor-pointer",
+                                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all group cursor-pointer",
                                 activeTab === item.id
-                                    ? "bg-zinc-100 text-zinc-950 shadow-lg"
-                                    : "text-zinc-500 hover:bg-white/5 hover:text-zinc-100"
+                                    ? "bg-primary/10 text-primary border border-primary/20"
+                                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground border border-transparent"
                             )}
                         >
                             <item.icon className={cn(

@@ -21,7 +21,7 @@ const TopBar: React.FC<TopBarProps> = ({
             <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-zinc-100">
                     <Video className="w-3.5 h-3.5 text-zinc-400" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Compliance AI</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Compliance AI</span>
                 </div>
 
                 <div className="h-4 w-[1px] bg-border mx-2" />
@@ -30,16 +30,16 @@ const TopBar: React.FC<TopBarProps> = ({
                     <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-500">
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/5 bg-zinc-900 shadow-sm">
                             <Layout className="w-3 h-3 text-zinc-500" />
-                            <span className="text-[10px] font-black uppercase tracking-tight text-zinc-300">{platform}</span>
+                            <span className="text-[10px] font-bold uppercase tracking-tight text-zinc-300">{platform}</span>
                         </div>
                         <div className="text-zinc-700 font-light">/</div>
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/5 bg-zinc-900 shadow-sm">
                             <ShieldCheck className="w-3 h-3 text-zinc-500" />
-                            <span className="text-[10px] font-black uppercase tracking-tight text-zinc-300">{rating}</span>
+                            <span className="text-[10px] font-bold uppercase tracking-tight text-zinc-300">{rating}</span>
                         </div>
                         <div className="text-zinc-700 font-light">/</div>
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/5 bg-zinc-900 shadow-sm">
-                            <span className="text-[10px] font-black uppercase tracking-tight text-zinc-300">{region}</span>
+                            <span className="text-[10px] font-bold uppercase tracking-tight text-zinc-300">{region}</span>
                         </div>
                     </div>
                 ) : (
@@ -53,7 +53,7 @@ const TopBar: React.FC<TopBarProps> = ({
                 {isAnalyzing && (
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-100/5 border border-white/5 text-zinc-500 mr-2">
                         <div className="w-1 h-1 rounded-full bg-zinc-500 animate-pulse" />
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em]">Live Analysis</span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider">Live Analysis</span>
                     </div>
                 )}
 
@@ -62,7 +62,7 @@ const TopBar: React.FC<TopBarProps> = ({
                     <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-card" />
                 </button>
 
-                <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-100 text-zinc-950 text-[10px] font-black hover:bg-white transition-all uppercase tracking-[0.2em] cursor-pointer">
+                <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-100 text-zinc-950 text-[10px] font-bold hover:bg-white transition-all uppercase tracking-wider cursor-pointer">
                     <Download className="w-3.5 h-3.5" />
                     Export
                 </button>
