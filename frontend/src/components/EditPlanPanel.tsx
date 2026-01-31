@@ -247,7 +247,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                         config.replacementPrompt,  // What to replace with
                         undefined,      // No reference image (text-only)
                         undefined,      // Default negative prompt
-                        5,              // Duration
+                        Math.ceil(config.endTime - config.startTime),   // Dynamic duration
                         config.startTime,
                         config.endTime
                     );

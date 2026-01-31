@@ -49,6 +49,7 @@ class RunwayEngine:
         reference_image_path: Optional[Path] = None,
         aspect_ratio: str = "16:9",
         duration: int = 5,
+        seconds: int = None,
         video_url: Optional[str] = None
     ) -> dict:
         """
@@ -71,6 +72,9 @@ class RunwayEngine:
         
         if not video_url:
             raise ValueError("video_url is required for Runway API. Video must be publicly accessible with proper Content-Type headers.")
+            
+        if seconds is not None:
+            duration = seconds
         
         logger.info(f"Video URL: {video_url}")
         
@@ -88,7 +92,8 @@ class RunwayEngine:
             "videoUri": video_url,
             "promptText": prompt,
             "model": "gen4_aleph",
-            "ratio": ratio
+            "ratio": ratio,
+            "seconds": duration
         }
         
         # Add reference image if provided (need to upload it first)

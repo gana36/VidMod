@@ -400,3 +400,57 @@ class VideoBuilder:
             if temp_dir.exists():
                 shutil.rmtree(temp_dir)
 
+    def concat_clips(self, clips: list[Path], output_path: Path) -> Path:
+        """
+        Concatenate multiple video clips into one.
+        
+        Args:
+            clips: List of paths to video clips
+            output_path: Path to save the final video
+            
+        Returns:
+            Path to the concatenated video
+        """
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        if not clips:
+            raise ValueError("No clips provided for concatenation")
+            
+        if len(clips) == 1:
+            import shutil
+            shutil.copy(clips[0], output_path)
+            return output_path
+            
+        # Create concat list file
+        concat_list_path = output_path.parent / "concat_list_temp.txt"
+        
+        try:
+            with open(concat_list_path, 'w') as f:
+                for clip in clips:
+                    # FFmpeg requires absolute paths in concat list
+                    f.write(f"file '{clip.absolute()}'\n")
+            
+            # Concatenate
+            cmd = [
+                self.ffmpeg_path, "-y",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", str(concat_list_path),
+                "-c", "copy",
+                str(output_path)
+            ]
+            
+            subprocess.run(cmd, capture_output=True, text=True, check=True)
+            logger.info(f"Concatenated {len(clips)} clips to {output_path}")
+            return output_path
+            
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Concat failed: {e.stderr}")
+            raise RuntimeError(f"Failed to concatenate clips: {e.stderr}")
+        finally:
+            if concat_list_path.exists():
+                try:
+                    concat_list_path.unlink()
+                except:
+                    pass
+

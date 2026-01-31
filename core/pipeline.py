@@ -246,6 +246,8 @@ class VideoPipeline:
             job = JobState(
                 job_id=job_id,
                 video_path=video_files[0],
+                output_dir=job_dir,
+                output_dir=job_dir,
                 frames_dir=job_dir / "frames",
                 masks_dir=job_dir / "masks",
                 inpainted_dir=job_dir / "inpainted",
@@ -1030,3 +1032,122 @@ class VideoPipeline:
             if job_dir.exists():
                 shutil.rmtree(job_dir)
             del self.jobs[job_id]
+    def process_runway_with_chunking(
+        self,
+        runway_engine,  # Pass engine instance to avoid circular imports
+        input_video: Path,
+        job_id: str,
+        prompt: str,
+        total_duration: float,
+        reference_image_path: Optional[Path] = None,
+        negative_prompt: Optional[str] = None
+    ) -> Path:
+        """
+        Process video with Runway, chunking it if duration > 10s.
+        """
+        output_dir = input_video.parent
+        final_output = output_dir / "runway_final_stitched.mp4"
+        
+        # If duration is small, just run directly
+        if total_duration <= 10:
+            logger.info(f"Duration {total_duration}s <= 10s. Running single Runway task.")
+            
+            # Need to upload input_video to S3 first
+            video_url = None
+            if self.s3_uploader:
+                try:
+                    s3_key = f"jobs/{job_id}/runway_input_{uuid.uuid4().hex[:8]}.mp4"
+                    video_url = self.s3_uploader.upload_video(input_video, s3_key)
+                except Exception as e:
+                    raise RuntimeError(f"Failed to upload to S3: {e}")
+            
+            return runway_engine.replace_and_download(
+                video_path=input_video,
+                output_path=final_output,
+                prompt=prompt,
+                reference_image_path=reference_image_path,
+                seconds=int(total_duration), # Ensure integer
+                video_url=video_url
+            )
+            
+        # Chunking Logic
+        logger.info(f"Duration {total_duration}s > 10s. Starting Chunking Strategy.")
+        chunks = []
+        current_time = 0.0
+        
+        # 1. Create chunks
+        while current_time < total_duration:
+            # Determine chunk length (max 5s - user reported 10s not working)
+            remaining = total_duration - current_time
+            chunk_len = min(5.0, remaining)
+            
+            # Extract sub-clip
+            chunk_filename = f"chunk_{current_time:.2f}_{current_time+chunk_len:.2f}.mp4"
+            chunk_path = output_dir / chunk_filename
+            
+            self.frame_extractor.extract_clip(
+                video_path=input_video,
+                output_path=chunk_path,
+                start_time=current_time,
+                end_time=current_time + chunk_len,
+                buffer_seconds=0.0 # Strict cut
+            )
+            
+            chunks.append({
+                "path": chunk_path,
+                "duration": chunk_len,
+                "start": current_time
+            })
+            current_time += chunk_len
+            
+        # 2. Process each chunk
+        processed_chunk_paths = []
+        
+        for i, chunk in enumerate(chunks):
+            logger.info(f"Processing Chunk {i+1}/{len(chunks)}: {chunk['duration']}s")
+            
+            # Upload chunk
+            if not self.s3_uploader:
+                raise RuntimeError("S3 Uploader required for Runway processing")
+                
+            chunk_s3_key = f"jobs/{job_id}/chunk_{i}_{uuid.uuid4().hex[:8]}.mp4"
+            chunk_url = self.s3_uploader.upload_video(chunk['path'], chunk_s3_key)
+            
+            # Request Duration (Strict 5s as per user/testing)
+            req_seconds = 5
+                
+            chunk_out_path = output_dir / f"processed_chunk_{i}.mp4"
+            
+            runway_engine.replace_and_download(
+                video_path=chunk['path'],
+                output_path=chunk_out_path,
+                prompt=prompt,
+                reference_image_path=reference_image_path,
+                seconds=req_seconds,
+                video_url=chunk_url
+            )
+            
+            # TRIM output if it's longer than the chunk (which it likely is)
+            # We want exact timing match to avoid desync
+            final_chunk_path = chunk_out_path
+            
+            # float comparison with small epsilon
+            if abs(req_seconds - chunk['duration']) > 0.1:
+                logger.info(f"Trimming chunk output from {req_seconds}s to {chunk['duration']}s")
+                trimmed_path = output_dir / f"processed_chunk_{i}_trimmed.mp4"
+                self.frame_extractor.extract_clip(
+                    video_path=chunk_out_path,
+                    output_path=trimmed_path,
+                    start_time=0,
+                    end_time=chunk['duration'],
+                    buffer_seconds=0.0
+                )
+                final_chunk_path = trimmed_path
+            
+            processed_chunk_paths.append(final_chunk_path)
+            
+        # 3. Stitch chunks
+        logger.info("Stitching processed chunks...")
+        self.video_builder.concat_clips(processed_chunk_paths, final_output)
+        
+        return final_output

@@ -1857,13 +1857,20 @@ async def replace_with_runway(
         
         logger.info(f"Using video URL for Runway: {video_url}")
         
-        result_path = engine.replace_and_download(
-            video_path=job.video_path,
-            output_path=output_path,
+        # Use new chunking pipeline
+        # Pass the clipped segment (clip_path) if smart clipping is used, otherwise the full video
+        input_video_for_processing = clip_path if use_smart_clipping else job.video_path
+        
+        logger.info(f"Using chunking pipeline. Input: {input_video_for_processing}, Duration: {duration}s")
+        
+        result_path = pipeline.process_runway_with_chunking(
+            runway_engine=engine,
+            input_video=input_video_for_processing, 
+            job_id=job_id,
             prompt=prompt,
+            total_duration=duration,
             reference_image_path=reference_path,
-            duration=duration,
-            video_url=video_url
+            negative_prompt=negative_prompt
         )
         
         # If we used smart clipping, we MUST stitch the result back into the main video
