@@ -306,44 +306,44 @@ const ActionModal: React.FC<ActionModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 bg-background/95 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose} />
 
             {/* Modal */}
-            <div className="relative z-10 w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20">
-                    <h2 className="font-semibold text-lg flex items-center gap-2">
-                        {actionType.includes('replace') ? <RefreshCw className="w-5 h-5 text-accent" /> : <EyeOff className="w-5 h-5 text-accent" />}
+            <div className="relative z-10 w-full max-w-md bg-[#0a0a0c] rounded-2xl border border-white/15 shadow-[0_32px_128px_rgba(0,0,0,0.8),0_0_20px_rgba(255,255,255,0.02)] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between p-5 border-b border-white/10 bg-white/[0.05]">
+                    <h2 className="font-semibold text-lg flex items-center gap-2 text-white">
+                        {actionType.includes('replace') ? <RefreshCw className="w-4 h-4 text-accent" /> : <EyeOff className="w-4 h-4 text-accent" />}
                         {getTitle()}
                     </h2>
-                    <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted transition-colors">
+                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-white transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Content */}
-                <div className="p-4 space-y-4">
+                <div className="p-6 space-y-5">
 
-                    {/* Object Prompt Section */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                            <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-1.5">
                                 Target Object
                                 {status === 'detecting' && <Loader2 className="w-3 h-3 animate-spin text-accent" />}
                             </label>
 
                             {/* Suggestions */}
                             {suggestions.length > 0 && (
-                                <div className="flex gap-1">
+                                <div className="flex gap-1.5">
                                     {suggestions.map((s) => (
                                         <button
                                             key={s}
                                             onClick={() => setObjectPrompt(s)}
                                             className={cn(
-                                                "text-[10px] px-1.5 py-0.5 rounded border transition-colors",
-                                                objectPrompt === s ? "bg-accent text-white border-accent" : "bg-muted hover:bg-muted/80 border-transparent"
+                                                "text-[10px] px-2 py-0.5 rounded-md border transition-all duration-200",
+                                                objectPrompt === s
+                                                    ? "bg-accent/20 text-accent border-accent/40 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+                                                    : "bg-white/[0.05] hover:bg-white/[0.1] border-white/10 text-muted-foreground"
                                             )}
                                         >
                                             {s}
@@ -353,34 +353,40 @@ const ActionModal: React.FC<ActionModalProps> = ({
                             )}
                         </div>
 
-                        <div className="relative">
+                        <div className="relative group">
                             <input
                                 value={objectPrompt}
                                 onChange={(e) => setObjectPrompt(e.target.value)}
                                 className={cn(
-                                    "w-full px-3 py-2 bg-muted/30 rounded-lg border text-sm focus:outline-none transition-all",
-                                    status === 'detecting' ? "border-accent/50 animate-pulse" : "border-border focus:border-accent"
+                                    "w-full px-4 py-3 bg-[#111113] rounded-xl border text-sm focus:outline-none transition-all duration-200 placeholder:text-muted-foreground/20",
+                                    status === 'detecting'
+                                        ? "border-accent/60 animate-pulse bg-accent/[0.05]"
+                                        : "border-white/10 hover:border-white/20 focus:border-accent/80 focus:ring-1 focus:ring-accent/20"
                                 )}
                                 placeholder={status === 'detecting' ? "Detecting object..." : "Enter object name..."}
                             />
                             {status === 'detecting' && (
-                                <Sparkles className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-accent animate-pulse" />
+                                <Sparkles className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-accent animate-pulse" />
                             )}
                         </div>
-                        <p className="text-xs text-muted-foreground">{getDescription()}</p>
+                        <p className="text-[11px] text-muted-foreground/60 leading-relaxed indent-0.5">{getDescription()}</p>
                     </div>
 
                     {/* Mask Only Checkbox */}
                     {(actionType === 'blur' || actionType === 'mask') && (
-                        <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={maskOnly}
-                                    onChange={(e) => setMaskOnly(e.target.checked)}
-                                    className="w-4 h-4 rounded border-border bg-muted accent-accent"
-                                />
-                                <span className="text-sm">Mask only (no overlay color)</span>
+                        <div className="flex items-center gap-3 px-1">
+                            <label className="flex items-center gap-2.5 cursor-pointer group">
+                                <div className="relative flex items-center justify-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={maskOnly}
+                                        onChange={(e) => setMaskOnly(e.target.checked)}
+                                        className="peer sr-only"
+                                    />
+                                    <div className="w-5 h-5 border border-white/10 rounded-md bg-white/10 peer-checked:bg-accent peer-checked:border-accent transition-all duration-200" />
+                                    <CheckCircle2 className="absolute w-3.5 h-3.5 text-white scale-0 peer-checked:scale-100 transition-transform duration-200" />
+                                </div>
+                                <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">Mask only (no overlay color)</span>
                             </label>
                         </div>
                     )}
@@ -388,48 +394,55 @@ const ActionModal: React.FC<ActionModalProps> = ({
                     {/* Replacement Fields */}
                     {actionType.includes('replace') && (
                         <>
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Replacement Prompt</label>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Replacement Prompt</label>
                                 <input
                                     type="text"
                                     value={replacementPrompt}
                                     onChange={(e) => setReplacementPrompt(e.target.value)}
                                     placeholder="e.g., red Coca-Cola can"
-                                    className="w-full px-3 py-2 bg-muted/30 rounded-lg border border-border text-sm focus:border-accent focus:outline-none"
+                                    className="w-full px-4 py-3 bg-[#111113] rounded-xl border border-white/10 text-sm focus:border-accent/80 focus:outline-none focus:ring-1 focus:ring-accent/20 transition-all font-medium"
                                 />
                             </div>
 
                             {/* Reference image only for Pika - Runway is text-only */}
                             {actionType === 'replace-pika' && (
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Reference Image (Required)</label>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => setReferenceImage(e.target.files?.[0] || null)}
-                                        className="w-full px-3 py-2 bg-muted/30 rounded-lg border border-border text-sm file:mr-3 file:px-3 file:py-1 file:rounded-md file:border-0 file:bg-accent file:text-white file:text-xs file:font-medium"
-                                    />
-                                    {referenceImage && <p className="text-xs text-emerald-500">✓ {referenceImage.name}</p>}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Reference Image (Required)</label>
+                                    <div className="relative group">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => setReferenceImage(e.target.files?.[0] || null)}
+                                            className="w-full px-4 py-3 bg-[#111113] border border-white/10 rounded-xl text-sm file:mr-4 file:px-4 file:py-1 file:rounded-lg file:border-0 file:bg-accent/20 file:text-accent file:text-xs file:font-bold hover:border-white/20 transition-all cursor-pointer"
+                                        />
+                                    </div>
+                                    {referenceImage && <p className="text-[11px] text-emerald-400/80 flex items-center gap-1.5 px-0.5">
+                                        <CheckCircle2 className="w-3 h-3" />
+                                        {referenceImage.name}
+                                    </p>}
                                 </div>
                             )}
 
                             {/* Smart Clipping info for Runway */}
                             {actionType === 'replace-runway' && startTime !== undefined && endTime !== undefined && (
-                                <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <span className="text-xs font-semibold text-purple-400">Smart Clipping Active</span>
+                                <div className="p-4 bg-accent/[0.03] border border-accent/10 rounded-2xl space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <Sparkles className="w-3.5 h-3.5 text-accent" />
+                                        <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-accent/80">Smart Clipping Active</span>
                                     </div>
-                                    <div className="flex gap-4 text-sm">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-muted-foreground">Start:</span>
-                                            <span className="font-mono text-purple-300">{startTime.toFixed(2)}s</span>
+                                    <div className="flex gap-6">
+                                        <div className="space-y-1">
+                                            <span className="text-[9px] uppercase font-bold text-muted-foreground/40 block">Start Point</span>
+                                            <span className="font-mono text-sm text-foreground/80">{startTime.toFixed(2)}s</span>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-muted-foreground">End:</span>
-                                            <span className="font-mono text-purple-300">{endTime.toFixed(2)}s</span>
+                                        <div className="w-px h-8 bg-white/5" />
+                                        <div className="space-y-1">
+                                            <span className="text-[9px] uppercase font-bold text-muted-foreground/40 block">End Point</span>
+                                            <span className="font-mono text-sm text-foreground/80">{endTime.toFixed(2)}s</span>
                                         </div>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-2">Only this clip will be sent to Runway for processing.</p>
+                                    <p className="text-[10px] text-muted-foreground/50 italic leading-relaxed">System will isolate and process only the specified temporal segment.</p>
                                 </div>
                             )}
                         </>
@@ -438,45 +451,45 @@ const ActionModal: React.FC<ActionModalProps> = ({
 
                     {/* Enhanced Word Replacement with Gemini Suggestions (for voice dub mode) */}
                     {actionType === 'censor-dub' && (
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                    <Sparkles className="w-3 h-3 text-violet-400" />
-                                    AI-Powered Word Replacement
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2">
+                                    <Sparkles className="w-3.5 h-3.5 text-accent" />
+                                    AI Word Remediation
                                 </label>
                                 <button
                                     onClick={handleManualGenerate}
                                     disabled={loadingSuggestions || profanityMatches.length === 0}
-                                    className="flex items-center gap-1 px-2 py-1 bg-violet-500/20 hover:bg-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-violet-400 rounded text-xs font-medium transition-colors"
+                                    className="flex items-center gap-1.5 px-3 py-1 bg-accent/10 hover:bg-accent/20 disabled:opacity-30 disabled:cursor-not-allowed text-accent rounded-lg text-xs font-semibold transition-all duration-200"
                                 >
                                     {loadingSuggestions ? (
                                         <Loader2 className="w-3 h-3 animate-spin" />
                                     ) : (
-                                        <Sparkles className="w-3 h-3" />
+                                        <RefreshCw className="w-3 h-3" />
                                     )}
-                                    Generate
+                                    Suggest
                                 </button>
                             </div>
 
                             {loadingSuggestions ? (
-                                <div className="p-8 bg-muted/20 rounded-lg text-center">
-                                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-violet-400" />
-                                    <p className="text-xs text-muted-foreground">Analyzing audio and generating suggestions...</p>
+                                <div className="p-10 bg-white/[0.05] border border-white/5 rounded-2xl text-center space-y-3">
+                                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-accent/50" />
+                                    <p className="text-[11px] text-muted-foreground/60 italic">Synthesizing alternatives...</p>
                                 </div>
                             ) : profanityMatches.length === 0 ? (
-                                <div className="p-4 bg-muted/20 rounded-lg text-xs text-muted-foreground text-center">
-                                    <p className="mb-2">No profanity detected</p>
-                                    <p className="text-[10px]">The video appears to be clean!</p>
+                                <div className="p-6 bg-white/[0.05] border border-white/5 rounded-2xl text-center space-y-2">
+                                    <CheckCircle2 className="w-10 h-10 text-emerald-500/20 mx-auto" />
+                                    <p className="text-xs text-muted-foreground">No violations detected in audio stream.</p>
                                 </div>
                             ) : (
-                                <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                <div className="space-y-3 max-h-64 overflow-y-auto pr-1 -mr-1 custom-scrollbar">
                                     {profanityMatches.map((match, index) => (
-                                        <div key={index} className="p-3 bg-muted/20 rounded-lg border border-border space-y-2">
+                                        <div key={index} className="p-4 bg-white/[0.08] border border-white/5 rounded-2xl space-y-3 group hover:border-white/10 transition-all">
                                             {/* Word to Replace */}
-                                            <div className="flex items-center justify-between">
-                                                <div className="space-y-1 flex-1">
-                                                    <label className="text-[10px] text-muted-foreground uppercase">Word to Replace</label>
-                                                    <div className="px-3 py-2 bg-red-500/10 border border-red-500/30 rounded text-sm font-medium text-red-400">
+                                            <div className="flex items-center justify-between gap-4">
+                                                <div className="space-y-1.5 flex-1">
+                                                    <span className="text-[9px] font-bold uppercase tracking-[0.05em] text-red-400/60">Detected Segment</span>
+                                                    <div className="px-3 py-2 bg-red-500/5 border border-red-500/10 rounded-xl text-sm font-medium text-red-400/90">
                                                         {match.word}
                                                     </div>
                                                 </div>
@@ -485,19 +498,16 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                                         const updated = profanityMatches.filter((_, i) => i !== index);
                                                         setProfanityMatches(updated);
                                                     }}
-                                                    className="p-1.5 hover:bg-red-500/20 rounded text-muted-foreground hover:text-red-400 transition-colors ml-2"
+                                                    className="mt-5 p-2 bg-white/10 hover:bg-red-500/10 rounded-xl text-muted-foreground/40 hover:text-red-400 transition-all"
                                                     title="Remove"
                                                 >
                                                     <X className="w-4 h-4" />
                                                 </button>
                                             </div>
 
-                                            {/* Replacement Field - Manual Input with Gemini Suggestions */}
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] text-violet-400 uppercase flex items-center gap-1">
-                                                    <Sparkles className="w-3 h-3" />
-                                                    Replacement {match.suggestions && match.suggestions.length > 0 && `(${match.suggestions.length} suggestions)`}
-                                                </label>
+                                            {/* Replacement Field */}
+                                            <div className="space-y-2">
+                                                <span className="text-[9px] font-bold uppercase tracking-[0.05em] text-accent/60">Proposed Replacement</span>
                                                 <input
                                                     type="text"
                                                     list={`suggestions-${index}`}
@@ -507,18 +517,10 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                                         updated[index].replacement = e.target.value;
                                                         setProfanityMatches(updated);
                                                     }}
-                                                    placeholder="Type manually or click Generate for AI suggestions"
-                                                    className="w-full px-3 py-2 bg-violet-500/10 border border-violet-500/30 rounded text-sm focus:outline-none focus:ring-1 focus:ring-violet-500 text-violet-300 font-medium"
+                                                    className="w-full px-4 py-3 bg-[#111113] border border-white/10 rounded-xl text-sm focus:outline-none focus:border-accent/60 text-foreground/90 font-medium transition-all"
                                                 />
                                                 {match.suggestions && match.suggestions.length > 0 && (
-                                                    <datalist id={`suggestions-${index}`}>
-                                                        {match.suggestions.map((suggestion, i) => (
-                                                            <option key={i} value={suggestion} />
-                                                        ))}
-                                                    </datalist>
-                                                )}
-                                                {match.suggestions && match.suggestions.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                    <div className="flex flex-wrap gap-1.5 mt-2">
                                                         {match.suggestions.map((suggestion, i) => (
                                                             <button
                                                                 key={i}
@@ -527,7 +529,12 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                                                     updated[index].replacement = suggestion;
                                                                     setProfanityMatches(updated);
                                                                 }}
-                                                                className="px-2 py-0.5 bg-violet-500/20 hover:bg-violet-500/30 rounded text-[10px] text-violet-300 transition-colors"
+                                                                className={cn(
+                                                                    "px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all duration-200",
+                                                                    match.replacement === suggestion
+                                                                        ? "bg-accent/20 text-accent border border-accent/20"
+                                                                        : "bg-white/10 hover:bg-white/20 text-muted-foreground border border-transparent"
+                                                                )}
                                                             >
                                                                 {suggestion}
                                                             </button>
@@ -539,47 +546,53 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                     ))}
                                 </div>
                             )}
-                            <div className="p-2.5 bg-secondary/30 border border-border rounded flex items-center justify-between">
+                            <div className="p-3 bg-white/[0.05] border border-white/10 rounded-xl flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <Sparkles className="w-3.5 h-3.5 text-primary/40" />
-                                    <span className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground/60">
-                                        Suggestion Engine Active
+                                    <Sparkles className="w-3.5 h-3.5 text-accent/40" />
+                                    <span className="text-[9px] uppercase font-bold tracking-[0.1em] text-muted-foreground/40">
+                                        Intelligent Synthesis Active
                                     </span>
                                 </div>
-                                <span className="text-[10px] font-semibold text-muted-foreground/40 italic">
-                                    Override or generate alternatives
-                                </span>
                             </div>
                         </div>
                     )}
 
                     {/* Status Messages */}
                     {status === 'error' && (
-                        <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm animate-in slide-in-from-top-2">
-                            <AlertTriangle className="w-4 h-4 shrink-0" />
-                            {error}
+                        <div className="flex items-start gap-3 p-4 bg-red-500/[0.03] border border-red-500/10 rounded-2xl text-red-400 text-xs leading-relaxed animate-in slide-in-from-top-2 duration-300">
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <p className="font-bold uppercase tracking-wider text-[10px]">Processing Failed</p>
+                                <p className="opacity-80">{error}</p>
+                            </div>
                         </div>
                     )}
 
                     {status === 'completed' && (
-                        <div className="flex items-center gap-2 p-3 bg-emerald-500/5 border border-emerald-500/10 rounded text-emerald-500/80 text-xs font-semibold uppercase tracking-wider animate-in slide-in-from-top-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                            Operation Complete
+                        <div className="flex items-center gap-3 p-4 bg-emerald-500/[0.03] border border-emerald-500/10 rounded-2xl text-emerald-400 text-xs animate-in slide-in-from-top-2 duration-300">
+                            <CheckCircle2 className="w-4 h-4 shrink-0" />
+                            <div className="space-y-0.5">
+                                <p className="font-bold uppercase tracking-wider text-[10px]">Operation Successful</p>
+                                <p className="opacity-80 text-[10px]">Modifications applied and ready for export.</p>
+                            </div>
                         </div>
                     )}
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-2 p-4 border-t border-border bg-muted/10">
+                <div className="flex items-center justify-end gap-3 p-5 border-t border-white/10 bg-white/[0.05]">
                     {status === 'completed' && downloadUrl && (
-                        <a href={downloadUrl} download className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors">
+                        <a href={downloadUrl} download className="btn-primary flex items-center gap-2 text-sm shadow-emerald-500/10 bg-emerald-600 hover:bg-emerald-500">
                             <Download className="w-4 h-4" />
-                            Download
+                            Download Result
                         </a>
                     )}
 
-                    <button onClick={onClose} className="px-4 py-2 bg-muted hover:bg-muted/80 rounded-lg font-medium transition-colors">
-                        {status === 'completed' ? 'Done' : 'Cancel'}
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200"
+                    >
+                        {status === 'completed' ? 'Close' : 'Cancel'}
                     </button>
 
                     {status !== 'completed' && (
@@ -587,13 +600,11 @@ const ActionModal: React.FC<ActionModalProps> = ({
                             onClick={handleExecute}
                             disabled={status === 'processing' || status === 'detecting' || (actionType === 'replace-pika' && !referenceImage)}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors",
-                                status === 'processing' || status === 'detecting' || (actionType === 'replace-pika' && !referenceImage)
-                                    ? "bg-accent/50 cursor-not-allowed"
-                                    : "bg-accent hover:bg-accent/80"
+                                "btn-primary flex items-center gap-2 text-sm",
+                                (status === 'processing' || status === 'detecting' || (actionType === 'replace-pika' && !referenceImage)) && "opacity-50 cursor-not-allowed scale-100 shadow-none"
                             )}
                         >
-                            {status === 'processing' ? <><Loader2 className="w-4 h-4 animate-spin" />Processing...</> : 'Execute'}
+                            {status === 'processing' ? <><Loader2 className="w-4 h-4 animate-spin" />Processing...</> : 'Apply Remediation'}
                         </button>
                     )}
                 </div>
