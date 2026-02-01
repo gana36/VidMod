@@ -246,8 +246,6 @@ class VideoPipeline:
             job = JobState(
                 job_id=job_id,
                 video_path=video_files[0],
-                output_dir=job_dir,
-                output_dir=job_dir,
                 frames_dir=job_dir / "frames",
                 masks_dir=job_dir / "masks",
                 inpainted_dir=job_dir / "inpainted",

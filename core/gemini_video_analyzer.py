@@ -206,7 +206,7 @@ class GeminiVideoAnalyzer:
         
         try:
             response = self.client.models.generate_content(
-                model="gemini-2.0-flash-exp", # Fast model for interactivity
+                model="gemini-2.0-flash", # Fast model for interactivity
                 contents=[
                     types.Content(
                         role="user",

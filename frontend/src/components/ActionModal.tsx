@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Loader2, Download, EyeOff, RefreshCw, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -61,8 +61,19 @@ const ActionModal: React.FC<ActionModalProps> = ({
     const [referenceImage, setReferenceImage] = useState<File | null>(null);
     const [maskOnly, setMaskOnly] = useState(true);
     const [suggestions, setSuggestions] = useState<string[]>([]);
-    const [profanityMatches, setProfanityMatches] = useState<Array<{ word: string, replacement: string, suggestions?: string[] }>>([]);
+    const [profanityMatches, setProfanityMatches] = useState<Array<{
+        word: string;
+        replacement: string;
+        suggestions?: string[];
+        start_time: number;
+        end_time: number;
+        confidence?: string;
+        context?: string;
+    }>>([]);
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+    // Track if already loading to prevent duplicate calls (React StrictMode protection)
+    const isLoadingRef = useRef(false);
 
     // Reset state when modal opens
     useEffect(() => {
@@ -73,9 +84,11 @@ const ActionModal: React.FC<ActionModalProps> = ({
             setDownloadUrl('');
             setProfanityMatches([]);
             setLoadingSuggestions(false);
+            isLoadingRef.current = false; // Reset the ref
 
-            // Auto-load profanity for censor-dub mode
-            if (actionType === 'censor-dub') {
+            // Auto-load profanity for censor-dub mode (with guard)
+            if (actionType === 'censor-dub' && !isLoadingRef.current) {
+                isLoadingRef.current = true;
                 loadProfanityAndSuggestions();
             }
         }
@@ -93,15 +106,18 @@ const ActionModal: React.FC<ActionModalProps> = ({
                 return;
             }
 
-            // Step 2: Just populate detected words WITHOUT auto-generating suggestions
-            const uniqueWords = [...new Set(audioResult.matches.map(m => m.word))];
-            const matchesWithoutSuggestions = uniqueWords.map((word) => ({
-                word,
-                replacement: '', // Empty - user must type manually or click Generate
-                suggestions: []
+            // Step 2: Store ALL match data including timestamps (not just unique words)
+            const matchesWithTimestamps = audioResult.matches.map(m => ({
+                word: m.word,
+                replacement: '', // User can override
+                suggestions: [],
+                start_time: m.start_time,
+                end_time: m.end_time,
+                confidence: m.confidence,
+                context: m.context,
             }));
 
-            setProfanityMatches(matchesWithoutSuggestions);
+            setProfanityMatches(matchesWithTimestamps);
             setLoadingSuggestions(false);
         } catch (err) {
             console.error('Failed to load detected words:', err);
@@ -215,18 +231,35 @@ const ActionModal: React.FC<ActionModalProps> = ({
                     break;
 
                 case 'censor-beep':
-                    // Censor audio with beep sounds
-                    await censorAudio(jobId, 'beep');
+                    // Censor audio with beep sounds - pass pre-analyzed matches to skip re-analysis
+                    await censorAudio(
+                        jobId,
+                        'beep',
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        profanityMatches  // Pass full matches to skip re-analysis!
+                    );
                     finalDownloadUrl = getDownloadUrl(jobId);
                     break;
 
                 case 'censor-dub':
-                    // Censor audio with voice dubbing using custom replacements
+                    // Censor audio with voice dubbing - pass pre-analyzed matches AND custom replacements
                     const customReplacements = profanityMatches.reduce((acc, match) => {
                         acc[match.word] = match.replacement;
                         return acc;
                     }, {} as Record<string, string>);
-                    await censorAudio(jobId, 'dub', undefined, undefined, undefined, customReplacements);
+
+                    await censorAudio(
+                        jobId,
+                        'dub',
+                        undefined,
+                        undefined,
+                        undefined,
+                        customReplacements,
+                        profanityMatches  // Pass full matches to skip re-analysis!
+                    );
                     finalDownloadUrl = getDownloadUrl(jobId);
                     break;
 

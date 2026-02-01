@@ -23,7 +23,7 @@ class PromptSimplifier:
     def __init__(self, api_key: str):
         """Initialize with Gemini API key."""
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        self.model = genai.GenerativeModel('gemini-2.0-flash')
         logger.info("PromptSimplifier initialized with Gemini")
     
     def simplify(self, complex_prompt: str) -> str:

@@ -174,7 +174,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
     interface BatchFindingConfig {
         finding: Finding;
         selected: boolean;
-        effectType: 'blur' | 'pixelate' | 'replace-runway';
+        effectType: 'blur' | 'pixelate' | 'replace-runway' | 'censor-beep' | 'censor-dub';
         prompt: string;  // Object to target
         replacementPrompt: string;  // What to replace with (Runway only)
         startTime: number;  // Editable timestamp
@@ -185,15 +185,37 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
 
     // Initialize batch configs from findings
     const initializeBatchConfigs = () => {
-        const configs: BatchFindingConfig[] = findings.map(f => ({
-            finding: f,
-            selected: true, // All selected by default
-            effectType: (f.suggestedAction?.toLowerCase().includes('runway') ? 'replace-runway' : f.suggestedAction?.toLowerCase().includes('pixelate') ? 'pixelate' : 'blur') as 'blur' | 'pixelate' | 'replace-runway',
-            prompt: f.content,
-            replacementPrompt: '',  // User fills this for Runway
-            startTime: f.startTime,
-            endTime: f.endTime
-        }));
+        const configs: BatchFindingConfig[] = findings.map(f => {
+            // Determine default effect type based on finding type
+            let defaultEffect: BatchFindingConfig['effectType'] = 'blur';
+
+            // Audio-based findings: profanity, strong language, offensive language
+            const typeLC = f.type?.toLowerCase() || '';
+            const isAudioFinding = typeLC.includes('profanity') ||
+                typeLC.includes('strong language') ||
+                typeLC.includes('offensive') ||
+                typeLC.includes('language') ||
+                f.category === 'language';
+
+            if (isAudioFinding) {
+                // Audio-based finding -> use audio actions
+                defaultEffect = 'censor-beep';
+            } else if (f.suggestedAction?.toLowerCase().includes('runway')) {
+                defaultEffect = 'replace-runway';
+            } else if (f.suggestedAction?.toLowerCase().includes('pixelate')) {
+                defaultEffect = 'pixelate';
+            }
+
+            return {
+                finding: f,
+                selected: true,
+                effectType: defaultEffect,
+                prompt: f.content,
+                replacementPrompt: '',
+                startTime: f.startTime,
+                endTime: f.endTime
+            };
+        });
         setBatchConfigs(configs);
         setShowBatchReviewModal(true);
     };
@@ -254,6 +276,26 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
 
                     if (result && result.download_path) {
                         lastDownloadUrl = `http://localhost:8000${result.download_path}`;
+                    }
+                } else if (config.effectType === 'censor-beep' || config.effectType === 'censor-dub') {
+                    // Audio censoring for profanity
+                    const { censorAudio, getDownloadUrl } = await import('../services/api');
+
+                    const mode = config.effectType === 'censor-beep' ? 'beep' : 'dub';
+
+                    const result = await censorAudio(
+                        jobId,
+                        mode,
+                        undefined, // voiceSampleStart
+                        undefined, // voiceSampleEnd
+                        undefined, // customWords
+                        undefined  // customReplacements - could add UI for this later
+                    );
+
+                    if (result && result.download_path) {
+                        lastDownloadUrl = `http://localhost:8000${result.download_path}`;
+                    } else {
+                        lastDownloadUrl = getDownloadUrl(jobId);
                     }
                 }
             }
@@ -769,24 +811,57 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                                                 </div>
 
                                                 <div className="flex flex-col gap-1.5 shrink-0">
-                                                    {['blur', 'pixelate', 'replace-runway'].map((type) => (
-                                                        <button
-                                                            key={type}
-                                                            onClick={() => {
-                                                                const updated = [...batchConfigs];
-                                                                updated[index].effectType = type as any;
-                                                                setBatchConfigs(updated);
-                                                            }}
-                                                            className={cn(
-                                                                "px-3 py-1.5 rounded text-[9px] font-bold uppercase tracking-widest border transition-all",
-                                                                config.effectType === type
-                                                                    ? "bg-primary/10 border-primary text-primary"
-                                                                    : "bg-transparent border-border text-muted-foreground/40 hover:text-muted-foreground hover:border-border/80"
-                                                            )}
-                                                        >
-                                                            {type.replace('replace-', '').toUpperCase()}
-                                                        </button>
-                                                    ))}
+                                                    {/* Show different actions based on finding type */}
+                                                    {/* Audio-based findings: profanity, strong language, offensive language */}
+                                                    {(config.finding.type?.toLowerCase().includes('profanity') ||
+                                                        config.finding.type?.toLowerCase().includes('strong language') ||
+                                                        config.finding.type?.toLowerCase().includes('offensive') ||
+                                                        config.finding.type?.toLowerCase().includes('language') ||
+                                                        config.finding.category === 'language') ? (
+                                                        // Audio actions for Profanity
+                                                        <>
+                                                            {['censor-beep', 'censor-dub'].map((type) => (
+                                                                <button
+                                                                    key={type}
+                                                                    onClick={() => {
+                                                                        const updated = [...batchConfigs];
+                                                                        updated[index].effectType = type as any;
+                                                                        setBatchConfigs(updated);
+                                                                    }}
+                                                                    className={cn(
+                                                                        "px-3 py-1.5 rounded text-[9px] font-bold uppercase tracking-widest border transition-all",
+                                                                        config.effectType === type
+                                                                            ? "bg-primary/10 border-primary text-primary"
+                                                                            : "bg-transparent border-border text-muted-foreground/40 hover:text-muted-foreground hover:border-border/80"
+                                                                    )}
+                                                                >
+                                                                    {type.replace('censor-', '').toUpperCase()}
+                                                                </button>
+                                                            ))}
+                                                        </>
+                                                    ) : (
+                                                        // Visual actions for other findings
+                                                        <>
+                                                            {['blur', 'pixelate', 'replace-runway'].map((type) => (
+                                                                <button
+                                                                    key={type}
+                                                                    onClick={() => {
+                                                                        const updated = [...batchConfigs];
+                                                                        updated[index].effectType = type as any;
+                                                                        setBatchConfigs(updated);
+                                                                    }}
+                                                                    className={cn(
+                                                                        "px-3 py-1.5 rounded text-[9px] font-bold uppercase tracking-widest border transition-all",
+                                                                        config.effectType === type
+                                                                            ? "bg-primary/10 border-primary text-primary"
+                                                                            : "bg-transparent border-border text-muted-foreground/40 hover:text-muted-foreground hover:border-border/80"
+                                                                    )}
+                                                                >
+                                                                    {type.replace('replace-', '').toUpperCase()}
+                                                                </button>
+                                                            ))}
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
 

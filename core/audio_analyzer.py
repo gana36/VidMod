@@ -22,6 +22,7 @@ class ProfanityMatch:
     replacement: str
     confidence: str = "high"
     context: str = ""
+    speaker_id: str = "speaker_1"  # For multi-speaker voice cloning
 
 
 class AudioAnalyzer:
@@ -43,7 +44,7 @@ class AudioAnalyzer:
             api_key: Gemini API key
         """
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        self.model = genai.GenerativeModel('gemini-2.0-flash')
         logger.info("AudioAnalyzer initialized with Gemini 2.0 Flash")
     
     def analyze_profanity(
@@ -93,6 +94,7 @@ class AudioAnalyzer:
             
             prompt = f"""
 Analyze this video's audio track and detect ALL instances of profanity, cuss words, and inappropriate language.
+Also perform SPEAKER DIARIZATION to identify which speaker says each profane phrase.
 
 {custom_instruction}
 
@@ -102,15 +104,21 @@ CRITICAL INSTRUCTIONS:
    - Example: "what the fuck" should be ONE detection, not three separate words
    - Example: "holy shit" should be ONE detection covering both words
 
-2. For EACH profane phrase detected, provide:
+2. IDENTIFY SPEAKERS: Assign each detection to a speaker (speaker_1, speaker_2, etc.)
+   - If there's only one voice, use "speaker_1" for all
+   - If there are multiple speakers (e.g., male and female), differentiate them
+   - Use consistent IDs: same person = same speaker_id throughout
+
+3. For EACH profane phrase detected, provide:
    - The exact COMPLETE phrase spoken (all words together)
    - Start timestamp: When the FIRST word of the phrase begins (precise to 0.1s)
    - End timestamp: When the LAST word of the phrase ends (precise to 0.1s)
    - A clean, contextually appropriate replacement for the ENTIRE phrase
    - Your confidence level (high/medium/low)
    - Brief context (what was being said)
+   - Speaker ID (speaker_1, speaker_2, etc.)
 
-3. Ensure timestamps cover the ENTIRE duration of the profane phrase
+4. Ensure timestamps cover the ENTIRE duration of the profane phrase
    - Include any connecting words like "of", "the", "a" that are part of the phrase
    - Make sure end_time is AFTER all words in the phrase have been spoken
 
@@ -122,18 +130,18 @@ Return ONLY a valid JSON array with this structure:
     "end_time": 13.8,
     "replacement": "clean alternative for entire phrase",
     "confidence": "high",
-    "context": "Speaker was expressing frustration"
+    "context": "Speaker was expressing frustration",
+    "speaker_id": "speaker_1"
   }}
 ]
 
 If NO profanity is detected, return an empty array: []
 
 EXAMPLES:
-- If speaker says "piece of shit" at 5.2s-6.1s, return ONE entry with word="piece of shit", start_time=5.2, end_time=6.1
-- If speaker says "damn" at 10.5s-10.9s, return ONE entry with word="damn", start_time=10.5, end_time=10.9
-- If speaker says "what the hell" at 15.0s-15.8s, return ONE entry with word="what the hell", start_time=15.0, end_time=15.8
+- Male speaker says "damn" at 10.5s: {{"word": "damn", "start_time": 10.5, "end_time": 10.9, "speaker_id": "speaker_1", ...}}
+- Female speaker says "hell" at 15.0s: {{"word": "hell", "start_time": 15.0, "end_time": 15.3, "speaker_id": "speaker_2", ...}}
 
-Be thorough - check the entire audio track. Detect complete phrases, not fragmented words.
+Be thorough - check the entire audio track. Detect complete phrases, identify speakers, not fragmented words.
 """
             
             # Generate analysis
@@ -169,7 +177,8 @@ Be thorough - check the entire audio track. Detect complete phrases, not fragmen
                         end_time=float(item.get("end_time", 0)),
                         replacement=item.get("replacement", "[censored]"),
                         confidence=item.get("confidence", "medium"),
-                        context=item.get("context", "")
+                        context=item.get("context", ""),
+                        speaker_id=item.get("speaker_id", "speaker_1")
                     )
                     matches.append(match)
                 except (KeyError, ValueError, TypeError) as e:
@@ -278,3 +287,107 @@ Be thorough - check the entire audio track. Detect complete phrases, not fragmen
             "severity": severity,
             "high_confidence_count": sum(1 for m in matches if m.confidence == "high")
         }
+    
+    def detect_speaker_segments(
+        self,
+        video_path: Path,
+        min_segment_duration: float = 5.0
+    ) -> List[dict]:
+        """
+        Detect speaker segments in video for voice cloning.
+        
+        Returns clean speech segments (no profanity, no music) for each speaker,
+        suitable for voice cloning.
+        
+        Args:
+            video_path: Path to video file
+            min_segment_duration: Minimum segment length in seconds (default: 5s)
+            
+        Returns:
+            List of dicts with speaker_id, start_time, end_time, description
+        """
+        if not video_path.exists():
+            raise FileNotFoundError(f"Video not found: {video_path}")
+        
+        logger.info(f"Detecting speaker segments for voice cloning: {video_path}")
+        
+        try:
+            # Upload video to Gemini
+            logger.info("Uploading video for speaker detection...")
+            video_file = genai.upload_file(path=str(video_path))
+            
+            import time
+            while video_file.state.name == "PROCESSING":
+                time.sleep(1)
+                video_file = genai.get_file(video_file.name)
+            
+            if video_file.state.name == "FAILED":
+                raise ValueError("Gemini video processing failed")
+            
+            prompt = f"""
+Analyze this video's audio and identify CLEAN SPEECH SEGMENTS for each speaker.
+
+GOAL: Find sections where each speaker is talking clearly WITHOUT:
+- Profanity or inappropriate language
+- Background music
+- Overlapping speech from other speakers
+- Excessive noise or distortion
+
+For each unique speaker, find at least one segment of {min_segment_duration}+ seconds of clean speech.
+
+Return ONLY a valid JSON array:
+[
+  {{
+    "speaker_id": "speaker_1",
+    "start_time": 5.2,
+    "end_time": 18.5,
+    "duration": 13.3,
+    "gender": "male",
+    "description": "Clear speech about the weather"
+  }},
+  {{
+    "speaker_id": "speaker_2", 
+    "start_time": 25.0,
+    "end_time": 38.2,
+    "duration": 13.2,
+    "gender": "female",
+    "description": "Discussing weekend plans"
+  }}
+]
+
+IMPORTANT:
+- If only one speaker exists, return one segment
+- Prefer longer segments (10+ seconds is ideal for voice cloning)
+- Choose the CLEANEST audio possible
+- Avoid segments near profanity
+"""
+            
+            logger.info("Detecting speakers with Gemini...")
+            response = self.model.generate_content([video_file, prompt])
+            
+            response_text = response.text.strip()
+            
+            # Extract JSON
+            if "```json" in response_text:
+                response_text = response_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in response_text:
+                response_text = response_text.split("```")[1].split("```")[0].strip()
+            
+            segments = json.loads(response_text)
+            
+            logger.info(f"✅ Found {len(segments)} speaker segments")
+            for seg in segments:
+                logger.info(f"  - {seg['speaker_id']}: {seg['start_time']:.1f}s - {seg['end_time']:.1f}s ({seg.get('gender', 'unknown')})")
+            
+            # Clean up
+            try:
+                genai.delete_file(video_file.name)
+            except:
+                pass
+            
+            return segments
+            
+        except Exception as e:
+            logger.error(f"Speaker detection failed: {e}")
+            raise
+

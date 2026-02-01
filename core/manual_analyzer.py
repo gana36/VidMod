@@ -11,7 +11,7 @@ from typing import Dict, Any, List
 logger = logging.getLogger(__name__)
 
 # Gemini model for image analysis
-GEMINI_IMAGE_MODEL = "gemini-2.0-flash-exp"
+GEMINI_IMAGE_MODEL = "gemini-2.0-flash"
 
 MANUAL_ANALYSIS_PROMPT = """You are an object detection assistant. Identify the primary object or subject within the provided image crop.
 

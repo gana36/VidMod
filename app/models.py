@@ -373,14 +373,14 @@ class UseExistingVideoRequest(BaseModel):
 class CensorAudioRequest(BaseModel):
     """Request to censor profanity in video audio."""
     job_id: str = Field(..., description="Job ID from video upload")
-    mode: str = Field(..., description="Censoring mode: 'beep' or 'dub'")
+    mode: str = Field(..., description="Censoring mode: 'beep' (free), 'dub' (pre-built voices), 'clone' (voice cloning), or 'auto' (multi-speaker auto-cloning)")
     voice_sample_start: Optional[float] = Field(
         None, 
-        description="Start time for voice cloning sample (required for 'dub' mode)"
+        description="Start time for voice cloning sample (required for 'clone' mode, 10+ seconds of clean speech)"
     )
     voice_sample_end: Optional[float] = Field(
         None,
-        description="End time for voice cloning sample (required for 'dub' mode)"
+        description="End time for voice cloning sample (required for 'clone' mode)"
     )
     custom_words: Optional[List[str]] = Field(
         None,
@@ -389,6 +389,10 @@ class CensorAudioRequest(BaseModel):
     custom_replacements: Optional[dict] = Field(
         None,
         description="Optional dictionary mapping words to their replacements (e.g., {'damn': 'darn'})"
+    )
+    profanity_matches: Optional[List[dict]] = Field(
+        None,
+        description="Optional pre-analyzed profanity matches from analyze-audio endpoint. If provided, skips re-analysis."
     )
 
 
@@ -400,6 +404,7 @@ class ProfanityMatch(BaseModel):
     replacement: str
     confidence: str
     context: str
+    speaker_id: str = "speaker_1"  # For multi-speaker voice cloning
 
 
 class CensorAudioResponse(BaseModel):

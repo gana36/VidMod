@@ -30,7 +30,7 @@ class WordSuggester:
             api_key: Gemini API key
         """
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        self.model = genai.GenerativeModel('gemini-2.0-flash')
         logger.info("WordSuggester initialized with Gemini 2.0 Flash")
     
     def suggest_alternatives(

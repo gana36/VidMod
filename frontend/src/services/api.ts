@@ -417,11 +417,20 @@ export interface CensorAudioResponse {
  */
 export async function censorAudio(
     jobId: string,
-    mode: 'beep' | 'dub',
+    mode: 'beep' | 'dub' | 'clone' | 'auto',
     voiceSampleStart?: number,
     voiceSampleEnd?: number,
     customWords?: string[],
-    customReplacements?: Record<string, string>
+    customReplacements?: Record<string, string>,
+    profanityMatches?: Array<{
+        word: string;
+        start_time: number;
+        end_time: number;
+        replacement: string;
+        confidence?: string;
+        context?: string;
+        speaker_id?: string;
+    }>
 ): Promise<CensorAudioResponse> {
     const response = await fetch(`${API_BASE}/censor-audio`, {
         method: 'POST',
@@ -433,6 +442,7 @@ export async function censorAudio(
             voice_sample_end: voiceSampleEnd,
             custom_words: customWords,
             custom_replacements: customReplacements,
+            profanity_matches: profanityMatches,
         }),
     });
 

@@ -1968,21 +1968,26 @@ async def censor_audio(
     settings: Settings = Depends(get_settings)
 ):
     """
-    Censor profanity in video audio using either beep or voice dubbing. ⭐⭐⭐
+    Censor profanity in video audio using beep, pre-built voices, or voice cloning. ⭐⭐⭐
     
     MODES:
     - **beep**: Fast, free - overlays beep sounds over profanity (like TV censoring)
-    - **dub**: Premium - uses ElevenLabs to clone voice and dub clean replacements
+    - **dub**: Standard - uses ElevenLabs pre-built voices (Rachel/Adam) for dubbing
+    - **clone**: Premium - clones the SPEAKER'S VOICE from the video for seamless dubbing
+    - **auto**: Premium+ - AUTOMATICALLY detects all speakers, clones each, and uses correct voice per profanity!
     
     WORKFLOW:
     1. Upload video
-    2. Call this endpoint with mode "beep" or "dub"
-    3. For "dub" mode, provide voice_sample_start/end from clean speech (no profanity)
-    4. Get censored video with profanity removed/replaced
+    2. Call this endpoint with mode "beep", "dub", "clone", or "auto"
+    3. For "clone" mode, provide voice_sample_start/end pointing to 10+ seconds of clean speech
+    4. For "auto" mode, just call it - no sample needed, it figures everything out!
+    5. Get censored video with profanity removed/replaced
     
     COSTS:
     - Beep mode: ~$0.001/video (Gemini only)
-    - Dub mode: ~$0.01-0.10/video (Gemini + ElevenLabs)
+    - Dub mode: ~$0.01-0.05/video (Gemini + ElevenLabs pre-built)
+    - Clone mode: ~$0.05-0.15/video (Gemini + ElevenLabs voice cloning)
+    - Auto mode: ~$0.10-0.30/video (speaker detection + multiple clones)
     
     Example:
         POST /api/censor-audio
@@ -1991,12 +1996,18 @@ async def censor_audio(
             "mode": "beep"
         }
         
-        Or for voice dubbing:
+        Or for voice cloning (seamless):
         {
             "job_id": "abc123",
-            "mode": "dub",
+            "mode": "clone",
             "voice_sample_start": 5.0,
-            "voice_sample_end": 15.0
+            "voice_sample_end": 20.0
+        }
+        
+        Or for FULLY AUTOMATIC multi-speaker (best result):
+        {
+            "job_id": "abc123",
+            "mode": "auto"
         }
     """
     from pathlib import Path
@@ -2005,10 +2016,10 @@ async def censor_audio(
     from core.elevenlabs_dubber import ElevenLabsDubber
     
     # Validate mode
-    if request.mode not in ["beep", "dub"]:
+    if request.mode not in ["beep", "dub", "clone", "auto"]:
         raise HTTPException(
             status_code=400,
-            detail="Mode must be 'beep' or 'dub'"
+            detail="Mode must be 'beep', 'dub', 'clone', or 'auto'"
         )
     
     logger.info(f"Audio censoring request: {request.job_id}, mode: {request.mode}")
@@ -2025,13 +2036,31 @@ async def censor_audio(
     try:
         logger.info(f"Starting audio censoring in '{request.mode}' mode")
         
-        # Step 1: Analyze audio for profanity using Gemini
-        logger.info("Step 1: Analyzing audio for profanity with Gemini...")
-        analyzer = AudioAnalyzer(api_key=settings.gemini_api_key)
-        profanity_matches = analyzer.analyze_profanity(
-            video_path=job.video_path,
-            custom_words=request.custom_words
-        )
+        # Step 1: Get profanity matches - use pre-analyzed if provided, otherwise analyze
+        if request.profanity_matches:
+            # Use pre-analyzed matches from frontend (skips redundant Gemini call!)
+            logger.info(f"Step 1: Using {len(request.profanity_matches)} pre-analyzed profanity matches (skipped re-analysis)")
+            from core.audio_analyzer import ProfanityMatch
+            profanity_matches = [
+                ProfanityMatch(
+                    word=m.get('word', ''),
+                    start_time=float(m.get('start_time', 0)),
+                    end_time=float(m.get('end_time', 0)),
+                    replacement=m.get('replacement', '[censored]'),
+                    confidence=m.get('confidence', 'medium'),
+                    context=m.get('context', ''),
+                    speaker_id=m.get('speaker_id', 'speaker_1')
+                )
+                for m in request.profanity_matches
+            ]
+        else:
+            # Analyze with Gemini (only if no pre-analyzed matches provided)
+            logger.info("Step 1: Analyzing audio for profanity with Gemini...")
+            analyzer = AudioAnalyzer(api_key=settings.gemini_api_key)
+            profanity_matches = analyzer.analyze_profanity(
+                video_path=job.video_path,
+                custom_words=request.custom_words
+            )
         
         if not profanity_matches:
             logger.info("No profanity detected, returning original video")
@@ -2060,27 +2089,81 @@ async def censor_audio(
                 output_path=output_path
             )
             
-        else:  # dub mode
-            logger.info("Step 2: Applying voice dubbing with ElevenLabs...")
+        elif request.mode == "clone":
+            # VOICE CLONING MODE - Uses speaker's voice from the video
+            logger.info("Step 2: Applying voice dubbing with ElevenLabs CLONED VOICE...")
+            
+            # Validate sample timestamps
+            if not request.voice_sample_start or not request.voice_sample_end:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Voice sample timestamps (voice_sample_start/end) required for clone mode. Provide 10+ seconds of clean speech."
+                )
+            
+            sample_duration = request.voice_sample_end - request.voice_sample_start
+            if sample_duration < 5:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Voice sample too short ({sample_duration:.1f}s). Provide at least 10 seconds for best results."
+                )
+            
             dubber = ElevenLabsDubber(
                 api_key=settings.elevenlabs_api_key,
                 ffmpeg_path=pipeline.ffmpeg_path
             )
             
-            # Use custom replacements if provided, otherwise use AI suggestions
             word_replacements = request.custom_replacements if request.custom_replacements else {
                 match.word: match.replacement for match in profanity_matches
             }
+            
+            output_path = job_dir / "censored_cloned.mp4"
+            dubber.apply_dubs_with_clone(
+                video_path=job.video_path,
+                word_replacements=word_replacements,
+                output_path=output_path,
+                voice_sample_start=request.voice_sample_start,
+                voice_sample_end=request.voice_sample_end
+            )
+            
+        elif request.mode == "auto":
+            # AUTOMATIC MULTI-SPEAKER MODE - Detects speakers, clones each, dubs correctly
+            logger.info("Step 2: Applying AUTOMATIC multi-speaker voice cloning...")
+            
+            dubber = ElevenLabsDubber(
+                api_key=settings.elevenlabs_api_key,
+                ffmpeg_path=pipeline.ffmpeg_path
+            )
+            
+            output_path = job_dir / "censored_auto.mp4"
+            dubber.apply_dubs_multi_speaker(
+                video_path=job.video_path,
+                output_path=output_path,
+                custom_replacements=request.custom_replacements
+            )
+            
+        elif request.mode == "dub":  # dub mode (pre-built voices)
+            logger.info("Step 2: Applying voice dubbing with ElevenLabs pre-built voice...")
+            dubber = ElevenLabsDubber(
+                api_key=settings.elevenlabs_api_key,
+                ffmpeg_path=pipeline.ffmpeg_path
+            )
+            
+            # Apply custom replacements to the already-analyzed matches
+            if request.custom_replacements:
+                for match in profanity_matches:
+                    if match.word in request.custom_replacements:
+                        match.replacement = request.custom_replacements[match.word]
+                        logger.info(f"Using custom replacement: '{match.word}' -> '{match.replacement}'")
             
             # Detect voice type from video (default to female)
             # TODO: Could add gender detection from audio in the future
             voice_type = "female"  # Simple default for now
             
-            # Apply dubs with pre-built voice
+            # Apply dubs with pre-built voice using DIRECT method (no re-analysis!)
             output_path = job_dir / "censored_dubbed.mp4"
-            dubber.apply_dubs(
+            dubber.apply_dubs_direct(
                 video_path=job.video_path,
-                word_replacements=word_replacements,
+                profanity_matches=profanity_matches,
                 output_path=output_path,
                 voice_type=voice_type
             )
