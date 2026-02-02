@@ -107,59 +107,108 @@ def format_policy_for_prompt(platform: str, region: str, rating: str) -> str:
     policy = load_policy(platform, region)
     
     if not policy:
+        # Try global fallback
+        global_policy = POLICIES_DIR / "global.json"
+        if global_policy.exists():
+            try:
+                with open(global_policy, "r", encoding="utf-8") as f:
+                    policy = json.load(f)
+                    logger.info("Using global fallback policy")
+            except Exception:
+                pass
+    
+    if not policy:
         return """
+## GENERAL COMPLIANCE GUIDELINES
 No specific compliance policy found. Use general content moderation guidelines:
 - Flag violence, profanity, alcohol, tobacco, drugs, sexual content
 - Consider audience age appropriateness
 - Note any potentially controversial content
 """
     
-    rating_rules = get_policy_for_rating(policy, rating)
-    content_categories = policy.get("content_categories", {})
-    platform_rules = policy.get("platform_specific_rules", [])
+    # Get rating rules (handle both "rating_rules" and "ratings" keys)
+    rating_rules_container = policy.get("rating_rules", policy.get("ratings", {}))
+    rating_rules = rating_rules_container.get(rating, {})
+    
+    # If rating not found, try partial match
+    if not rating_rules:
+        for key in rating_rules_container:
+            if rating.lower() in key.lower() or key.lower() in rating.lower():
+                rating_rules = rating_rules_container[key]
+                break
+    
+    # Get content categories (handle both key names)
+    content_categories = policy.get("content_category_definitions", 
+                                    policy.get("content_categories", {}))
+    platform_rules = policy.get("platform_specific_rules", {})
+    regional_notes = policy.get("regional_notes", {})
     
     # Build prompt section
     lines = [
-        f"## COMPLIANCE POLICY: {platform} / {region} / {rating}",
-        f"Source: {policy.get('source', 'Platform Guidelines')}",
+        f"## COMPLIANCE POLICY: {policy.get('platform', platform)} / {policy.get('region', region)} / {rating}",
+        f"Policy: {policy.get('policy_name', 'Platform Guidelines')}",
         "",
-        "### PROHIBITED CONTENT (Must be flagged):"
     ]
     
+    # Add regional overview if available
+    if regional_notes.get("overview"):
+        lines.extend([
+            "### REGIONAL CONTEXT:",
+            regional_notes["overview"],
+            ""
+        ])
+    
+    # Add prohibited content
+    lines.append("### PROHIBITED CONTENT (Flag as CRITICAL):")
     for item in rating_rules.get("prohibited", []):
         lines.append(f"- {item}")
     
+    # Add restricted content
     lines.extend([
         "",
-        "### RESTRICTED CONTENT (Flag for review):"
+        "### RESTRICTED CONTENT (Flag as WARNING):"
     ])
-    
     for item in rating_rules.get("restricted", []):
         lines.append(f"- {item}")
     
-    # Add content category details
+    # Add general requirements
+    if rating_rules.get("general_requirements"):
+        lines.extend([
+            "",
+            "### GENERAL REQUIREMENTS:"
+        ])
+        for item in rating_rules.get("general_requirements", []):
+            lines.append(f"- {item}")
+    
+    # Add content category details with severity
     lines.extend([
         "",
         "### CONTENT DETECTION GUIDELINES:"
     ])
     
     for category, details in content_categories.items():
-        severity = details.get("regional_severity", "")
-        if severity:
-            lines.append(f"- **{category.upper()}** [{severity}]: {details.get('description', '')}")
-            if details.get("notes"):
-                lines.append(f"  Note: {details['notes']}")
-        else:
-            lines.append(f"- **{category.upper()}**: {details.get('description', '')}")
+        severity = details.get("severity", "warning")
+        notes = details.get("notes", "")
+        keywords = details.get("keywords", [])
+        
+        lines.append(f"- **{category.upper()}** [Severity: {severity}]")
+        if notes:
+            lines.append(f"  Note: {notes}")
+        if keywords:
+            lines.append(f"  Keywords: {', '.join(keywords[:10])}")  # Limit keywords
     
-    # Add platform rules
+    # Add platform rules (if dict format, extract key points)
     if platform_rules:
         lines.extend([
             "",
             "### PLATFORM-SPECIFIC RULES:"
         ])
-        for rule in platform_rules[:5]:  # Limit to avoid token overflow
-            lines.append(f"- {rule}")
+        if isinstance(platform_rules, dict):
+            for key, value in list(platform_rules.items())[:5]:
+                lines.append(f"- **{key}**: {value}")
+        elif isinstance(platform_rules, list):
+            for rule in platform_rules[:5]:
+                lines.append(f"- {rule}")
     
     return "\n".join(lines)
 

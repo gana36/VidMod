@@ -1,0 +1,211 @@
+{
+    "policy_name": "YouTube East Asia Compliance Policy",
+    "version": "1.0",
+    "platform": "YouTube",
+    "region": "East Asia",
+    "description": "Comprehensive compliance guidelines for YouTube content in East Asian markets including China, Japan, South Korea, Taiwan, and Southeast Asia.",
+    "regional_notes": {
+        "overview": "East Asia has diverse regulatory environments with strict content controls in mainland China, moderate controls in Southeast Asia, and relatively liberal standards in Japan and South Korea for adult content but stricter on specific topics.",
+        "china": "China has the strictest controls - no foreign social media access. Content must avoid: Tibetan independence, Taiwan sovereignty discussions, Tiananmen Square, criticism of CCP, violence, gambling, supernatural themes with horror.",
+        "japan": "Relatively liberal for adult content but strict on: depiction of genitalia (must be censored), drug use, and violence against children.",
+        "south_korea": "Strict on: North Korea sympathetic content, Japanese colonial era glorification, excessive violence, gambling (heavily regulated).",
+        "taiwan": "Moderate standards similar to Western countries, but sensitive to PRC pressure and cross-strait issues.",
+        "southeast_asia": "Varies by country - Thailand has lèse-majesté laws, Indonesia has Islamic sensitivities, Vietnam has political restrictions."
+    },
+    "rating_rules": {
+        "Kids (G)": {
+            "description": "Content must be fully appropriate for all ages in conservative East Asian family viewing context",
+            "prohibited": [
+                "ANY violence including cartoon violence",
+                "ALL tobacco and smoking depiction",
+                "ALL alcohol including wine with meals",
+                "ANY drug references",
+                "Scary or supernatural content",
+                "Death or dying themes",
+                "ANY profanity in any language",
+                "Gambling of any kind",
+                "Religious criticism",
+                "Political content",
+                "Content disrespectful to elders"
+            ],
+            "restricted": [
+                "Kissing beyond light pecks",
+                "Conflict between characters",
+                "Competitive themes that glorify winning over teamwork"
+            ],
+            "general_requirements": [
+                "Must promote positive values: respect for elders, education, hard work",
+                "No unauthorized brand exposure",
+                "Characters should demonstrate filial piety and respect"
+            ]
+        },
+        "Teens (PG-13)": {
+            "description": "Content for teenagers with strict controls on tobacco and adult themes",
+            "prohibited": [
+                "Explicit violence and gore",
+                "ANY tobacco or smoking glamorization",
+                "Drug use or drug culture references",
+                "Sexual content beyond kissing",
+                "Gambling promotion",
+                "Strong profanity",
+                "Content encouraging disrespect to parents/teachers",
+                "Suicide or self-harm themes"
+            ],
+            "restricted": [
+                "Mild violence in action contexts (must have consequences)",
+                "Alcohol - only incidental, never glamorized",
+                "Mild language",
+                "Dating and romantic themes",
+                "Horror/supernatural with restraint"
+            ],
+            "general_requirements": [
+                "Violence must show consequences",
+                "Educational content preferred",
+                "Respect for cultural traditions"
+            ]
+        },
+        "Adult (R)": {
+            "description": "Mature content with regional legal restrictions",
+            "prohibited": [
+                "Explicit sexual content (genitalia must be censored per Japanese law if applicable)",
+                "Excessive gore and torture",
+                "Drug use promotion",
+                "Gambling that violates local laws",
+                "Political content criticizing governments",
+                "Religious defamation",
+                "Content promoting separatism or independence movements"
+            ],
+            "restricted": [
+                "Violence with context and consequences",
+                "Alcohol consumption",
+                "Tobacco use",
+                "Strong profanity",
+                "Sexual themes without explicit imagery",
+                "Supernatural/horror themes"
+            ],
+            "general_requirements": [
+                "Clear age restriction notices",
+                "Comply with local broadcasting standards"
+            ]
+        }
+    },
+    "content_category_definitions": {
+        "tobacco": {
+            "severity": "critical",
+            "notes": "East Asia has strict anti-tobacco advertising laws. Japan, South Korea, and China prohibit tobacco advertising. Any smoking depicted should be historically contextualized or shown negatively.",
+            "keywords": [
+                "cigarette",
+                "smoking",
+                "tobacco",
+                "cigar",
+                "vaping",
+                "e-cigarette",
+                "nicotine"
+            ]
+        },
+        "alcohol": {
+            "severity": "warning",
+            "notes": "Generally more permissive than Middle East - alcohol is culturally accepted. However, advertising to minors is prohibited. Excessive drinking should not be glamorized.",
+            "keywords": [
+                "beer",
+                "sake",
+                "soju",
+                "wine",
+                "liquor",
+                "cocktail",
+                "drinking",
+                "drunk"
+            ]
+        },
+        "drugs": {
+            "severity": "critical",
+            "notes": "Zero tolerance in most East Asian countries. Japan and China have severe penalties. Even marijuana references are problematic in most markets.",
+            "keywords": [
+                "drugs",
+                "marijuana",
+                "cocaine",
+                "heroin",
+                "pills",
+                "overdose",
+                "high",
+                "stoned"
+            ]
+        },
+        "violence": {
+            "severity": "warning",
+            "notes": "Stylized violence common in anime/games is more acceptable than realistic violence. Blood and gore should be minimized. Violence against women and children is strictly prohibited.",
+            "keywords": [
+                "fight",
+                "blood",
+                "kill",
+                "weapon",
+                "gun",
+                "knife",
+                "explosion",
+                "death"
+            ]
+        },
+        "profanity": {
+            "severity": "warning",
+            "notes": "Profanity standards vary. Japanese has fewer strong swear words. Korean and Chinese have family/ancestry-based insults that are considered severe.",
+            "keywords": [
+                "profanity",
+                "swear",
+                "curse",
+                "explicit language"
+            ]
+        },
+        "sexual_content": {
+            "severity": "high",
+            "notes": "Japan requires genital censorship (pixelation). Korean broadcasting has strict decency standards. Chinese content prohibits most sexual themes. Southeast Asia varies by country.",
+            "keywords": [
+                "nudity",
+                "sexual",
+                "intimate",
+                "explicit",
+                "revealing"
+            ]
+        },
+        "political_content": {
+            "severity": "critical",
+            "notes": "Highly sensitive. Avoid: Taiwan independence, Hong Kong protests, Tibetan issues, North Korea sympathy, territorial disputes (Senkaku, Dokdo, South China Sea), Tiananmen, criticism of ruling parties.",
+            "keywords": [
+                "independence",
+                "protest",
+                "political",
+                "government",
+                "territory",
+                "sovereignty"
+            ]
+        },
+        "supernatural_horror": {
+            "severity": "warning",
+            "notes": "Horror more restricted in Chinese market. Japanese horror genre (J-Horror) widely accepted. Ghost/supernatural themes common in Thai content but restricted in China.",
+            "keywords": [
+                "ghost",
+                "horror",
+                "demon",
+                "supernatural",
+                "curse",
+                "haunted"
+            ]
+        },
+        "gambling": {
+            "severity": "high",
+            "notes": "Illegal in most of mainland China, Japan (with exceptions for pachinko), and strictly regulated in South Korea. Macau is exception. Online gambling promotion prohibited.",
+            "keywords": [
+                "gambling",
+                "casino",
+                "betting",
+                "poker",
+                "slots",
+                "lottery promotion"
+            ]
+        }
+    },
+    "platform_specific_rules": {
+        "content_id_compliance": "Must comply with YouTube's Content ID for music rights, particularly important for K-pop and J-pop content",
+        "subtitle_requirements": "Consider providing subtitles in local languages (Simplified Chinese, Traditional Chinese, Japanese, Korean)",
+        "thumbnail_guidelines": "Thumbnails must be appropriate - avoid clickbait with misleading sexual imagery"
+    }
+}

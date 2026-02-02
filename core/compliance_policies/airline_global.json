@@ -1,0 +1,222 @@
+{
+    "policy_name": "Airline Global Compliance Policy",
+    "version": "1.0",
+    "platform": "Airline",
+    "region": "Global",
+    "description": "Strict compliance guidelines for in-flight entertainment (IFE) systems used by commercial airlines worldwide. Airlines serve diverse, captive audiences including families, business travelers, and international passengers.",
+    "regional_notes": {
+        "overview": "Airline IFE must be appropriate for all passengers regardless of origin or destination. Content must pass the 'seated next to anyone' test - appropriate if viewed by a child, elderly passenger, different cultures, or religious backgrounds.",
+        "major_carriers": "Emirates, Qatar Airways, Singapore Airlines, Lufthansa, British Airways, American Airlines, Delta, United use strict IFE guidelines.",
+        "editing_standard": "Most airlines use pre-edited airline versions of films. These edits are more strict than theatrical or streaming versions."
+    },
+    "rating_rules": {
+        "Kids (G)": {
+            "description": "Content for children traveling without headphones being visible to nearby passengers",
+            "prohibited": [
+                "ANY violence",
+                "ALL weapons",
+                "ALL alcohol and tobacco",
+                "ANY profanity",
+                "Scary content",
+                "Death themes",
+                "Conflict that could upset young children",
+                "Planes crashing or air disasters",
+                "Terrorism or hijacking themes"
+            ],
+            "restricted": [
+                "Nothing that could distress a child on a plane"
+            ],
+            "general_requirements": [
+                "Calming, positive content",
+                "Must be appropriate for confined space viewing",
+                "No content that could cause anxiety about flying"
+            ]
+        },
+        "Teens (PG-13)": {
+            "description": "Teen content with stricter-than-theater standards due to shared viewing environment",
+            "prohibited": [
+                "Violence beyond stylized action",
+                "Blood and gore",
+                "Alcohol consumption shown positively",
+                "ALL tobacco use",
+                "Drug references",
+                "Sexual content beyond brief kissing",
+                "Strong profanity",
+                "Air disaster themes",
+                "Terrorism content",
+                "Religious mockery"
+            ],
+            "restricted": [
+                "Mild action violence (no blood)",
+                "Brief alcohol visibility (not drinking)",
+                "Mild language (hell, damn)",
+                "Brief romantic scenes"
+            ],
+            "general_requirements": [
+                "Must pass 'seated next to grandmother' test",
+                "Considerate of diverse cultural backgrounds",
+                "No anxiety-inducing content about planes/travel"
+            ]
+        },
+        "Adult (R)": {
+            "description": "Adult content still heavily edited for airline viewing",
+            "prohibited": [
+                "ANY nudity",
+                "Explicit sexual content",
+                "Graphic violence and gore",
+                "Excessive profanity (F-words reduced or muted)",
+                "Drug use scenes",
+                "Air disaster or plane crash content",
+                "Terrorism themes",
+                "Religious or cultural mockery",
+                "LGBTQ+ content (for routes to/from Middle East, Asia)",
+                "Political content that could offend any nation"
+            ],
+            "restricted": [
+                "Violence must be reduced from theatrical version",
+                "Brief alcohol (not excessive drinking)",
+                "Implied sexuality (covered, implied)",
+                "Moderate language (some strong words muted)"
+            ],
+            "general_requirements": [
+                "Airline-specific edits required",
+                "Consider all route destinations in content approval",
+                "Headphone-only audio for mature content"
+            ]
+        }
+    },
+    "content_category_definitions": {
+        "air_disaster": {
+            "severity": "critical",
+            "notes": "ABSOLUTELY PROHIBITED. No plane crashes, hijackings, engine failures, turbulence disasters, or anything that could cause passenger anxiety about the flight they are currently on.",
+            "keywords": [
+                "plane crash",
+                "air disaster",
+                "hijacking",
+                "turbulence",
+                "engine failure",
+                "emergency landing",
+                "plane",
+                "crash",
+                "flight disaster"
+            ]
+        },
+        "terrorism": {
+            "severity": "critical",
+            "notes": "Prohibited due to security concerns and potential passenger distress. No terrorism themes, plots, or depictions.",
+            "keywords": [
+                "terrorism",
+                "terrorist",
+                "bomb",
+                "hijack",
+                "hostage",
+                "attack"
+            ]
+        },
+        "violence": {
+            "severity": "high",
+            "notes": "Must be significantly reduced from theatrical versions. No blood, gore, or realistic violence. Stylized action may be acceptable.",
+            "keywords": [
+                "violence",
+                "blood",
+                "death",
+                "murder",
+                "weapon",
+                "gun",
+                "fight"
+            ]
+        },
+        "sexual_content": {
+            "severity": "critical",
+            "notes": "Nudity is NEVER acceptable on airlines due to shared viewing. Sexual scenes must be cut or heavily edited. Brief kissing only.",
+            "keywords": [
+                "nudity",
+                "sexual",
+                "sex",
+                "nude",
+                "naked",
+                "intimate",
+                "bedroom scene"
+            ]
+        },
+        "profanity": {
+            "severity": "high",
+            "notes": "Strong profanity must be muted or dubbed. F-words typically replaced with milder alternatives. On-screen subtitles may also be edited.",
+            "keywords": [
+                "fuck",
+                "shit",
+                "profanity",
+                "swear",
+                "explicit language"
+            ]
+        },
+        "alcohol": {
+            "severity": "warning",
+            "notes": "Ironic since alcohol is served on planes, but drinking should not be central to scenes. Excessive drinking or alcoholism themes avoided.",
+            "keywords": [
+                "drinking",
+                "drunk",
+                "alcohol",
+                "bar",
+                "alcoholism"
+            ]
+        },
+        "tobacco": {
+            "severity": "high",
+            "notes": "Smoking prohibited in IFE content. Even historical smoking scenes are often cut for airline versions.",
+            "keywords": [
+                "smoking",
+                "cigarette",
+                "cigar",
+                "tobacco",
+                "vaping"
+            ]
+        },
+        "drugs": {
+            "severity": "critical",
+            "notes": "Drug use scenes prohibited. Drug references should be minimized.",
+            "keywords": [
+                "drugs",
+                "cocaine",
+                "heroin",
+                "marijuana",
+                "pills",
+                "overdose"
+            ]
+        },
+        "religious_political": {
+            "severity": "high",
+            "notes": "Must be neutral. Airlines fly passengers of all faiths and political affiliations. Avoid content that mocks or criticizes any religion or government.",
+            "keywords": [
+                "religious",
+                "political",
+                "government",
+                "propaganda"
+            ]
+        },
+        "cultural_sensitivity": {
+            "severity": "high",
+            "notes": "Content viewed on international flights must not offend any culture the airline serves. Middle Eastern routes require additional cuts for modesty and religious content.",
+            "keywords": [
+                "cultural",
+                "offensive",
+                "stereotype",
+                "mockery"
+            ]
+        }
+    },
+    "platform_specific_rules": {
+        "airline_edits": "All content must use airline-specific edited versions. Studios typically provide these cuts.",
+        "route_specific": "Some content may be available on certain routes but not others based on destination country regulations",
+        "headphone_audio": "Mature audio content only available through headphones, not speakers",
+        "screen_visibility": "Consider that screens are visible to adjacent passengers including children",
+        "closed_captions": "Subtitles should also be reviewed for profanity and offensive content",
+        "thumbnail_review": "Movie/show thumbnails and descriptions must also be appropriate"
+    },
+    "route_considerations": {
+        "middle_east_routes": "Additional cuts for alcohol, LGBTQ+, religious content",
+        "asian_routes": "Consider tobacco restrictions (Japan, Korea, China)",
+        "european_routes": "Nazi symbol restrictions (Germany flights)",
+        "us_domestic": "Slightly more permissive but still family-friendly standard"
+    }
+}

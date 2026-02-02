@@ -1,0 +1,214 @@
+{
+    "policy_name": "Social Media United States Compliance Policy",
+    "version": "1.0",
+    "platform": "Social Media",
+    "region": "United States",
+    "description": "Compliance guidelines for social media platforms (TikTok, Instagram, Facebook, Twitter/X, Snapchat) in the United States market.",
+    "regional_notes": {
+        "overview": "US social media is largely self-regulated with platform-specific community guidelines. First Amendment provides broad speech protections but platforms can enforce their own rules.",
+        "tiktok": "COPPA compliance critical. Algorithm-driven visibility makes content moderation essential. No minors in unsafe situations.",
+        "instagram": "Visual platform with strong community guidelines on nudity, violence, and hate. Shopping integration adds commercial compliance.",
+        "facebook": "Oversight Board decisions, news integrity policies, and extensive hate speech rules.",
+        "twitter_x": "More permissive on speech but enforces rules against harassment, violent threats, and CSAM."
+    },
+    "rating_rules": {
+        "Kids (G)": {
+            "description": "Content suitable for all ages on social media platforms",
+            "prohibited": [
+                "Violence and fighting",
+                "Alcohol and tobacco",
+                "Drug references",
+                "Profanity",
+                "Sexual or suggestive content",
+                "Dangerous challenges or stunts",
+                "Bullying or harassment",
+                "Personal information of minors",
+                "Content exploiting children",
+                "Scary or disturbing content"
+            ],
+            "restricted": [
+                "None - all content must be fully appropriate"
+            ],
+            "general_requirements": [
+                "COPPA compliance - no data collection from under 13",
+                "No directed advertising to children",
+                "Safe messaging - no DMs with children from adults",
+                "Positive, educational content preferred"
+            ]
+        },
+        "Teens (PG-13)": {
+            "description": "Content suitable for teenage social media users",
+            "prohibited": [
+                "Graphic violence and gore",
+                "Sexual nudity",
+                "Drug use or promotion",
+                "Dangerous challenges that could cause harm",
+                "Bullying and harassment",
+                "Self-harm or suicide content",
+                "Hate speech",
+                "Misinformation on health/voting"
+            ],
+            "restricted": [
+                "Mild violence in entertainment context",
+                "Alcohol in adult contexts",
+                "Mild language",
+                "Romantic content",
+                "Mildly scary content",
+                "Controversial opinions (allowed but may limit reach)"
+            ],
+            "general_requirements": [
+                "Age-appropriate content",
+                "Clear sponsorship disclosure (FTC)",
+                "No promotion of dangerous behavior",
+                "Mental health sensitivity"
+            ]
+        },
+        "Adult (R)": {
+            "description": "Mature content for adult social media users",
+            "prohibited": [
+                "Illegal content (CSAM, violence)",
+                "Non-consensual intimate imagery",
+                "Violent extremism",
+                "Hate speech targeting protected groups",
+                "Coordinated harassment",
+                "Dangerous misinformation (medical, election)"
+            ],
+            "restricted": [
+                "Artistic nudity (platform-dependent)",
+                "Violence in news/documentary context",
+                "Strong language",
+                "Alcohol and tobacco",
+                "Cannabis content (complex, state-dependent)",
+                "Political content (may be labeled/limited)"
+            ],
+            "general_requirements": [
+                "Age-gated where required",
+                "Clear labeling for sensitive content",
+                "FTC disclosure for sponsorships",
+                "Respect IP/copyright"
+            ]
+        }
+    },
+    "content_category_definitions": {
+        "violence": {
+            "severity": "warning",
+            "notes": "Social media restricts graphic violence but allows news coverage. Violent threats taken seriously. Fight videos often removed.",
+            "keywords": [
+                "fight",
+                "violence",
+                "death",
+                "assault",
+                "graphic",
+                "gore",
+                "attack"
+            ]
+        },
+        "profanity": {
+            "severity": "low",
+            "notes": "Generally permissive on most platforms. May affect algorithm visibility. Some profanity can trigger demonetization.",
+            "keywords": [
+                "fuck",
+                "shit",
+                "profanity",
+                "swear"
+            ]
+        },
+        "sexual_content": {
+            "severity": "high",
+            "notes": "Nudity policies vary - Instagram strict, Twitter permissive. Sexual content must be consensual and labeled. CSAM zero tolerance.",
+            "keywords": [
+                "nudity",
+                "sexual",
+                "naked",
+                "nsfw",
+                "explicit",
+                "intimate"
+            ]
+        },
+        "alcohol": {
+            "severity": "low",
+            "notes": "Allowed but advertising is regulated. Platforms may restrict alcohol ads to 21+. Excessive drinking content demonetized.",
+            "keywords": [
+                "alcohol",
+                "drinking",
+                "beer",
+                "wine",
+                "drunk"
+            ]
+        },
+        "tobacco": {
+            "severity": "warning",
+            "notes": "Tobacco ads prohibited. Organic tobacco content allowed but may affect monetization. Vaping content restricted on some platforms.",
+            "keywords": [
+                "smoking",
+                "cigarette",
+                "vaping",
+                "tobacco",
+                "juul"
+            ]
+        },
+        "drugs": {
+            "severity": "high",
+            "notes": "Drug sales prohibited. Drug use content restricted. Cannabis complex - legal states allow more. Platforms may demonetize.",
+            "keywords": [
+                "drugs",
+                "marijuana",
+                "weed",
+                "pills",
+                "cocaine"
+            ]
+        },
+        "dangerous_activities": {
+            "severity": "high",
+            "notes": "Dangerous challenges, self-harm content, and stunts that could cause injury are restricted or removed. Suicide prevention resources required.",
+            "keywords": [
+                "challenge",
+                "dangerous",
+                "stunt",
+                "self-harm",
+                "suicide",
+                "eating disorder"
+            ]
+        },
+        "misinformation": {
+            "severity": "warning",
+            "notes": "Medical and election misinformation actively moderated. COVID disinfo, vaccine misinfo, election fraud claims labeled or removed.",
+            "keywords": [
+                "misinformation",
+                "fake news",
+                "conspiracy",
+                "hoax",
+                "false"
+            ]
+        },
+        "hate_speech": {
+            "severity": "critical",
+            "notes": "All major platforms prohibit hate speech targeting protected characteristics (race, religion, gender, orientation, disability).",
+            "keywords": [
+                "hate",
+                "racist",
+                "slur",
+                "discrimination",
+                "bigotry"
+            ]
+        },
+        "sponsorship": {
+            "severity": "warning",
+            "notes": "FTC requires clear disclosure of paid partnerships, gifted products, and affiliate relationships. #ad or similar required.",
+            "keywords": [
+                "sponsored",
+                "ad",
+                "partnership",
+                "gifted",
+                "affiliate"
+            ]
+        }
+    },
+    "platform_specific_rules": {
+        "ftc_compliance": "Paid partnerships must be disclosed clearly (FTC Endorsement Guidelines)",
+        "coppa": "No data collection from children under 13 without verifiable parental consent",
+        "dmca": "Respect copyright - infringing content will be removed",
+        "section_230": "Platforms can moderate as they see fit but have liability protections",
+        "hashtag_policies": "Avoid banned or restricted hashtags that limit visibility"
+    }
+}

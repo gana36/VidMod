@@ -1,0 +1,173 @@
+{
+    "policy_name": "OTT United States Compliance Policy",
+    "version": "1.0",
+    "platform": "OTT",
+    "region": "United States",
+    "description": "Compliance guidelines for OTT streaming platforms (Netflix, Disney+, Hulu, HBO Max, Amazon Prime Video) in the United States market.",
+    "regional_notes": {
+        "overview": "US OTT platforms follow MPAA-style ratings but have more flexibility than broadcast TV. FCC regulations don't apply to streaming, but platforms self-regulate to maintain brand safety and subscriber trust.",
+        "content_ratings": "TV-Y, TV-Y7, TV-G, TV-PG, TV-14, TV-MA ratings should be accurately assigned with content descriptors."
+    },
+    "rating_rules": {
+        "Kids (G)": {
+            "description": "Content suitable for all ages on family streaming platforms like Disney+",
+            "prohibited": [
+                "Violence beyond mild cartoon slapstick",
+                "Any alcohol, tobacco, or drug references",
+                "Profanity of any kind",
+                "Scary or frightening content",
+                "Death or dying (beyond 'going away forever' metaphors)",
+                "Weapons shown being used",
+                "Bullying without clear consequences",
+                "Sexual content or innuendo"
+            ],
+            "restricted": [
+                "Mild conflict with positive resolution",
+                "Fantasy danger with happy endings",
+                "Light mentions of past sadness"
+            ],
+            "general_requirements": [
+                "Educational value preferred",
+                "Positive messaging about friendship, sharing, diversity",
+                "No unauthorized brand exposure in kids content (FTC compliance)"
+            ]
+        },
+        "Teens (PG-13)": {
+            "description": "Content for teenagers, equivalent to TV-PG/TV-14",
+            "prohibited": [
+                "Explicit violence and gore",
+                "Drug use shown positively",
+                "Explicit sexual content",
+                "Strong profanity (F-word used sparingly if at all)",
+                "Graphic self-harm or suicide depiction"
+            ],
+            "restricted": [
+                "Action violence with consequences",
+                "Alcohol in social contexts (not excessive drinking)",
+                "Tobacco - historical context only preferred",
+                "Mild language (damn, hell, mild profanity)",
+                "Kissing and implied romance",
+                "Intense but not gratuitous peril"
+            ],
+            "general_requirements": [
+                "Content descriptors: V (violence), L (language), S (sexual content), D (suggestive dialogue)",
+                "Sensitive content warnings for heavy themes"
+            ]
+        },
+        "Adult (R)": {
+            "description": "Mature content equivalent to TV-MA",
+            "prohibited": [
+                "Illegal content (CSAM, real violence)",
+                "Content violating platform Terms of Service",
+                "Unauthorized copyrighted material",
+                "Hate speech targeting protected groups"
+            ],
+            "restricted": [
+                "Graphic violence in context",
+                "Brief nudity and sexual situations",
+                "Strong language throughout",
+                "Drug use depiction",
+                "Intense horror content"
+            ],
+            "general_requirements": [
+                "Age gate required for TV-MA content",
+                "Parental controls must be supported",
+                "Content warnings for sensitive topics (sexual assault, suicide, abuse)"
+            ]
+        }
+    },
+    "content_category_definitions": {
+        "violence": {
+            "severity": "warning",
+            "notes": "OTT has more latitude than broadcast. Context matters - violence in prestige drama rated differently than gratuitous content.",
+            "keywords": [
+                "fight",
+                "blood",
+                "death",
+                "weapon",
+                "gun",
+                "murder",
+                "assault",
+                "torture"
+            ]
+        },
+        "profanity": {
+            "severity": "low",
+            "notes": "Streaming allows more profanity than broadcast. F-word and other strong language acceptable in TV-MA content.",
+            "keywords": [
+                "fuck",
+                "shit",
+                "ass",
+                "bitch",
+                "damn",
+                "hell",
+                "profanity"
+            ]
+        },
+        "alcohol": {
+            "severity": "low",
+            "notes": "Generally permissive. Social drinking common in content. Avoid excessive drinking shown positively, especially for younger ratings.",
+            "keywords": [
+                "beer",
+                "wine",
+                "liquor",
+                "cocktail",
+                "drinking",
+                "drunk",
+                "bar"
+            ]
+        },
+        "tobacco": {
+            "severity": "warning",
+            "notes": "Streaming platforms increasingly avoid tobacco. Disney+ famously avoids smoking. Historical context acceptable but will trigger content advisory.",
+            "keywords": [
+                "cigarette",
+                "smoking",
+                "tobacco",
+                "cigar",
+                "vaping"
+            ]
+        },
+        "drugs": {
+            "severity": "warning",
+            "notes": "Drug use can be depicted in mature content but should not be promotional. Educational content about drugs is acceptable.",
+            "keywords": [
+                "drugs",
+                "marijuana",
+                "cocaine",
+                "heroin",
+                "pills",
+                "meth",
+                "high"
+            ]
+        },
+        "sexual_content": {
+            "severity": "warning",
+            "notes": "Streaming allows more than broadcast. Brief nudity acceptable in TV-MA. Extended sexual content may require separate rating.",
+            "keywords": [
+                "nudity",
+                "sexual",
+                "sex",
+                "explicit",
+                "intimate",
+                "naked"
+            ]
+        },
+        "logos": {
+            "severity": "low",
+            "notes": "Product placement is common in streaming content. Ensure proper licensing for visible brands.",
+            "keywords": [
+                "brand",
+                "logo",
+                "trademark",
+                "product placement"
+            ]
+        }
+    },
+    "platform_specific_rules": {
+        "content_ratings": "Must accurately assign TV-Y through TV-MA ratings with appropriate descriptors",
+        "accessibility": "Closed captions and audio description required for many titles",
+        "parental_controls": "Platform must support parental controls for content filtering",
+        "content_warnings": "Trigger warnings required for sensitive content (suicide, sexual assault)"
+    }
+}

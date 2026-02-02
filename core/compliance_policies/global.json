@@ -1,0 +1,161 @@
+{
+    "policy_name": "Global Fallback Compliance Policy",
+    "version": "1.0",
+    "platform": "All",
+    "region": "Global",
+    "description": "Default global compliance guidelines used as a fallback when no specific platform/region policy is available. Uses moderate standards appropriate for international distribution.",
+    "regional_notes": {
+        "overview": "This policy provides baseline compliance for international distribution. It uses conservative-but-not-extreme standards that should be acceptable in most markets."
+    },
+    "rating_rules": {
+        "Kids (G)": {
+            "description": "Content suitable for children worldwide",
+            "prohibited": [
+                "All violence beyond mild slapstick",
+                "All alcohol, tobacco, and drugs",
+                "All profanity",
+                "All sexual content",
+                "Frightening content",
+                "Weapons",
+                "Bullying without consequences"
+            ],
+            "restricted": [
+                "Mild conflict with resolution",
+                "Very light peril"
+            ],
+            "general_requirements": [
+                "Positive values and messaging",
+                "Educational content preferred",
+                "Cultural sensitivity for global audiences"
+            ]
+        },
+        "Teens (PG-13)": {
+            "description": "Content for teenagers with global distribution",
+            "prohibited": [
+                "Graphic violence and gore",
+                "Explicit sexual content",
+                "Drug use shown positively",
+                "Excessive profanity",
+                "Content targeting specific religions negatively",
+                "Political extremism"
+            ],
+            "restricted": [
+                "Action violence without gore",
+                "Alcohol in context",
+                "Mild profanity",
+                "Romantic scenes",
+                "Tobacco - historical only"
+            ],
+            "general_requirements": [
+                "Culturally neutral where possible",
+                "Age-appropriate themes",
+                "No content that could be illegal in major markets"
+            ]
+        },
+        "Adult (R)": {
+            "description": "Adult content with global considerations",
+            "prohibited": [
+                "Illegal content in any jurisdiction",
+                "Hate speech and discrimination",
+                "Religious defamation",
+                "Extreme gore and torture",
+                "Non-consensual sexual content"
+            ],
+            "restricted": [
+                "Violence in context",
+                "Brief nudity",
+                "Strong language",
+                "Drug use in context",
+                "Alcohol and tobacco"
+            ],
+            "general_requirements": [
+                "Age verification recommended",
+                "Content warnings for sensitive topics",
+                "Consider localization needs"
+            ]
+        }
+    },
+    "content_category_definitions": {
+        "violence": {
+            "severity": "warning",
+            "notes": "Moderate approach - allow contextual violence but flag graphic content for review.",
+            "keywords": [
+                "violence",
+                "fight",
+                "blood",
+                "death",
+                "weapon",
+                "gun"
+            ]
+        },
+        "profanity": {
+            "severity": "low",
+            "notes": "Flag strong profanity. Consider cultural context.",
+            "keywords": [
+                "profanity",
+                "swear",
+                "explicit"
+            ]
+        },
+        "alcohol": {
+            "severity": "warning",
+            "notes": "Flag excessive drinking. Note that some markets prohibit completely.",
+            "keywords": [
+                "alcohol",
+                "drinking",
+                "beer",
+                "wine"
+            ]
+        },
+        "tobacco": {
+            "severity": "warning",
+            "notes": "Flag tobacco content. Many jurisdictions have advertising restrictions.",
+            "keywords": [
+                "smoking",
+                "cigarette",
+                "tobacco"
+            ]
+        },
+        "drugs": {
+            "severity": "high",
+            "notes": "Flag drug content for review. Policies vary widely by jurisdiction.",
+            "keywords": [
+                "drugs",
+                "marijuana",
+                "cocaine"
+            ]
+        },
+        "sexual_content": {
+            "severity": "high",
+            "notes": "Flag nudity and sexual content. Standards vary significantly by region.",
+            "keywords": [
+                "nudity",
+                "sexual",
+                "naked"
+            ]
+        },
+        "religious_content": {
+            "severity": "warning",
+            "notes": "Flag content that may be religiously sensitive. Avoid mockery or defamation.",
+            "keywords": [
+                "religion",
+                "religious",
+                "prophet"
+            ]
+        },
+        "political_content": {
+            "severity": "warning",
+            "notes": "Flag politically charged content for review. May need regional variants.",
+            "keywords": [
+                "political",
+                "government",
+                "protest"
+            ]
+        }
+    },
+    "platform_specific_rules": {
+        "localization": "Consider whether content needs regional adaptation",
+        "content_warnings": "Add appropriate content warnings for mature themes",
+        "age_gates": "Implement age verification for mature content"
+    }
+}

@@ -1,0 +1,208 @@
+{
+    "policy_name": "OTT Middle East Compliance Policy",
+    "version": "1.0",
+    "platform": "OTT",
+    "region": "Middle East",
+    "description": "Compliance guidelines for OTT streaming platforms operating in Middle Eastern markets including UAE, Saudi Arabia, Qatar, Kuwait, Bahrain, Oman, and Egypt.",
+    "regional_notes": {
+        "overview": "Middle Eastern OTT platforms face strict government oversight. Shahid, OSN, StarzPlay, and international platforms must comply with local media authority regulations. Content is pre-screened or edited for regional compliance.",
+        "saudi_arabia": "GCAM (General Commission for Audiovisual Media) regulates content. Very strict on alcohol, sexual content, LGBTQ+ themes, political criticism.",
+        "uae": "National Media Council oversight. Moderate compared to Saudi but still conservative. Dubai more lenient than Abu Dhabi.",
+        "egypt": "Largest Arabic content market. Government censorship of political content, moderate on social issues.",
+        "key_platforms": "Shahid (MBC), OSN, StarzPlay, Netflix MENA (with regional restrictions), Amazon Prime Video MENA"
+    },
+    "rating_rules": {
+        "Kids (G)": {
+            "description": "Family content adhering to Islamic and traditional values",
+            "prohibited": [
+                "ANY violence including cartoon violence",
+                "ALL alcohol references - even in background",
+                "ALL tobacco and drug content",
+                "ANY profanity in any language",
+                "Physical affection beyond family hugs",
+                "Western dating concepts",
+                "Magic and sorcery",
+                "LGBTQ+ themes or characters",
+                "Non-Islamic religious education",
+                "Criticism of Islam or prophets",
+                "Immodest dress"
+            ],
+            "restricted": [
+                "Music (acceptable but no dancing)",
+                "Mixed gender interaction should be modest"
+            ],
+            "general_requirements": [
+                "Content should reinforce Islamic values",
+                "Respect for elders and family structure",
+                "Modest dress for all characters",
+                "Educational content encouraged"
+            ]
+        },
+        "Teens (PG-13)": {
+            "description": "Teen content with conservative restrictions",
+            "prohibited": [
+                "ALL alcohol - consumption, advertising, positive portrayal",
+                "ALL LGBTQ+ content - relationships, identity, themes",
+                "Sexual content - even kissing may be cut",
+                "Drug references",
+                "Strong profanity",
+                "Criticism of government or royal families",
+                "Religious mockery or blasphemy",
+                "Sorcery or witchcraft themes",
+                "Immodest female dress (shoulders, legs above knee)"
+            ],
+            "restricted": [
+                "Stylized action violence (no blood)",
+                "Tobacco - historical only, shown negatively",
+                "Mild language",
+                "Modest romantic themes within marriage context"
+            ],
+            "general_requirements": [
+                "Content must be culturally appropriate",
+                "Women characters should be respectfully portrayed",
+                "No promotion of un-Islamic lifestyles"
+            ]
+        },
+        "Adult (R)": {
+            "description": "Adult content still heavily restricted compared to Western markets",
+            "prohibited": [
+                "ALL alcohol advertising and positive portrayal",
+                "ALL LGBTQ+ content",
+                "ALL explicit sexual content or nudity",
+                "Drug use shown positively",
+                "Blasphemy and religious mockery",
+                "Political criticism of Gulf governments",
+                "Israeli content or normalization themes (varies by country)",
+                "Depiction of Prophet Muhammad or companions",
+                "Excessive gore"
+            ],
+            "restricted": [
+                "Violence in war/action contexts",
+                "Brief alcohol visibility in Western content (may get edited)",
+                "Strong language (usually dubbed over)",
+                "Implied sexuality without nudity"
+            ],
+            "general_requirements": [
+                "Age verification required",
+                "Content may be edited for regional release",
+                "Arabic subtitles/dubs required"
+            ]
+        }
+    },
+    "content_category_definitions": {
+        "alcohol": {
+            "severity": "critical",
+            "notes": "STRICTLY PROHIBITED in Saudi Arabia and other Gulf states. Content featuring alcohol is either cut, blurred, or entire series may be pulled. Even wine at dinner scenes are problematic.",
+            "keywords": [
+                "beer",
+                "wine",
+                "alcohol",
+                "liquor",
+                "champagne",
+                "cocktail",
+                "drinking",
+                "drunk",
+                "bar",
+                "pub"
+            ]
+        },
+        "lgbtq": {
+            "severity": "critical",
+            "notes": "PROHIBITED. Homosexuality is illegal in most Middle Eastern countries. Any LGBTQ+ characters, themes, or references must be removed. Entire films have been banned for minor LGBTQ+ references.",
+            "keywords": [
+                "gay",
+                "lesbian",
+                "transgender",
+                "bisexual",
+                "lgbtq",
+                "same-sex",
+                "homosexual",
+                "queer",
+                "pride"
+            ]
+        },
+        "sexual_content": {
+            "severity": "critical",
+            "notes": "Strictly prohibited. Even kissing scenes are often cut for regional releases. Nudity absolutely prohibited. Implied sexuality only within marriage context.",
+            "keywords": [
+                "nudity",
+                "sexual",
+                "sex",
+                "intimate",
+                "naked",
+                "kissing",
+                "revealing"
+            ]
+        },
+        "religious_content": {
+            "severity": "critical",
+            "notes": "Islam must be portrayed respectfully. No depiction of Prophet Muhammad. No mockery of any prophets (including Christian/Jewish). Ramadan content has special requirements.",
+            "keywords": [
+                "prophet",
+                "muhammad",
+                "islam",
+                "allah",
+                "mosque",
+                "quran",
+                "religious mockery"
+            ]
+        },
+        "political_content": {
+            "severity": "critical",
+            "notes": "Criticism of governments, royal families, or ruling parties strictly prohibited. Pro-democracy themes can be problematic. Israel-related content varies by country.",
+            "keywords": [
+                "government",
+                "political",
+                "protest",
+                "revolution",
+                "democracy",
+                "criticism"
+            ]
+        },
+        "violence": {
+            "severity": "warning",
+            "notes": "Moderate violence acceptable but gore and torture should be minimized. Terrorism-related content is sensitive.",
+            "keywords": [
+                "violence",
+                "blood",
+                "death",
+                "weapon",
+                "fight",
+                "war"
+            ]
+        },
+        "modesty": {
+            "severity": "high",
+            "notes": "Female characters should dress modestly. Revealing clothing, swimwear, and tight-fitting clothes may be blurred or scenes cut.",
+            "keywords": [
+                "revealing",
+                "swimsuit",
+                "bikini",
+                "lingerie",
+                "cleavage",
+                "miniskirt",
+                "immodest"
+            ]
+        },
+        "sorcery": {
+            "severity": "high",
+            "notes": "Magic and sorcery are viewed negatively in Islamic context. Harry Potter-style content is controversial. Fortune-telling and occult themes prohibited.",
+            "keywords": [
+                "magic",
+                "witch",
+                "sorcery",
+                "spell",
+                "occult",
+                "fortune",
+                "supernatural"
+            ]
+        }
+    },
+    "platform_specific_rules": {
+        "pre_screening": "All content should be reviewed for regional compliance before release",
+        "editing_required": "Content may require cuts or digital alterations for regional release",
+        "localization": "Arabic dubbing and subtitles required for primary content",
+        "ramadan_content": "Special family-oriented content during Ramadan is expected",
+        "rating_systems": "Comply with local rating systems where applicable"
+    }
+}

@@ -1,0 +1,219 @@
+{
+    "policy_name": "YouTube Europe Compliance Policy",
+    "version": "1.0",
+    "platform": "YouTube",
+    "region": "Europe",
+    "description": "Comprehensive compliance guidelines for YouTube content in European markets, aligned with EU regulations and national broadcasting standards.",
+    "regional_notes": {
+        "overview": "Europe has harmonized standards through EU regulations while maintaining national variations. GDPR affects data handling, while AVMSD (Audiovisual Media Services Directive) governs content standards.",
+        "eu_wide": "EU-wide standards prohibit hate speech, require age verification for certain content, and mandate content warnings. GDPR requires privacy compliance.",
+        "germany": "Strict laws on Nazi symbols, Holocaust denial, violence in games/media (USK ratings), and hate speech (NetzDG law).",
+        "france": "Strict advertising rules, protection of French language, limits on alcohol advertising (Loi Évin).",
+        "uk": "Post-Brexit follows Ofcom guidelines. Strict watershed rules, advertising standards (ASA), and hate speech laws.",
+        "nordic": "Generally liberal standards but strict on alcohol advertising and child protection.",
+        "southern_europe": "Spain, Italy, Portugal - moderate standards with Catholic cultural influences."
+    },
+    "rating_rules": {
+        "Kids (G)": {
+            "description": "Content suitable for all European audiences including young children",
+            "prohibited": [
+                "Violence including animated violence",
+                "Alcohol and tobacco",
+                "Drug references",
+                "Sexual content",
+                "Strong language",
+                "Frightening content",
+                "Gambling references",
+                "Hate speech of any kind",
+                "Nazi symbols or Holocaust denial"
+            ],
+            "restricted": [
+                "Mild conflict resolution themes",
+                "Very mild peril with positive resolution"
+            ],
+            "general_requirements": [
+                "Must comply with EU child protection standards",
+                "No advertising targeting children for unhealthy products",
+                "Positive messaging and educational value preferred"
+            ]
+        },
+        "Teens (PG-13)": {
+            "description": "Content for teenagers with parental guidance suggested",
+            "prohibited": [
+                "Explicit violence and gore",
+                "Sexual content beyond kissing",
+                "Drug use or promotion",
+                "Hate speech or discrimination",
+                "Tobacco advertising",
+                "Excessive alcohol focus",
+                "Self-harm or suicide glamorization"
+            ],
+            "restricted": [
+                "Mild violence with consequences shown",
+                "Alcohol in incidental contexts",
+                "Mild language (not excessive)",
+                "Romantic themes appropriate for age",
+                "Horror with restraint"
+            ],
+            "general_requirements": [
+                "Content warnings when applicable",
+                "Violence must not be gratuitous",
+                "PEGI-style age guidance recommended"
+            ]
+        },
+        "Adult (R)": {
+            "description": "Mature content for adult audiences with regional restrictions",
+            "prohibited": [
+                "Child exploitation material",
+                "Hate speech and discrimination based on protected characteristics",
+                "Nazi symbols in glorifying context (especially Germany/Austria)",
+                "Holocaust denial",
+                "Incitement to violence",
+                "Non-consensual sexual content",
+                "Animal cruelty"
+            ],
+            "restricted": [
+                "Violence in context of drama/documentary",
+                "Alcohol consumption",
+                "Tobacco use",
+                "Strong language",
+                "Sexual themes appropriate for adults",
+                "Drug references in educational/documentary context"
+            ],
+            "general_requirements": [
+                "Age verification gates required",
+                "Clear content warnings",
+                "Must comply with national laws",
+                "Watershed rules for broadcast (after 9/10 PM typically)"
+            ]
+        }
+    },
+    "content_category_definitions": {
+        "violence": {
+            "severity": "warning",
+            "notes": "European standards distinguish between fictional and real violence. Gratuitous violence is restricted. Germany has particularly strict rules on violent video game content.",
+            "keywords": [
+                "fight",
+                "blood",
+                "death",
+                "weapon",
+                "gun",
+                "knife",
+                "murder",
+                "assault"
+            ]
+        },
+        "profanity": {
+            "severity": "low",
+            "notes": "European standards are generally more permissive on profanity than US. However, slurs and discriminatory language are strictly prohibited.",
+            "keywords": [
+                "profanity",
+                "swear",
+                "explicit language",
+                "slur"
+            ]
+        },
+        "alcohol": {
+            "severity": "warning",
+            "notes": "Advertising is heavily regulated (Loi Évin in France, Nordic restrictions). Depiction in content is generally permitted for adults but must not target minors or promote binge drinking.",
+            "keywords": [
+                "beer",
+                "wine",
+                "liquor",
+                "spirits",
+                "cocktail",
+                "drinking",
+                "pub",
+                "bar"
+            ]
+        },
+        "tobacco": {
+            "severity": "high",
+            "notes": "EU Tobacco Products Directive restricts tobacco advertising. Smoking depicted in content should not be glamorized. E-cigarette advertising restricted in many countries.",
+            "keywords": [
+                "cigarette",
+                "smoking",
+                "tobacco",
+                "cigar",
+                "vaping",
+                "e-cigarette"
+            ]
+        },
+        "drugs": {
+            "severity": "high",
+            "notes": "Drug use cannot be promoted. Some countries have decriminalized cannabis but advertising remains prohibited. Educational/awareness content is permitted.",
+            "keywords": [
+                "drugs",
+                "marijuana",
+                "cannabis",
+                "cocaine",
+                "heroin",
+                "pills",
+                "substances"
+            ]
+        },
+        "sexual_content": {
+            "severity": "warning",
+            "notes": "Europe is generally more permissive than US on nudity and sexual content in artistic contexts. However, explicit pornography is age-restricted and child exploitation is strictly illegal.",
+            "keywords": [
+                "nudity",
+                "sexual",
+                "explicit",
+                "intimate",
+                "adult content"
+            ]
+        },
+        "hate_speech": {
+            "severity": "critical",
+            "notes": "Strictly prohibited under EU law and national laws. Includes discrimination based on race, religion, gender, sexual orientation, disability. Germany's NetzDG requires rapid removal.",
+            "keywords": [
+                "hate",
+                "discrimination",
+                "racist",
+                "xenophobic",
+                "homophobic",
+                "antisemitic"
+            ]
+        },
+        "nazi_symbols": {
+            "severity": "critical",
+            "notes": "Prohibited in Germany and Austria in glorifying contexts. Educational/historical use may be permitted but requires careful handling. Austrian law (Verbotsgesetz) is particularly strict.",
+            "keywords": [
+                "nazi",
+                "swastika",
+                "ss",
+                "hitler",
+                "third reich",
+                "holocaust denial"
+            ]
+        },
+        "gambling": {
+            "severity": "warning",
+            "notes": "Regulated differently across EU. Online gambling advertising restricted in many countries. must comply with national licensing requirements.",
+            "keywords": [
+                "gambling",
+                "casino",
+                "betting",
+                "poker",
+                "slots",
+                "lottery"
+            ]
+        },
+        "misinformation": {
+            "severity": "warning",
+            "notes": "EU Digital Services Act requires platforms to address disinformation. Health misinformation (especially COVID) is particularly scrutinized.",
+            "keywords": [
+                "fake news",
+                "misinformation",
+                "conspiracy",
+                "hoax"
+            ]
+        }
+    },
+    "platform_specific_rules": {
+        "gdpr_compliance": "All content involving EU citizens' data must comply with GDPR. This includes user-generated content featuring identifiable individuals.",
+        "right_to_be_forgotten": "EU citizens have the right to request removal of content featuring them under certain circumstances",
+        "dsa_compliance": "Digital Services Act compliance required for content moderation and transparency",
+        "copyright": "Must comply with EU Copyright Directive - be aware of Articles 15 and 17 requirements"
+    }
+}
