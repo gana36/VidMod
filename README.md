@@ -79,6 +79,33 @@ Whether you need to blur a face, pixelate a license plate, or completely replace
 
 ---
 
+## ⚡ Performance Optimizations
+
+VidMod includes several optimizations to reduce API costs and processing time:
+
+### 🧠 Smart Caching
+| Cache | What It Does | Savings |
+|-------|--------------|---------|
+| **Policy Cache** | Caches formatted compliance policies | Avoids re-parsing JSON on each analysis |
+| **Prompt Simplification Cache** | Remembers simplified prompts (`"tobacco use"` → `"cigarette"`) | 1 Gemini API call per unique prompt |
+| **Profanity Analysis Cache** | Stores audio analysis results in job state | Skips re-analysis when processing audio |
+
+### 🔧 Singleton Engines
+Engines are initialized once and reused across requests:
+- `Sam3VideoEngine` - SAM3 video segmentation
+- `AudioAnalyzer` - Gemini-powered audio analysis  
+- `PromptSimplifier` - Gemini-powered prompt optimization
+- `GeminiInpaintEngine` - Image/video inpainting
+
+### 🧹 Automatic Cleanup
+When uploading a new video, **all previous job files are automatically deleted** to save disk space:
+- Extracted frames
+- Generated masks
+- Processed clips
+- Intermediate outputs
+
+> 💡 This keeps the `storage/jobs/` folder lean, especially when processing large videos.
+
 ## ⚡ Quick Start
 
 ### Prerequisites
