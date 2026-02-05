@@ -7,6 +7,8 @@ import logging
 import os
 import httpx
 import time
+import base64
+import mimetypes
 from pathlib import Path
 from typing import Optional
 
@@ -21,18 +23,22 @@ class RunwayEngine:
     """
     Video object replacement using Runway Gen-4 Aleph.
     Uses Runway's direct API instead of Replicate.
+    Supports reference images for grounded object replacement.
     """
     
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: str = None, s3_uploader=None):
         """
         Initialize Runway engine.
         
         Args:
             api_key: Runway API key (from RUNWAY_API_KEY env var)
+            s3_uploader: Optional S3Uploader instance for reference image uploads
         """
         self.api_key = api_key or os.getenv("RUNWAY_API_KEY")
         if not self.api_key:
             raise ValueError("RUNWAY_API_KEY not set")
+        
+        self.s3_uploader = s3_uploader
         
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -42,27 +48,98 @@ class RunwayEngine:
         
         logger.info("Runway Gen-4 engine initialized (direct API)")
     
+    def _encode_image_to_data_uri(self, image_path: Path) -> str:
+        """
+        Encode a local image to base64 data URI format.
+        
+        Args:
+            image_path: Path to the image file
+            
+        Returns:
+            Data URI string (e.g., "data:image/jpeg;base64,...")
+        """
+        image_path = Path(image_path)
+        
+        # Determine MIME type
+        mime_type, _ = mimetypes.guess_type(str(image_path))
+        if not mime_type:
+            mime_type = 'image/jpeg'  # Default fallback
+        
+        # Read and encode
+        with open(image_path, 'rb') as f:
+            image_data = f.read()
+        
+        # Check size (Runway limit: ~3.3MB before encoding)
+        if len(image_data) > 3_300_000:
+            logger.warning(f"Image is {len(image_data)/1_000_000:.1f}MB - may exceed Runway's 5MB data URI limit")
+        
+        encoded = base64.b64encode(image_data).decode('utf-8')
+        data_uri = f"data:{mime_type};base64,{encoded}"
+        
+        logger.info(f"Encoded image to data URI ({len(data_uri)/1000:.1f}KB)")
+        return data_uri
+    
+    def _get_image_url(self, image_path: Path, job_id: str = None) -> str:
+        """
+        Get a URL for the reference image, using S3 if available, else base64.
+        
+        Args:
+            image_path: Path to the local image
+            job_id: Optional job ID for organizing S3 uploads
+            
+        Returns:
+            HTTPS URL or data URI for the image
+        """
+        image_path = Path(image_path)
+        
+        logger.info(f"🖼️ Processing reference image for Runway: {image_path}")
+        logger.info(f"   - File exists: {image_path.exists()}")
+        if image_path.exists():
+            logger.info(f"   - File size: {image_path.stat().st_size / 1024:.1f} KB")
+        
+        # Prefer S3 upload if uploader is available
+        if self.s3_uploader:
+            try:
+                key = f"reference_images/{job_id or 'temp'}_{image_path.name}" if job_id else None
+                logger.info(f"📤 Uploading reference image to S3 with key: {key}")
+                url = self.s3_uploader.upload_image(image_path, key=key)
+                logger.info(f"✅ Reference image uploaded to S3: {url}")
+                return url
+            except Exception as e:
+                logger.warning(f"⚠️ S3 upload failed, falling back to base64: {e}")
+        else:
+            logger.warning("⚠️ S3 uploader not available, using base64 encoding")
+        
+        # Fallback to base64 data URI
+        return self._encode_image_to_data_uri(image_path)
+    
     def replace_object(
         self,
         video_path: Path,
         prompt: str,
         reference_image_path: Optional[Path] = None,
+        reference_image_url: Optional[str] = None,
         aspect_ratio: str = "16:9",
         duration: int = 5,
         seconds: int = None,
-        video_url: Optional[str] = None
+        video_url: Optional[str] = None,
+        job_id: Optional[str] = None,
+        structure_transformation: float = 0.5
     ) -> dict:
         """
         Replace/edit object in video using Runway Gen-4.
-        Uses Runway's direct video_to_video API.
+        Uses Runway's direct video_to_video API with optional reference image.
         
         Args:
             video_path: Path to source video (not used if video_url provided)
             prompt: Text description of desired edit
-            reference_image_path: Optional reference image
+            reference_image_path: Optional local path to reference image
+            reference_image_url: Optional URL to reference image (takes precedence over path)
             aspect_ratio: Output aspect ratio (e.g., "16:9", "1280:720")
             duration: Output duration in seconds
-            video_url: Required - publicly accessible video URL with proper Content-Type
+            video_url: Required - publicly accessible video URL
+            job_id: Optional job ID for S3 organization
+            structure_transformation: 0.0-1.0, lower = more structural consistency
             
         Returns:
             Dict with 'video_url' of the result
@@ -96,11 +173,21 @@ class RunwayEngine:
             "seconds": duration
         }
         
-        # Add reference image if provided (need to upload it first)
-        if reference_image_path and Path(reference_image_path).exists():
-            logger.info(f"Reference image: {reference_image_path}")
-            # TODO: Upload reference image to get URL
-            logger.warning("Reference image upload not yet implemented for direct Runway API")
+        # Add reference image if provided (grounded object replacement!)
+        image_url = None
+        if reference_image_url:
+            image_url = reference_image_url
+            logger.info(f"Using provided reference image URL: {image_url}")
+        elif reference_image_path and Path(reference_image_path).exists():
+            image_url = self._get_image_url(Path(reference_image_path), job_id)
+            logger.info(f"Reference image ready: {image_url[:100]}...")
+        
+        if image_url:
+            payload["promptImage"] = {
+                "uri": image_url,
+                "position": "first"  # Use as first frame reference
+            }
+            logger.info("✅ promptImage added to payload for grounded replacement")
         
         logger.info("Calling Runway API...")
         

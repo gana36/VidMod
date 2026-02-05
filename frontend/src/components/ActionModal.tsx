@@ -13,7 +13,8 @@ import {
     detectObjects,
     censorAudio,
     analyzeAudio,
-    suggestReplacements
+    suggestReplacements,
+    generateReferenceImage
 } from '../services/api';
 
 function cn(...inputs: ClassValue[]) {
@@ -71,6 +72,12 @@ const ActionModal: React.FC<ActionModalProps> = ({
         context?: string;
     }>>([]);
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+    // AI Image Generation state
+    const [generatedImageUrl, setGeneratedImageUrl] = useState<string>('');
+    const [generatedImagePath, setGeneratedImagePath] = useState<string>('');
+    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+    const [imagePrompt, setImagePrompt] = useState('');
     const [dubMode, setDubMode] = useState<'auto' | 'clone' | 'beep'>('auto');
     const [voiceSampleStart, setVoiceSampleStart] = useState<number>(0);
     const [voiceSampleEnd, setVoiceSampleEnd] = useState<number>(10);
@@ -87,6 +94,10 @@ const ActionModal: React.FC<ActionModalProps> = ({
             setDownloadUrl('');
             setProfanityMatches([]);
             setLoadingSuggestions(false);
+            setGeneratedImageUrl('');
+            setGeneratedImagePath('');
+            setIsGeneratingImage(false);
+            setImagePrompt('');
             isLoadingRef.current = false; // Reset the ref
 
             // Auto-load profanity for censor-dub mode (with guard)
@@ -193,6 +204,35 @@ const ActionModal: React.FC<ActionModalProps> = ({
         }
     }, [isOpen, initialBox, timestamp, jobId]);
 
+    // Handle AI image generation
+    const handleGenerateImage = async () => {
+        if (!imagePrompt.trim()) {
+            // Use replacement prompt as fallback
+            const promptToUse = replacementPrompt || 'product on white background';
+            setImagePrompt(promptToUse);
+        }
+
+        const promptToUse = imagePrompt.trim() || replacementPrompt || 'product on white background';
+
+        // Also set replacementPrompt so it's used in the Runway API call
+        if (!replacementPrompt.trim()) {
+            setReplacementPrompt(promptToUse);
+        }
+
+        setIsGeneratingImage(true);
+        try {
+            const result = await generateReferenceImage(jobId, promptToUse, '1:1');
+            setGeneratedImageUrl(`http://localhost:8000${result.image_url}`);
+            setGeneratedImagePath(result.image_path);
+        } catch (err) {
+            console.error('Image generation failed:', err);
+            setError(err instanceof Error ? err.message : 'Failed to generate image');
+        } finally {
+            setIsGeneratingImage(false);
+        }
+    };
+
+
 
     if (!isOpen) return null;
 
@@ -239,9 +279,19 @@ const ActionModal: React.FC<ActionModalProps> = ({
                     break;
 
                 case 'replace-runway':
-                    // Use Runway Gen-4 for replacement (text-only, no reference image needed)
+                    // Use Runway Gen-4 for replacement with optional reference image
                     // Supports Smart Clipping - pass timestamps to process only the relevant portion
-                    await replaceWithRunway(jobId, replacementPrompt, referenceImage || undefined, undefined, 5, startTime, endTime);
+                    // If generated image path exists, pass it; otherwise use uploaded file
+                    await replaceWithRunway(
+                        jobId,
+                        replacementPrompt,
+                        referenceImage || undefined,
+                        'blurry, distorted, low quality, deformed',  // Use default negative prompt
+                        5,
+                        startTime,
+                        endTime,
+                        generatedImagePath || undefined  // Pass generated image path if available
+                    );
                     finalDownloadUrl = getDownloadUrl(jobId);
                     break;
 
@@ -438,7 +488,6 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                 </div>
                             )}
 
-                            {/* Smart Clipping info for Runway */}
                             {actionType === 'replace-runway' && startTime !== undefined && endTime !== undefined && (
                                 <div className="p-4 bg-accent/[0.03] border border-accent/10 rounded-2xl space-y-3">
                                     <div className="flex items-center gap-2">
@@ -457,6 +506,93 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                         </div>
                                     </div>
                                     <p className="text-[10px] text-muted-foreground/50 italic leading-relaxed">System will isolate and process only the specified temporal segment.</p>
+                                </div>
+                            )}
+
+                            {/* Reference Image Options for Runway */}
+                            {actionType === 'replace-runway' && (
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2">
+                                        <Sparkles className="w-3 h-3 text-accent" />
+                                        Reference Image (Optional - for grounded replacement)
+                                    </label>
+
+                                    {/* Generate with AI Section */}
+                                    <div className="p-4 bg-gradient-to-br from-accent/[0.03] to-purple-500/[0.03] border border-accent/20 rounded-2xl space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-accent/80">Generate with Gemini 3</span>
+                                            {generatedImageUrl && (
+                                                <span className="text-[9px] font-medium text-emerald-400 flex items-center gap-1">
+                                                    <CheckCircle2 className="w-3 h-3" />
+                                                    Ready to use
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={imagePrompt || replacementPrompt}
+                                                onChange={(e) => setImagePrompt(e.target.value)}
+                                                placeholder="e.g., Coca-Cola bottle, product shot"
+                                                className="flex-1 px-3 py-2 bg-[#111113] border border-white/10 rounded-xl text-sm focus:border-accent/60 focus:outline-none transition-all"
+                                            />
+                                            <button
+                                                onClick={handleGenerateImage}
+                                                disabled={isGeneratingImage}
+                                                className="flex items-center gap-2 px-4 py-2 bg-accent/20 hover:bg-accent/30 disabled:opacity-50 text-accent rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+                                            >
+                                                {isGeneratingImage ? (
+                                                    <><Loader2 className="w-3.5 h-3.5 animate-spin" />Generating...</>
+                                                ) : generatedImageUrl ? (
+                                                    <><RefreshCw className="w-3.5 h-3.5" />Regenerate</>
+                                                ) : (
+                                                    <><Sparkles className="w-3.5 h-3.5" />Generate</>
+                                                )}
+                                            </button>
+                                        </div>
+
+                                        {/* Generated Image Preview */}
+                                        {generatedImageUrl && (
+                                            <div className="relative group">
+                                                <img
+                                                    src={generatedImageUrl}
+                                                    alt="Generated reference"
+                                                    className="w-full h-32 object-contain bg-[#0a0a0c] border border-white/10 rounded-xl"
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-end justify-center pb-3">
+                                                    <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">AI Generated</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Divider */}
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-1 h-px bg-white/10" />
+                                        <span className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest">or upload</span>
+                                        <div className="flex-1 h-px bg-white/10" />
+                                    </div>
+
+                                    {/* Upload Option */}
+                                    <div className="relative group">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                                setReferenceImage(e.target.files?.[0] || null);
+                                                setGeneratedImageUrl(''); // Clear generated image when uploading
+                                                setGeneratedImagePath('');
+                                            }}
+                                            className="w-full px-4 py-3 bg-[#111113] border border-white/10 rounded-xl text-sm file:mr-4 file:px-4 file:py-1 file:rounded-lg file:border-0 file:bg-white/10 file:text-muted-foreground file:text-xs file:font-bold hover:border-white/20 transition-all cursor-pointer"
+                                        />
+                                    </div>
+                                    {referenceImage && (
+                                        <p className="text-[11px] text-emerald-400/80 flex items-center gap-1.5 px-0.5">
+                                            <CheckCircle2 className="w-3 h-3" />
+                                            {referenceImage.name}
+                                        </p>
+                                    )}
                                 </div>
                             )}
                         </>

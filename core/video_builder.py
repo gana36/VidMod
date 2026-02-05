@@ -303,6 +303,101 @@ class VideoBuilder:
             logger.error(f"Pixelation failed: {e.stderr}")
             raise RuntimeError(f"Failed to apply pixelation: {e.stderr}")
     
+    def get_video_fps(self, video_path: Path) -> float:
+        """
+        Get the frame rate of a video using ffprobe.
+        
+        Args:
+            video_path: Path to the video file
+            
+        Returns:
+            Frame rate as a float
+        """
+        cmd = [
+            "ffprobe", "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=r_frame_rate",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            str(video_path)
+        ]
+        
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            fps_str = result.stdout.strip()
+            # Parse fps (can be "30/1" or "30")
+            if "/" in fps_str:
+                num, den = fps_str.split("/")
+                fps = float(num) / float(den)
+            else:
+                fps = float(fps_str)
+            logger.info(f"Video fps detected: {fps} for {video_path.name}")
+            return fps
+        except Exception as e:
+            logger.warning(f"Could not detect fps for {video_path}, defaulting to 30: {e}")
+            return 30.0
+    
+    def normalize_video_fps(
+        self,
+        input_video: Path,
+        output_path: Path,
+        target_fps: float,
+        preserve_audio: bool = True
+    ) -> Path:
+        """
+        Re-encode video to match a target frame rate.
+        This is crucial for stitching videos from different sources (e.g., Runway output).
+        
+        Args:
+            input_video: Path to the source video (potentially with different fps)
+            output_path: Path to save the normalized video
+            target_fps: Target frame rate to match
+            preserve_audio: Whether to copy audio stream
+            
+        Returns:
+            Path to the normalized video
+        """
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Get current fps
+        current_fps = self.get_video_fps(input_video)
+        
+        # If fps is already close enough (within 0.5 fps), just copy
+        if abs(current_fps - target_fps) < 0.5:
+            logger.info(f"Video fps {current_fps:.1f} is close to target {target_fps:.1f}, no normalization needed")
+            import shutil
+            shutil.copy(input_video, output_path)
+            return output_path
+        
+        logger.info(f"Normalizing video fps: {current_fps:.1f} -> {target_fps:.1f}")
+        
+        # Re-encode with target fps
+        # Using -r for output fps and -filter:v fps= for proper frame interpolation
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", str(input_video),
+            "-filter:v", f"fps={target_fps}",
+            "-c:v", "libx264",
+            "-crf", "18",
+            "-preset", "fast",
+            "-pix_fmt", "yuv420p",
+        ]
+        
+        if preserve_audio:
+            cmd.extend(["-c:a", "aac", "-b:a", "192k"])
+        else:
+            cmd.extend(["-an"])
+        
+        cmd.append(str(output_path))
+        
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            logger.info(f"Video normalized to {target_fps:.1f} fps: {output_path}")
+            return output_path
+        except subprocess.CalledProcessError as e:
+            logger.error(f"FPS normalization failed: {e.stderr}")
+            raise RuntimeError(f"Failed to normalize video fps: {e.stderr}")
+
+    
     def insert_segment(
         self,
         original_video: Path,
@@ -368,11 +463,17 @@ class VideoBuilder:
             if has_after:
                 logger.info(f"Extracted 'after' segment: {buffered_end:.2f}s to end")
             
-            # Create concat list
+            # CRITICAL: Normalize processed segment fps to match original video
+            # This fixes the speed mismatch when Runway outputs different fps
+            original_fps = self.get_video_fps(original_video)
+            normalized_segment = temp_dir / "processed_normalized.mp4"
+            self.normalize_video_fps(processed_segment, normalized_segment, original_fps, preserve_audio=True)
+            
+            # Create concat list (using normalized segment)
             with open(concat_list, 'w') as f:
                 if buffered_start > 0:
                     f.write(f"file '{before_clip.absolute()}'\n")
-                f.write(f"file '{processed_segment.absolute()}'\n")
+                f.write(f"file '{normalized_segment.absolute()}'\n")
                 if has_after:
                     f.write(f"file '{after_clip.absolute()}'\n")
             

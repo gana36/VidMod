@@ -208,25 +208,34 @@ export async function replaceWithVACE(
 }
 
 /**
- * Replace object using Runway Gen-4 (text-only, reference image not supported)
+ * Replace object using Runway Gen-4 with optional reference image for grounded replacement
  * Supports Smart Clipping - pass startTime/endTime to process only a portion of video
+ * Now supports reference images via promptImage parameter for more accurate replacements
  */
 export async function replaceWithRunway(
     jobId: string,
     prompt: string,
-    referenceImage?: File,  // Optional - Runway's direct API is text-only
+    referenceImage?: File,  // Optional reference image for grounded replacement
     negativePrompt: string = 'blurry, distorted, low quality, deformed',
     duration: number = 5,
     startTime?: number,
-    endTime?: number
+    endTime?: number,
+    referenceImagePath?: string  // Alternatively, path to already-saved reference image
 ): Promise<ReplaceResponse> {
     const formData = new FormData();
     formData.append('job_id', jobId);
     formData.append('prompt', prompt);
+
+    // Reference image - either file upload or path to generated image
     if (referenceImage) {
         formData.append('reference_image', referenceImage);
     }
-    formData.append('negative_prompt', negativePrompt);
+    if (referenceImagePath) {
+        formData.append('reference_image_path', referenceImagePath);
+    }
+
+    // Other parameters with defaults
+    formData.append('negative_prompt', negativePrompt || 'blurry, distorted, low quality, deformed');
     formData.append('duration', duration.toString());
 
     // Smart Clipping - if timestamps provided, only process that portion
@@ -243,7 +252,54 @@ export async function replaceWithRunway(
     });
 
     if (!response.ok) {
-        throw new Error(`Runway replacement failed: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Runway replacement failed: ${errorText}`);
+    }
+
+    return response.json();
+}
+
+// ============================================================================
+// Reference Image Generation (Gemini 3)
+// ============================================================================
+
+export interface GenerateImageResponse {
+    job_id: string;
+    image_url: string;
+    image_path: string;
+    message: string;
+}
+
+/**
+ * Generate a reference image using Gemini 3
+ * Used when user doesn't have a reference image to upload
+ * @param jobId - The job ID
+ * @param prompt - Description of the image (e.g., "Coca-Cola bottle on white background")
+ * @param aspectRatio - Image aspect ratio (default: "1:1" for product shots)
+ * @param negativePrompt - What to avoid in generation
+ */
+export async function generateReferenceImage(
+    jobId: string,
+    prompt: string,
+    aspectRatio: string = '1:1',
+    negativePrompt?: string
+): Promise<GenerateImageResponse> {
+    const formData = new FormData();
+    formData.append('job_id', jobId);
+    formData.append('prompt', prompt);
+    formData.append('aspect_ratio', aspectRatio);
+    if (negativePrompt) {
+        formData.append('negative_prompt', negativePrompt);
+    }
+
+    const response = await fetch(`${API_BASE}/generate-reference-image`, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Image generation failed: ${errorText}`);
     }
 
     return response.json();

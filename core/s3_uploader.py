@@ -110,6 +110,69 @@ class S3Uploader:
             logger.error(f"Failed to upload to S3: {e}")
             raise
     
+    def upload_image(
+        self,
+        image_path: Path,
+        key: Optional[str] = None,
+        make_public: bool = True
+    ) -> str:
+        """
+        Upload image to S3 and return public URL.
+        Used for reference images in Runway video generation.
+        
+        Args:
+            image_path: Local path to image file
+            key: S3 object key (path in bucket). If None, auto-generates from filename
+            make_public: If True, makes object publicly readable
+            
+        Returns:
+            Public HTTPS URL to the uploaded image
+        """
+        image_path = Path(image_path)
+        if not image_path.exists():
+            raise FileNotFoundError(f"Image not found: {image_path}")
+        
+        # Auto-generate key if not provided
+        if not key:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            key = f"images/{timestamp}_{image_path.name}"
+        
+        # Determine content type based on extension
+        content_types = {
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp',
+            '.bmp': 'image/bmp'
+        }
+        ext = image_path.suffix.lower()
+        content_type = content_types.get(ext, 'image/jpeg')
+        
+        logger.info(f"Uploading image {image_path.name} to S3 as {key}...")
+        
+        try:
+            extra_args = {
+                'ContentType': content_type,
+                'ContentDisposition': 'inline'
+            }
+            
+            self.s3_client.upload_file(
+                str(image_path),
+                self.bucket_name,
+                key,
+                ExtraArgs=extra_args
+            )
+            
+            url = f"https://{self.bucket_name}.s3.{self.region}.amazonaws.com/{key}"
+            logger.info(f"✅ Image uploaded successfully: {url}")
+            
+            return url
+            
+        except Exception as e:
+            logger.error(f"Failed to upload image to S3: {e}")
+            raise
+    
     def list_videos(self, prefix: str = "videos/", max_results: int = 100) -> List[Dict]:
         """
         List all videos in S3 bucket.

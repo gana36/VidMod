@@ -11,6 +11,7 @@ from typing import Optional, List
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Depends, Form
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from ..config import Settings, get_settings
 from ..models import (
@@ -1734,11 +1735,124 @@ async def replace_with_pika(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================================
+# REFERENCE IMAGE GENERATION (Gemini 3)
+# ============================================================
+
+class GenerateImageRequest(BaseModel):
+    """Request to generate a reference image using Gemini 3."""
+    prompt: str  # e.g., "Coca-Cola bottle on white background"
+    aspect_ratio: str = "1:1"  # Square is best for product shots
+    negative_prompt: Optional[str] = None
+
+
+class GenerateImageResponse(BaseModel):
+    """Response containing the generated reference image."""
+    job_id: str
+    image_url: str  # URL to access the generated image
+    image_path: str  # Absolute path to the image file
+    message: str
+
+
+@router.post("/generate-reference-image", response_model=GenerateImageResponse)
+async def generate_reference_image(
+    job_id: str = Form(...),
+    prompt: str = Form(...),
+    aspect_ratio: str = Form("1:1"),
+    negative_prompt: str = Form(None),
+    pipeline: VideoPipeline = Depends(get_pipeline),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Generate a reference image using Gemini 3 for use with Runway replacement.
+    
+    This allows users to generate reference images without having to upload one.
+    The generated image can then be used with the /replace-with-runway endpoint.
+    
+    Example prompts:
+    - "Coca-Cola bottle, product photography, white background"
+    - "Red Nike sneaker, studio lighting, side view"
+    - "Coffee mug with steam, cozy aesthetic"
+    """
+    from pathlib import Path
+    from core.gemini_image_generator import GeminiImageGenerator
+    import uuid
+    
+    job = pipeline.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    job_dir = Path(f"storage/jobs/{job_id}")
+    job_dir.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        # Initialize Gemini Image Generator
+        generator = GeminiImageGenerator(api_key=settings.gemini_api_key)
+        
+        # Generate unique filename
+        image_id = uuid.uuid4().hex[:8]
+        output_path = job_dir / f"reference_image_{image_id}.png"
+        
+        logger.info(f"🎨 Generating reference image: {prompt}")
+        
+        # Generate and save the image
+        saved_path = generator.generate_and_save(
+            prompt=prompt,
+            output_path=output_path,
+            aspect_ratio=aspect_ratio,
+            negative_prompt=negative_prompt
+        )
+        
+        # Create URL for accessing the image
+        image_url = f"/api/jobs/{job_id}/reference_image_{image_id}.png"
+        
+        logger.info(f"✅ Reference image generated: {saved_path}")
+        
+        return GenerateImageResponse(
+            job_id=job_id,
+            image_url=image_url,
+            image_path=str(saved_path.absolute()),
+            message=f"Reference image generated for: {prompt}"
+        )
+        
+    except ImportError as e:
+        raise HTTPException(
+            status_code=500, 
+            detail="google-genai package not installed. Run: pip install google-genai"
+        )
+    except Exception as e:
+        logger.error(f"Image generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/jobs/{job_id}/{filename}")
+async def get_job_file(job_id: str, filename: str):
+    """Serve files from job storage directory (e.g., generated reference images)."""
+    from pathlib import Path
+    
+    file_path = Path(f"storage/jobs/{job_id}") / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Determine media type
+    media_type = "application/octet-stream"
+    if filename.endswith(".png"):
+        media_type = "image/png"
+    elif filename.endswith(".jpg") or filename.endswith(".jpeg"):
+        media_type = "image/jpeg"
+    elif filename.endswith(".webp"):
+        media_type = "image/webp"
+    
+    return FileResponse(path=file_path, media_type=media_type)
+
+
 @router.post("/replace-with-runway", response_model=RunwayReplaceResponse)
 async def replace_with_runway(
     job_id: str = Form(...),
     prompt: str = Form(...),
-    reference_image: Optional[UploadFile] = File(None),  # Optional - Runway's direct API is text-only
+    reference_image: Optional[UploadFile] = File(None),  # Optional uploaded file
+    reference_image_path: Optional[str] = Form(None),    # Optional path from AI generation
     negative_prompt: str = Form("blurry, distorted, low quality, deformed"),
     duration: int = Form(5),
     start_time: Optional[float] = Form(None),  # Smart Clipping start
@@ -1772,16 +1886,25 @@ async def replace_with_runway(
     
     job_dir = Path(f"storage/jobs/{job_id}")
     
-    # Reference image is optional for Runway (not actually used by the API)
+    # Reference image for grounded object replacement (uploaded to S3 for Runway)
     reference_path = None
     if reference_image and reference_image.filename:
         reference_path = job_dir / f"runway_ref_{reference_image.filename}"
         with open(reference_path, 'wb') as f:
             content = await reference_image.read()
             f.write(content)
-        logger.info(f"Saved Runway reference image: {reference_path}")
+        logger.info(f"✅ Saved uploaded reference image for Runway: {reference_path}")
+    elif reference_image_path:
+        # Use pre-generated image from AI generation
+        reference_path = Path(reference_image_path)
+        if reference_path.exists():
+            logger.info(f"✅ Using AI-generated reference image: {reference_path}")
+        else:
+            logger.warning(f"Reference image path not found: {reference_image_path}")
+            reference_path = None
     else:
-        logger.info("No reference image provided (Runway uses text-only)")
+        logger.info("No reference image provided (Runway will use text prompt only)")
+
     
     try:
         # Use Runway's direct API key from settings
@@ -1789,7 +1912,7 @@ async def replace_with_runway(
         if not runway_key:
             raise HTTPException(status_code=500, detail="RUNWAY_API_KEY not configured in .env")
         
-        engine = RunwayEngine(api_key=runway_key)
+        engine = RunwayEngine(api_key=runway_key, s3_uploader=pipeline.s3_uploader)
         
         output_path = job_dir / "replaced_runway.mp4"
         

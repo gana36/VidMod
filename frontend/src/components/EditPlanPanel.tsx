@@ -3,6 +3,7 @@ import { ChevronDown, AlertCircle, VolumeX, EyeOff, ShieldCheck, Play, RefreshCw
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import ActionModal, { type ActionType } from './ActionModal';
+import { generateReferenceImage } from '../services/api';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -177,11 +178,16 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
         effectType: 'blur' | 'pixelate' | 'replace-runway' | 'censor-beep' | 'censor-dub';
         prompt: string;  // Object to target
         replacementPrompt: string;  // What to replace with (Runway only)
+        referenceImagePath?: string;  // AI-generated reference image path (Runway only)
         startTime: number;  // Editable timestamp
         endTime: number;    // Editable timestamp
     }
 
     const [batchConfigs, setBatchConfigs] = useState<BatchFindingConfig[]>([]);
+
+    // State for batch image generation
+    const [generatingImageIndex, setGeneratingImageIndex] = useState<number | null>(null);
+    const [generatedImages, setGeneratedImages] = useState<Record<number, { url: string; path: string }>>({});
 
     // Initialize batch configs from findings
     const initializeBatchConfigs = () => {
@@ -267,11 +273,12 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     const result = await replaceWithRunway(
                         jobId,
                         config.replacementPrompt,  // What to replace with
-                        undefined,      // No reference image (text-only)
+                        undefined,      // No uploaded file
                         undefined,      // Default negative prompt
                         Math.ceil(config.endTime - config.startTime),   // Dynamic duration
                         config.startTime,
-                        config.endTime
+                        config.endTime,
+                        config.referenceImagePath  // AI-generated reference image path
                     );
 
                     if (result && result.download_path) {
@@ -941,7 +948,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
 
                                     {/* Action Content Box */}
                                     {config.effectType === 'replace-runway' && (
-                                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                                        <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-3">
                                             <div className="p-4 bg-[#050505] border border-white/5 rounded-2xl space-y-2">
                                                 <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-accent/60 block px-1">Synthesis Logic Script</span>
                                                 <input
@@ -955,6 +962,63 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                                                     placeholder="Input replacement context..."
                                                     className="w-full px-3 py-2 text-[11px] bg-transparent border-b border-white/10 focus:outline-none focus:border-accent/40 font-mono text-accent transition-all placeholder:text-muted-foreground/5"
                                                 />
+                                            </div>
+
+                                            {/* Reference Image Generation */}
+                                            <div className="p-3 bg-gradient-to-br from-accent/[0.02] to-purple-500/[0.02] border border-accent/10 rounded-xl space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[8px] font-bold uppercase tracking-[0.1em] text-accent/50">
+                                                        Reference Image (AI)
+                                                    </span>
+                                                    {generatedImages[index] && (
+                                                        <span className="text-[8px] font-medium text-emerald-400 flex items-center gap-1">
+                                                            <CheckCircle2 className="w-2.5 h-2.5" />
+                                                            Ready
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!jobId || !config.replacementPrompt.trim()) return;
+                                                            setGeneratingImageIndex(index);
+                                                            try {
+                                                                const result = await generateReferenceImage(jobId, config.replacementPrompt, '1:1');
+                                                                setGeneratedImages(prev => ({
+                                                                    ...prev,
+                                                                    [index]: { url: `http://localhost:8000${result.image_url}`, path: result.image_path }
+                                                                }));
+                                                                // Update the config with the path
+                                                                const updated = [...batchConfigs];
+                                                                updated[index].referenceImagePath = result.image_path;
+                                                                setBatchConfigs(updated);
+                                                            } catch (err) {
+                                                                console.error('Image generation failed:', err);
+                                                            } finally {
+                                                                setGeneratingImageIndex(null);
+                                                            }
+                                                        }}
+                                                        disabled={generatingImageIndex === index || !config.replacementPrompt.trim()}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-accent/10 hover:bg-accent/20 disabled:opacity-40 text-accent rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all"
+                                                    >
+                                                        {generatingImageIndex === index ? (
+                                                            <><Loader2 className="w-3 h-3 animate-spin" />Gen...</>
+                                                        ) : generatedImages[index] ? (
+                                                            <><RefreshCw className="w-3 h-3" />Regen</>
+                                                        ) : (
+                                                            <><Sparkles className="w-3 h-3" />Generate</>
+                                                        )}
+                                                    </button>
+
+                                                    {generatedImages[index] && (
+                                                        <img
+                                                            src={generatedImages[index].url}
+                                                            alt="Reference"
+                                                            className="w-10 h-10 object-cover rounded-lg border border-white/10"
+                                                        />
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     )}
