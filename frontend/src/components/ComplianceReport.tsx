@@ -231,9 +231,9 @@ const ComplianceReport: React.FC<ComplianceReportProps> = ({
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                             {[
                                 { label: 'Remediation Rate', value: `${remediationRate}%`, icon: Activity, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-                                { label: 'Fixed Findings', value: `${resolvedFindings}/${totalFindings}`, icon: CheckCircle2, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-                                { label: 'Active Edits', value: totalEdits, icon: History, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-                                { label: 'Standards', value: region.split(' ')[0], icon: Award, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+                                { label: 'Fixed Findings', value: `${resolvedFindings}/${totalFindings}`, icon: CheckCircle2, color: 'text-accent', bg: 'bg-accent/10' },
+                                { label: 'Active Edits', value: totalEdits, icon: History, color: 'text-muted-foreground/60', bg: 'bg-white/5' },
+                                { label: 'Standards', value: region.split(' ')[0], icon: Award, color: 'text-accent', bg: 'bg-accent/10' },
                             ].map((stat, i) => (
                                 <div key={i} className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col gap-3 group hover:border-white/10 transition-colors">
                                     <div className={`w-8 h-8 rounded-lg ${stat.bg} ${stat.color} flex items-center justify-center`}>

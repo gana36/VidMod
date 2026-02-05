@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Droplets, ShieldAlert, VolumeX, X, MousePointer2, Wand2, Loader2, Sparkles, AlertCircle, Zap } from 'lucide-react';
+import { Droplets, ShieldAlert, VolumeX, X, MousePointer2, Wand2, Loader2, AlertCircle, Zap } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { analyzeManual, type ManualAction } from '../services/api';
@@ -173,7 +173,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ jobId, currentTime, onCon
                                     </>
                                 ) : analysisResult ? (
                                     <>
-                                        <Sparkles className="w-3 h-3 text-accent" />
                                         Detected: {analysisResult.itemName}
                                     </>
                                 ) : error ? (
@@ -282,14 +281,14 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ jobId, currentTime, onCon
                                         reset();
                                     }
                                 }}
-                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border-2 border-purple-500/30 hover:border-purple-500 transition-all group"
+                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border-2 border-white/5 hover:border-white/20 transition-all group"
                             >
-                                <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400">
-                                    <Sparkles className="w-5 h-5" />
+                                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground/60">
+                                    <Zap className="w-5 h-5" />
                                 </div>
                                 <div className="flex-1 text-left">
-                                    <div className="text-sm font-bold text-purple-400">Pika Labs Replace</div>
-                                    <div className="text-[10px] text-muted-foreground">Best for shape-changing swaps (cup → bottle)</div>
+                                    <div className="text-sm font-bold text-foreground/80">Pika Labs Replace</div>
+                                    <div className="text-[10px] text-muted-foreground/40 uppercase tracking-tight">Geometry-Transform Inpainting</div>
                                 </div>
                             </button>
                             <button
@@ -300,14 +299,14 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ jobId, currentTime, onCon
                                         reset();
                                     }
                                 }}
-                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-accent/10 hover:bg-accent/20 border-2 border-accent/30 hover:border-accent transition-all group"
+                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border-2 border-white/5 hover:border-white/20 transition-all group"
                             >
-                                <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center text-accent">
+                                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground/60">
                                     <ShieldAlert className="w-5 h-5" />
                                 </div>
                                 <div className="flex-1 text-left">
-                                    <div className="text-sm font-bold text-accent">VACE Replace</div>
-                                    <div className="text-[10px] text-muted-foreground">Best for texture/color changes</div>
+                                    <div className="text-sm font-bold text-foreground/80">VACE Replace</div>
+                                    <div className="text-[10px] text-muted-foreground/40 uppercase tracking-tight">Texture-Preserving Synthesis</div>
                                 </div>
                             </button>
                             <button
@@ -318,14 +317,14 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ jobId, currentTime, onCon
                                         reset();
                                     }
                                 }}
-                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 border-2 border-orange-500/30 hover:border-orange-500 transition-all group"
+                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border-2 border-white/5 hover:border-white/20 transition-all group"
                             >
-                                <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-400">
-                                    <Zap className="w-5 h-5" />
+                                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground/60">
+                                    <Wand2 className="w-5 h-5" />
                                 </div>
                                 <div className="flex-1 text-left">
-                                    <div className="text-sm font-bold text-orange-400">Runway Gen-4</div>
-                                    <div className="text-[10px] text-muted-foreground">Advanced AI video editing (premium)</div>
+                                    <div className="text-sm font-bold text-foreground/80">Runway Gen-3</div>
+                                    <div className="text-[10px] text-muted-foreground/40 uppercase tracking-tight">Advanced Temporal Refactor</div>
                                 </div>
                             </button>
                         </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, AlertCircle, VolumeX, EyeOff, ShieldCheck, Play, RefreshCw, Grid, Search, X, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
+import { ChevronDown, AlertCircle, VolumeX, EyeOff, ShieldCheck, Play, RefreshCw, Grid, Search, X, Loader2, CheckCircle2 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import ActionModal, { type ActionType } from './ActionModal';
@@ -534,59 +534,113 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
 
             <div className="flex-1 overflow-y-auto p-4 space-y-0 custom-scrollbar relative">
                 <div className="mb-4 space-y-3">
-                    <button
-                        onClick={() => setShowCustomInput(!showCustomInput)}
-                        className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] hover:border-white/10 transition-all duration-200"
-                    >
-                        <span className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-[0.1em]">Manual Ingestion / Translate</span>
-                        <ChevronDown className={cn("w-3.5 h-3.5 text-muted-foreground/40 transition-transform duration-300", showCustomInput && "rotate-180")} />
-                    </button>
+                    <div className="space-y-3">
+                        <button
+                            onClick={() => setShowCustomInput(!showCustomInput)}
+                            className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] hover:border-white/10 transition-all duration-200"
+                        >
+                            <span className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-[0.1em]">Manual Ingestion / Remediation</span>
+                            <ChevronDown className={cn("w-3.5 h-3.5 text-muted-foreground/40 transition-transform duration-300", showCustomInput && "rotate-180")} />
+                        </button>
 
-                    {showCustomInput && (
-                        <div className="mt-3 space-y-3">
-                            <div className="relative group">
-                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40 group-focus-within:text-accent transition-colors" />
-                                <input
-                                    type="text"
-                                    value={customObjectInput}
-                                    onChange={(e) => setCustomObjectInput(e.target.value)}
-                                    placeholder="Describe any object..."
-                                    className="w-full pl-10 pr-4 py-2.5 bg-white/[0.02] border border-white/5 rounded-xl text-sm placeholder:text-muted-foreground/20 focus:outline-none focus:border-accent/40 focus:bg-white/[0.04] transition-all"
-                                />
-                            </div>
+                        {showCustomInput && (
+                            <div className="mt-3 space-y-4">
+                                {/* Visual Object Input */}
+                                <div className="space-y-3">
+                                    <span className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest pl-1">Visual Object Targeting</span>
+                                    <div className="relative group">
+                                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40 group-focus-within:text-accent transition-colors" />
+                                        <input
+                                            type="text"
+                                            value={customObjectInput}
+                                            onChange={(e) => setCustomObjectInput(e.target.value)}
+                                            placeholder="Describe any scene element..."
+                                            className="w-full pl-10 pr-4 py-2.5 bg-white/[0.02] border border-white/5 rounded-xl text-sm placeholder:text-muted-foreground/20 focus:outline-none focus:border-accent/40 focus:bg-white/[0.04] transition-all"
+                                        />
+                                    </div>
 
-                            {customObjectInput.trim() && (
-                                <div className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl space-y-3">
-                                    <span className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest pl-1">Queue Targeted Action</span>
-                                    <div className="flex flex-wrap gap-2">
-                                        {[
-                                            { id: 'blur', icon: EyeOff, label: 'Blur' },
-                                            { id: 'pixelate', icon: Grid, label: 'Pixelate' },
-                                            { id: 'replace-vace', icon: RefreshCw, label: 'VACE' },
-                                            { id: 'replace-pika', icon: Play, label: 'Pika' }
-                                        ].map((act) => (
-                                            <button
-                                                key={act.id}
-                                                onClick={() => act.id.includes('replace') ? handleReplaceWithModal(act.id as any) : handleAddToQueue(act.id as any)}
-                                                disabled={!jobId}
-                                                className="flex flex-1 items-center justify-center gap-1.5 px-3 py-2 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all disabled:opacity-20"
-                                            >
-                                                <act.icon className="w-3 h-3 text-accent" />
-                                                {act.label}
-                                            </button>
-                                        ))}
+                                    {customObjectInput.trim() && (
+                                        <div className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl space-y-3">
+                                            <div className="flex flex-wrap gap-2">
+                                                {[
+                                                    { id: 'blur', icon: EyeOff, label: 'Blur' },
+                                                    { id: 'pixelate', icon: Grid, label: 'Pixelate' },
+                                                    { id: 'replace-vace', icon: RefreshCw, label: 'VACE' },
+                                                    { id: 'replace-pika', icon: Play, label: 'Inpaint' }
+                                                ].map((act) => (
+                                                    <button
+                                                        key={act.id}
+                                                        onClick={() => act.id.includes('replace') ? handleReplaceWithModal(act.id as any) : handleAddToQueue(act.id as any)}
+                                                        disabled={!jobId}
+                                                        className="flex flex-1 items-center justify-center gap-1.5 px-3 py-2 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all disabled:opacity-20"
+                                                    >
+                                                        <act.icon className="w-3 h-3 text-accent" />
+                                                        {act.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Audio / Dubbing Section */}
+                                <div className="space-y-3 pt-3 border-t border-white/5">
+                                    <span className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest pl-1">Audio / Global Dubbing</span>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            onClick={() => {
+                                                setSelectedActionType('censor-dub');
+                                                setSelectedStep({
+                                                    id: 'global-dub',
+                                                    finding: { id: -1, type: 'Global Audio', category: 'language', content: 'Full Stream', status: 'warning', confidence: 'High', startTime: 0, endTime: 0 },
+                                                    violation: 'Full Audio Stream',
+                                                    action: 'Global Voice Dubbing',
+                                                    reason: 'Manual audio remediation trigger',
+                                                    summary: 'Triggering global audio scan and dubbing interface.',
+                                                    confidence: 100,
+                                                    iconType: 'mute'
+                                                });
+                                                setModalOpen(true);
+                                            }}
+                                            disabled={!jobId}
+                                            className="flex items-center justify-center gap-2 px-3 py-3 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all disabled:opacity-20"
+                                        >
+                                            <VolumeX className="w-4 h-4 text-accent" />
+                                            Voice Dub
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setSelectedActionType('censor-beep');
+                                                setSelectedStep({
+                                                    id: 'global-beep',
+                                                    finding: { id: -1, type: 'Global Audio', category: 'language', content: 'Full Stream', status: 'warning', confidence: 'High', startTime: 0, endTime: 0 },
+                                                    violation: 'Full Audio Stream',
+                                                    action: 'Global Audio Masking',
+                                                    reason: 'Manual audio remediation trigger',
+                                                    summary: 'Triggering global audio scan and beep masking interface.',
+                                                    confidence: 100,
+                                                    iconType: 'mute'
+                                                });
+                                                setModalOpen(true);
+                                            }}
+                                            disabled={!jobId}
+                                            className="flex items-center justify-center gap-2 px-3 py-3 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all disabled:opacity-20"
+                                        >
+                                            <VolumeX className="w-4 h-4 text-accent" />
+                                            Audio Beep
+                                        </button>
                                     </div>
                                 </div>
-                            )}
 
-                            {!jobId && (
-                                <p className="text-[10px] text-muted-foreground/40 italic px-1 flex items-center gap-1.5">
-                                    <AlertCircle className="w-3 h-3" />
-                                    Data stream pending initialization...
-                                </p>
-                            )}
-                        </div>
-                    )}
+                                {!jobId && (
+                                    <p className="text-[10px] text-muted-foreground/40 italic px-1 flex items-center gap-1.5 pt-2">
+                                        <AlertCircle className="w-3 h-3" />
+                                        Node initialization pending...
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
 
                     {/* Queue display */}
                     {customObjects.length > 0 && (
@@ -880,7 +934,6 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
 
                                         {config.effectType === 'replace-runway' && (
                                             <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 border border-accent/20 rounded-lg">
-                                                <Sparkles className="w-3 h-3 text-accent" />
                                                 <span className="text-[9px] font-bold uppercase tracking-wider text-accent">Active Synthesis</span>
                                             </div>
                                         )}
@@ -919,7 +972,6 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
 
                         <div className="p-5 border-t border-white/5 bg-white/[0.02] flex items-center justify-between">
                             <div className="flex items-center gap-3 pl-2">
-                                <Sparkles className="w-4 h-4 text-accent/40" />
                                 <span className="text-[10px] font-bold text-muted-foreground/20 uppercase tracking-[0.2em]">
                                     {batchConfigs.filter(c => c.selected).length} Target Segments Selected
                                 </span>

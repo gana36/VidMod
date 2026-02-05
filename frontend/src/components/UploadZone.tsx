@@ -150,15 +150,15 @@ const UploadZone: React.FC<UploadZoneProps> = ({
     };
 
     return (
-        <div className="h-full flex flex-col items-center justify-center p-6 bg-background">
-            <div className="w-full max-w-4xl">
-                <div className="mb-10 text-center animate-in fade-in slide-in-from-top-4 duration-700">
-                    <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded border border-border bg-secondary/50 mb-4">
-                        <Video className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Source Ingestion</span>
+        <div className="h-full flex flex-col items-center justify-center p-6 bg-[#0a0a0c]">
+            <div className="w-full max-w-4xl font-mono">
+                <div className="mb-12 text-center animate-in fade-in slide-in-from-top-4 duration-700">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-white/5 bg-white/[0.02] mb-6">
+                        <Video className="w-3 h-3 text-zinc-500" />
+                        <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-zinc-500">Source Ingestion Node</span>
                     </div>
-                    <h1 className="text-3xl font-bold mb-2 tracking-tight text-foreground uppercase">VidMod</h1>
-                    <p className="text-muted-foreground font-medium text-[10px] uppercase tracking-wide max-w-sm mx-auto leading-relaxed opacity-60">Professional media compliance and remediation suite.</p>
+                    <h1 className="text-4xl font-black mb-3 tracking-[0.2em] text-white/90">VIDMOD</h1>
+                    <p className="text-zinc-500 font-bold text-[10px] uppercase tracking-[0.2em] max-w-sm mx-auto leading-relaxed opacity-40">High-Precision Media Compliance & Remediation</p>
                 </div>
 
                 <div
@@ -166,47 +166,47 @@ const UploadZone: React.FC<UploadZoneProps> = ({
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     className={cn(
-                        "relative rounded-xl border border-border transition-all duration-300 flex flex-col items-center justify-center p-8 min-h-[480px] overflow-hidden bg-secondary/20 shadow-none",
-                        isDragging ? "border-primary/40 bg-primary/5" : "hover:border-border/80",
-                        status !== 'idle' && "p-6"
+                        "relative rounded-3xl border border-white/5 transition-all duration-500 flex flex-col items-center justify-center p-12 min-h-[520px] overflow-hidden bg-white/[0.01] shadow-2xl",
+                        isDragging ? "border-zinc-500/40 bg-zinc-500/5" : "hover:border-white/10",
+                        status !== 'idle' && "p-8"
                     )}
                 >
-                    {/* Minimal Overlay Pattern */}
-                    <div className="absolute inset-0 opacity-[0.01] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
+                    {/* Technical Grid Pattern */}
+                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
                     {status === 'idle' && (
                         <>
                             <div
-                                className="w-14 h-14 rounded bg-secondary border border-border flex items-center justify-center mb-6 transition-colors group cursor-pointer hover:bg-secondary/80"
+                                className="w-16 h-16 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-center mb-8 transition-all duration-300 group cursor-pointer hover:bg-white/[0.04] hover:border-white/10 hover:scale-105"
                                 onClick={() => fileInputRef.current?.click()}
                             >
-                                <UploadIcon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                <UploadIcon className="w-6 h-6 text-zinc-600 group-hover:text-white transition-colors" />
                             </div>
-                            <div className="text-center space-y-8 z-10">
-                                <div className="space-y-1">
-                                    <p className="text-lg font-semibold text-foreground tracking-tight">Select Media</p>
-                                    <p className="text-muted-foreground max-w-[280px] mx-auto text-xs font-medium leading-relaxed opacity-60">Upload video for compliance verification.</p>
+                            <div className="text-center space-y-10 z-10">
+                                <div className="space-y-2">
+                                    <p className="text-xl font-bold text-white/80 tracking-[0.1em] uppercase">Select Source</p>
+                                    <p className="text-zinc-500 max-w-[320px] mx-auto text-[10px] font-bold leading-relaxed opacity-40 uppercase tracking-widest">Awaiting local media for compliance validation.</p>
                                 </div>
-                                <div className="flex flex-col gap-4 items-center">
+                                <div className="flex flex-col gap-5 items-center">
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="px-8 py-3 bg-primary text-primary-foreground rounded-lg font-bold text-[10px] tracking-wider shadow-xl hover:brightness-105 transition-all active:scale-95 uppercase cursor-pointer"
+                                        className="px-10 py-4 bg-white text-zinc-950 rounded-xl font-bold text-[11px] tracking-[0.2em] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:bg-zinc-200 transition-all active:scale-95 uppercase cursor-pointer"
                                     >
-                                        BROWSE SOURCE
+                                        Uplink Media
                                     </button>
                                     {onBrowseLibrary && (
                                         <button
                                             onClick={onBrowseLibrary}
-                                            className="text-[10px] font-black text-muted-foreground hover:text-foreground transition-all tracking-[0.2em] uppercase opacity-30 hover:opacity-100 cursor-pointer"
+                                            className="text-[10px] font-bold text-zinc-600 hover:text-white transition-all tracking-[0.3em] uppercase opacity-40 hover:opacity-100 cursor-pointer"
                                         >
-                                            Library Search
+                                            Search Archive
                                         </button>
                                     )}
                                 </div>
-                                <div className="flex gap-6 justify-center items-center mt-12 opacity-40">
-                                    <span className="text-[9px] font-semibold uppercase tracking-wider">MAX 120S</span>
-                                    <div className="w-[1px] h-3 bg-border" />
-                                    <span className="text-[9px] font-semibold uppercase tracking-wider">MP4 / MOV</span>
+                                <div className="flex gap-8 justify-center items-center mt-16 opacity-20">
+                                    <span className="text-[9px] font-bold uppercase tracking-[0.3em]">Max 120s</span>
+                                    <div className="w-[1px] h-4 bg-white/20" />
+                                    <span className="text-[9px] font-bold uppercase tracking-[0.3em]">MP4 / MOV</span>
                                 </div>
                             </div>
                             <input
@@ -220,68 +220,68 @@ const UploadZone: React.FC<UploadZoneProps> = ({
                     )}
 
                     {status !== 'idle' && (
-                        <div className="w-full h-full flex flex-col z-10">
+                        <div className="w-full h-full flex flex-col z-10 font-mono">
                             {/* Compact Video Info */}
-                            <div className="flex items-center gap-6 p-6 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-3xl mb-8 transition-all">
-                                <div className="w-32 h-20 rounded-xl bg-black flex items-center justify-center flex-shrink-0 shadow-2xl overflow-hidden border border-white/5 group/preview relative cursor-pointer">
+                            <div className="flex items-center gap-8 p-6 rounded-[32px] bg-white/[0.02] border border-white/5 backdrop-blur-3xl mb-10 transition-all shadow-[0_32px_64px_rgba(0,0,0,0.4)]">
+                                <div className="w-40 h-24 rounded-2xl bg-black flex items-center justify-center flex-shrink-0 shadow-2xl overflow-hidden border border-white/5 group/preview relative cursor-pointer">
                                     {videoUrl && (
-                                        <video src={videoUrl} className="w-full h-full object-cover opacity-60 group-hover/preview:opacity-100 transition-opacity" autoPlay muted loop playsInline />
+                                        <video src={videoUrl} className="w-full h-full object-cover opacity-50 group-hover/preview:opacity-100 transition-all duration-500" autoPlay muted loop playsInline />
                                     )}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover/preview:opacity-100 transition-opacity" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h3 className="font-black truncate pr-4 text-lg tracking-tight text-foreground/80">{metadata?.name}</h3>
-                                        <button onClick={reset} className="p-2 hover:bg-white/10 text-muted-foreground hover:text-foreground rounded-lg transition-all cursor-pointer">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="font-bold truncate pr-6 text-xl tracking-[0.05em] text-white/90 uppercase">{metadata?.name}</h3>
+                                        <button onClick={reset} className="p-2 hover:bg-white/5 text-zinc-600 hover:text-white rounded-xl transition-all cursor-pointer">
                                             <X className="w-4 h-4" />
                                         </button>
                                     </div>
-                                    <div className="flex gap-3 text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-40">
-                                        <span>{metadata?.size}</span>
-                                        <span>{metadata?.duration}</span>
-                                        <span>{metadata?.resolution}</span>
+                                    <div className="flex gap-6 text-[9px] font-bold text-zinc-500 uppercase tracking-[0.3em] opacity-40">
+                                        <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-zinc-500" />{metadata?.size}</span>
+                                        <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-zinc-500" />{metadata?.duration}</span>
+                                        <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-zinc-500" />{metadata?.resolution}</span>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Main Configuration Section */}
-                            <div className="flex-1 flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="flex-1 flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 {status === 'uploading' || status === 'processing' ? (
-                                    <div className="flex-1 flex flex-col justify-center gap-6">
+                                    <div className="flex-1 flex flex-col justify-center gap-8">
                                         <div className="flex justify-between items-end mb-2">
-                                            <div className="flex items-center gap-3">
-                                                <Loader2 className="w-4 h-4 animate-spin text-foreground opacity-30" />
-                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-50">
-                                                    {status === 'uploading' ? 'Ingesting...' : 'Analyzing...'}
+                                            <div className="flex items-center gap-4">
+                                                <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />
+                                                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">
+                                                    {status === 'uploading' ? 'Ingesting Pipeline' : 'Neural Analysis Active'}
                                                 </span>
                                             </div>
-                                            <span className="text-xs font-black font-mono text-foreground opacity-50">{Math.floor(progress)}%</span>
+                                            <span className="text-sm font-bold font-mono text-white/80">{Math.floor(progress)}%</span>
                                         </div>
-                                        <div className="h-0.5 w-full bg-secondary rounded-full overflow-hidden">
-                                            <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}% ` }} />
+                                        <div className="h-1 w-full bg-white/[0.02] rounded-full overflow-hidden border border-white/5">
+                                            <div className="h-full bg-white transition-all duration-500 shadow-[0_0_20px_rgba(255,255,255,0.2)]" style={{ width: `${progress}%` }} />
                                         </div>
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                             {[
-                                                { label: 'Platform', value: platform, options: platforms, onChange: onPlatformChange },
-                                                { label: 'Rating', value: rating, options: ratings, onChange: onRatingChange },
-                                                { label: 'Region', value: region, options: regions, onChange: onRegionChange }
+                                                { label: 'Target Platform', value: platform, options: platforms, onChange: onPlatformChange },
+                                                { label: 'Compliance Rating', value: rating, options: ratings, onChange: onRatingChange },
+                                                { label: 'Regional Logic', value: region, options: regions, onChange: onRegionChange }
                                             ].map((sel, idx) => (
-                                                <div key={idx} className="space-y-3">
-                                                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-30 ml-1">{sel.label}</label>
+                                                <div key={idx} className="space-y-4">
+                                                    <label className="text-[9px] font-bold uppercase tracking-[0.3em] text-zinc-600 ml-1">{sel.label}</label>
                                                     <div className="relative group/sel">
-                                                        <div className="w-full flex items-center justify-between px-3 py-2 rounded border border-border bg-secondary hover:border-primary/40 hover:bg-secondary/80 cursor-pointer transition-all">
-                                                            <span className="font-semibold text-[10px] tracking-wider text-muted-foreground uppercase">{sel.value}</span>
-                                                            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/50" />
+                                                        <div className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-white/5 bg-white/[0.01] hover:border-white/20 hover:bg-white/[0.03] cursor-pointer transition-all">
+                                                            <span className="font-bold text-[10px] tracking-[0.1em] text-zinc-400 uppercase">{sel.value}</span>
+                                                            <ChevronDown className="w-3.5 h-3.5 text-zinc-600 transition-transform group-hover/sel:rotate-180" />
                                                         </div>
-                                                        {/* Dropdown container with invisible padding to bridge the gap */}
-                                                        <div className="absolute bottom-full left-0 w-full pb-2 opacity-0 scale-95 origin-bottom group-hover/sel:opacity-100 group-hover/sel:scale-100 pointer-events-none group-hover/sel:pointer-events-auto transition-all z-50">
-                                                            <div className="p-1 bg-secondary border border-border rounded shadow-xl">
+                                                        <div className="absolute bottom-full left-0 w-full pb-3 opacity-0 scale-95 origin-bottom group-hover/sel:opacity-100 group-hover/sel:scale-100 pointer-events-none group-hover/sel:pointer-events-auto transition-all z-50">
+                                                            <div className="p-2 bg-[#0a0a0c] border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl">
                                                                 {sel.options.map(opt => (
-                                                                    <button key={opt} onClick={() => sel.onChange(opt)} className="w-full flex items-center justify-between px-2 py-1.5 rounded text-[9px] font-semibold tracking-wider hover:bg-primary/10 transition-all text-muted-foreground hover:text-primary uppercase">
+                                                                    <button key={opt} onClick={() => sel.onChange(opt)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[10px] font-bold tracking-widest hover:bg-white/5 transition-all text-zinc-500 hover:text-white uppercase">
                                                                         {opt}
-                                                                        {sel.value === opt && <Check className="w-3 h-3 text-primary" />}
+                                                                        {sel.value === opt && <Check className="w-3.5 h-3.5 text-white" />}
                                                                     </button>
                                                                 ))}
                                                             </div>
@@ -291,21 +291,21 @@ const UploadZone: React.FC<UploadZoneProps> = ({
                                             ))}
                                         </div>
 
-                                        <div className="mt-auto">
+                                        <div className="mt-auto pt-8">
                                             <button
                                                 onClick={() => metadata && onUploadComplete(metadata)}
                                                 disabled={!metadata}
                                                 className={cn(
-                                                    "w-full py-3.5 text-primary-foreground rounded-lg font-semibold text-[10px] tracking-widest transition-all relative overflow-hidden group/btn uppercase",
-                                                    metadata ? "bg-primary hover:bg-primary/90 active:scale-[0.99] shadow-sm" : "bg-muted cursor-not-allowed opacity-20"
+                                                    "w-full py-4 bg-white text-zinc-950 rounded-2xl font-bold text-[11px] tracking-[0.3em] transition-all relative overflow-hidden group/btn uppercase shadow-[0_32px_64px_rgba(0,0,0,0.5)]",
+                                                    metadata ? "hover:bg-zinc-200 active:scale-[0.98]" : "bg-white/10 cursor-not-allowed opacity-20"
                                                 )}
                                             >
-                                                Start Compliance Scan
+                                                Initialize Scan Sequence
                                             </button>
-                                            <div className="mt-6 flex items-center justify-center gap-4 opacity-5">
-                                                <div className="h-[1px] w-8 bg-white" />
-                                                <span className="text-[8px] font-black uppercase tracking-[0.4em]">Verified Unit</span>
-                                                <div className="h-[1px] w-8 bg-white" />
+                                            <div className="mt-8 flex items-center justify-center gap-6 opacity-10">
+                                                <div className="h-[1px] w-12 bg-white" />
+                                                <span className="text-[8px] font-bold uppercase tracking-[0.5em] text-white">System Integrity Verified</span>
+                                                <div className="h-[1px] w-12 bg-white" />
                                             </div>
                                         </div>
                                     </>
