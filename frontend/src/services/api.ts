@@ -415,6 +415,7 @@ export interface ProfanityMatch {
     replacement: string;
     confidence: string;
     context: string;
+    speaker_id?: string;
 }
 
 export interface CensorAudioResponse {

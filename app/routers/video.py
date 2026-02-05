@@ -2049,14 +2049,10 @@ async def censor_audio(
     try:
         logger.info(f"Starting audio censoring in '{request.mode}' mode")
         
-        # Step 1: Get profanity matches - check cache, then request, then analyze
-        if job.profanity_matches is not None:
-            # Use cached matches from JobState (from previous analyze_audio call)
-            logger.info(f"Step 1: CACHE HIT - Using {len(job.profanity_matches)} cached profanity matches from JobState")
-            profanity_matches = job.profanity_matches
-        elif request.profanity_matches:
-            # Use pre-analyzed matches from frontend (skips redundant Gemini call!)
-            logger.info(f"Step 1: Using {len(request.profanity_matches)} pre-analyzed profanity matches from request")
+        # Step 1: Get profanity matches - check request first, then cache, then analyze
+        # Priority 1: User-edited matches from frontend (supports manual sync/word fixes)
+        if request.profanity_matches:
+            logger.info(f"Step 1: Using {len(request.profanity_matches)} pre-analyzed profanity matches from request (includes manual fixes)")
             from core.audio_analyzer import ProfanityMatch
             profanity_matches = [
                 ProfanityMatch(
@@ -2070,14 +2066,18 @@ async def censor_audio(
                 )
                 for m in request.profanity_matches
             ]
+        # Priority 2: Cached matches from JobState
+        elif job.profanity_matches is not None:
+            logger.info(f"Step 1: CACHE HIT - Using {len(job.profanity_matches)} cached profanity matches from JobState")
+            profanity_matches = job.profanity_matches
+        # Priority 3: Fresh analysis with Gemini
         else:
-            # Analyze with Gemini (only if no cached or pre-analyzed matches)
             logger.info("Step 1: CACHE MISS - Analyzing audio for profanity with Gemini...")
             profanity_matches = pipeline.audio_analyzer.analyze_profanity(
                 video_path=job.video_path,
                 custom_words=request.custom_words
             )
-            # Cache the results for future use
+            # Cache the results
             import time
             job.profanity_matches = profanity_matches
             job.profanity_analyzed_at = time.time()
@@ -2143,7 +2143,8 @@ async def censor_audio(
                 word_replacements=word_replacements,
                 output_path=output_path,
                 voice_sample_start=request.voice_sample_start,
-                voice_sample_end=request.voice_sample_end
+                voice_sample_end=request.voice_sample_end,
+                profanity_matches=profanity_matches
             )
             
         elif request.mode == "auto":
@@ -2159,7 +2160,8 @@ async def censor_audio(
             dubber.apply_dubs_multi_speaker(
                 video_path=job.video_path,
                 output_path=output_path,
-                custom_replacements=request.custom_replacements
+                custom_replacements=request.custom_replacements,
+                profanity_matches=profanity_matches
             )
             
         elif request.mode == "dub":  # dub mode (pre-built voices)

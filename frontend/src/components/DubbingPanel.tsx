@@ -9,7 +9,10 @@ import {
     RefreshCw,
     AlertTriangle,
     Wand2,
-    ChevronRight
+    ChevronRight,
+    Plus,
+    Trash2,
+    Clock
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -40,6 +43,26 @@ const DubbingPanel: React.FC<DubbingPanelProps> = ({ jobId, onActionComplete }) 
     const [error, setError] = useState<string>('');
     const [progress, setProgress] = useState<string>('');
     const [loadingSuggestions, setLoadingSuggestions] = useState<string | null>(null);
+
+    // Add a manual segment
+    const handleAddSegment = () => {
+        const newSegment: ProfanityMatch = {
+            word: '',
+            start_time: 0,
+            end_time: 1,
+            replacement: '',
+            confidence: 'High',
+            speaker_id: 'speaker_1',
+            context: 'manual entry'
+        };
+        setMatches([...matches, newSegment]);
+    };
+
+    // Remove a segment
+    const handleRemoveSegment = (index: number) => {
+        const updated = matches.filter((_, i) => i !== index);
+        setMatches(updated);
+    };
 
     // Scan audio for speech segments
     const handleScan = async () => {
@@ -217,8 +240,17 @@ const DubbingPanel: React.FC<DubbingPanelProps> = ({ jobId, onActionComplete }) 
                 {(status === 'ready' || status === 'processing' || status === 'completed') && (
                     <div className="space-y-4 pb-20">
                         <div className="flex items-center justify-between sticky top-0 py-2 bg-[var(--background)]/80 backdrop-blur-sm z-10">
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Dialogue Segments</span>
-                            <span className="text-[10px] text-accent font-semibold">{matches.length} Instances Found</span>
+                            <div className="flex items-center gap-3">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Dialogue Segments</span>
+                                <span className="text-[10px] text-accent font-semibold">{matches.length} Instances</span>
+                            </div>
+                            <button
+                                onClick={handleAddSegment}
+                                className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 transition-all text-[9px] font-bold uppercase"
+                            >
+                                <Plus className="w-3 h-3" />
+                                Add Segment
+                            </button>
                         </div>
 
                         {matches.length === 0 ? (
@@ -249,24 +281,85 @@ const DubbingPanel: React.FC<DubbingPanelProps> = ({ jobId, onActionComplete }) 
                                             </button>
                                         </div>
 
-                                        <div className="space-y-2">
-                                            <div className="px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-foreground/90 font-medium">
-                                                {match.word}
+                                        <div className="space-y-3">
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="space-y-1">
+                                                    <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Original Word</label>
+                                                    <input
+                                                        type="text"
+                                                        value={match.word}
+                                                        onChange={(e) => {
+                                                            const updated = [...matches];
+                                                            updated[idx].word = e.target.value;
+                                                            setMatches(updated);
+                                                        }}
+                                                        placeholder="AI transcription..."
+                                                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-foreground/90 font-medium focus:outline-none focus:border-white/30"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[8px] font-bold text-accent uppercase tracking-wider ml-1">Replacement</label>
+                                                    <div className="relative group/input">
+                                                        <input
+                                                            type="text"
+                                                            value={match.replacement}
+                                                            onChange={(e) => {
+                                                                const updated = [...matches];
+                                                                updated[idx].replacement = e.target.value;
+                                                                setMatches(updated);
+                                                            }}
+                                                            placeholder="New word..."
+                                                            disabled={status === 'processing'}
+                                                            className="w-full px-3 py-2 bg-accent/[0.03] border border-accent/20 rounded-xl text-xs text-accent font-bold focus:outline-none focus:border-accent group-hover/input:border-accent/40 transition-all placeholder:text-accent/20"
+                                                        />
+                                                        <Sparkles className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-accent/30 pointer-events-none" />
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="relative group/input">
-                                                <input
-                                                    type="text"
-                                                    value={match.replacement}
-                                                    onChange={(e) => {
-                                                        const updated = [...matches];
-                                                        updated[idx].replacement = e.target.value;
-                                                        setMatches(updated);
-                                                    }}
-                                                    placeholder="Enter replacement word..."
-                                                    disabled={status === 'processing'}
-                                                    className="w-full px-3 py-2.5 bg-accent/[0.03] border border-accent/20 rounded-xl text-xs text-accent focus:outline-none focus:border-accent group-hover/input:border-accent/40 transition-all placeholder:text-accent/20"
-                                                />
-                                                <Sparkles className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-accent/30 pointer-events-none" />
+
+                                            <div className="flex items-center gap-4 bg-black/20 p-2 rounded-xl border border-white/5">
+                                                <div className="flex-1 flex items-center gap-3">
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">Start Time</span>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Clock className="w-3 h-3 text-muted-foreground/40" />
+                                                            <input
+                                                                type="number"
+                                                                step="0.1"
+                                                                value={match.start_time}
+                                                                onChange={(e) => {
+                                                                    const updated = [...matches];
+                                                                    updated[idx].start_time = parseFloat(e.target.value);
+                                                                    setMatches(updated);
+                                                                }}
+                                                                className="w-16 bg-transparent text-[10px] font-mono font-bold text-foreground focus:outline-none"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">End Time</span>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Clock className="w-3 h-3 text-muted-foreground/40" />
+                                                            <input
+                                                                type="number"
+                                                                step="0.1"
+                                                                value={match.end_time}
+                                                                onChange={(e) => {
+                                                                    const updated = [...matches];
+                                                                    updated[idx].end_time = parseFloat(e.target.value);
+                                                                    setMatches(updated);
+                                                                }}
+                                                                className="w-16 bg-transparent text-[10px] font-mono font-bold text-foreground focus:outline-none"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleRemoveSegment(idx)}
+                                                    className="p-2 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
                                             </div>
                                         </div>
                                     </div>

@@ -453,7 +453,7 @@ class ElevenLabsDubber:
         # Increased padding to 0.05s to ensure total removal of original words
         volume_conditions = []
         for _, start_time, end_time in dub_segments:
-            padding = 0.05
+            padding = 0.1
             start_p = max(0, start_time - padding)
             end_p = end_time + padding
             volume_conditions.append(f"between(t,{start_p:.6f},{end_p:.6f})")
@@ -466,7 +466,7 @@ class ElevenLabsDubber:
         for i, (dub_path, start_time, end_time) in enumerate(dub_segments):
             delay_ms = int(start_time * 1000)
             duration = end_time - start_time
-            fade_dur = 0.025
+            fade_dur = 0.05
             fade_out_st = max(0, duration - fade_dur)
             
             fade_filter = f"afade=t=in:d={fade_dur},afade=t=out:st={fade_out_st:.6f}:d={fade_dur}"
@@ -750,7 +750,8 @@ class ElevenLabsDubber:
         word_replacements: Dict[str, str],
         output_path: Path,
         voice_sample_start: float,
-        voice_sample_end: float
+        voice_sample_end: float,
+        profanity_matches: Optional[list] = None
     ) -> Path:
         """
         Replace words with dubbed audio using a CLONED voice from the video.
@@ -793,23 +794,29 @@ class ElevenLabsDubber:
             cloned_voice_id = self.create_instant_voice_clone(sample_path)
             logger.info(f"✅ Voice cloned successfully: {cloned_voice_id}")
             
-            # Step 1: Analyze audio to find word occurrences
-            from core.audio_analyzer import AudioAnalyzer
-            from app.config import get_settings
+            # Step 1: Get profanity matches (re-analyze only if not provided)
+            if profanity_matches:
+                logger.info(f"Step 1: Using {len(profanity_matches)} provided matches (no re-analysis)")
+                matches = profanity_matches
+            else:
+                from core.audio_analyzer import AudioAnalyzer
+                from app.config import get_settings
+                
+                settings = get_settings()
+                analyzer = AudioAnalyzer(api_key=settings.gemini_api_key)
+                
+                custom_words = list(word_replacements.keys())
+                logger.info(f"Detecting instances of: {custom_words}")
+                
+                # Detect all instances of these words
+                matches = analyzer.analyze_profanity(
+                    video_path,
+                    custom_words=custom_words
+                )
             
-            settings = get_settings()
-            analyzer = AudioAnalyzer(api_key=settings.gemini_api_key)
-            
-            custom_words = list(word_replacements.keys())
-            logger.info(f"Detecting instances of: {custom_words}")
-            
-            matches = analyzer.analyze_profanity(
-                video_path,
-                custom_words=custom_words
-            )
-            
+            # Apply custom replacements if provided
             for match in matches:
-                if match.word in word_replacements:
+                if word_replacements and match.word in word_replacements:
                     match.replacement = word_replacements[match.word]
             
             if not matches:
@@ -874,7 +881,8 @@ class ElevenLabsDubber:
         self,
         video_path: Path,
         output_path: Path,
-        custom_replacements: Optional[Dict[str, str]] = None
+        custom_replacements: Optional[Dict[str, str]] = None,
+        profanity_matches: Optional[list] = None
     ) -> Path:
         """
         AUTOMATIC multi-speaker voice cloning and dubbing.
@@ -943,10 +951,15 @@ class ElevenLabsDubber:
                 cloned_voices[speaker_id] = voice_id
                 logger.info(f"  ✅ Cloned {speaker_id} ({seg.get('gender', 'unknown')}): {voice_id}")
             
-            # Step 2: Detect profanity with speaker attribution
-            logger.info("Step 2: Detecting profanity with speaker identification...")
-            custom_words = list(custom_replacements.keys()) if custom_replacements else None
-            matches = analyzer.analyze_profanity(video_path, custom_words=custom_words)
+            # Step 2: Get profanity matches (re-analyze only if not provided)
+            logger.info("Step 2: Getting profanity matches...")
+            if profanity_matches:
+                logger.info(f"  Using {len(profanity_matches)} provided matches (no re-analysis)")
+                matches = profanity_matches
+            else:
+                logger.info("  Analyzing audio for profanity with speaker identification...")
+                custom_words = list(custom_replacements.keys()) if custom_replacements else None
+                matches = analyzer.analyze_profanity(video_path, custom_words=custom_words)
             
             if custom_replacements:
                 for match in matches:
