@@ -195,7 +195,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
             if (isAudioFinding) {
                 // Audio-based finding -> use audio actions
                 defaultEffect = 'censor-beep';
-            } else if (f.suggestedAction?.toLowerCase().includes('runway')) {
+            } else if (f.suggestedAction?.toLowerCase().includes('runway') || f.suggestedAction?.toLowerCase() === 'replace') {
                 defaultEffect = 'replace-runway';
             } else if (f.suggestedAction?.toLowerCase().includes('pixelate')) {
                 defaultEffect = 'pixelate';
@@ -489,28 +489,6 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
 
         // Replace action - for replace or logo findings
         if (step.iconType === 'replace' || step.finding.category === 'logo') {
-            buttons.push(
-                <button
-                    key="replace-vace"
-                    onClick={(e) => handleApplyAction(step, 'replace-vace', e)}
-                    disabled={!jobId}
-                    className="flex items-center gap-1 px-2 py-1 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors disabled:opacity-50"
-                >
-                    <RefreshCw className="w-3 h-3" />
-                    VACE
-                </button>
-            );
-            buttons.push(
-                <button
-                    key="replace-pika"
-                    onClick={(e) => handleApplyAction(step, 'replace-pika', e)}
-                    disabled={!jobId}
-                    className="flex items-center gap-1 px-2 py-1 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors disabled:opacity-50"
-                >
-                    <Play className="w-3 h-3" />
-                    Pika
-                </button>
-            );
             buttons.push(
                 <button
                     key="replace-runway"

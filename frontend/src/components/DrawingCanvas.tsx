@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Droplets, ShieldAlert, VolumeX, X, MousePointer2, Wand2, Loader2, AlertCircle, Zap } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Droplets, ShieldAlert, VolumeX, X, MousePointer2, Wand2, Loader2, AlertCircle } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { analyzeManual, type ManualAction } from '../services/api';
@@ -18,7 +19,7 @@ interface Box {
 interface DrawingCanvasProps {
     jobId: string;
     currentTime: number;
-    onConfirm: (box: Box, action: 'blur' | 'replace' | 'replace-pika' | 'replace-runway' | 'mute', label?: string, reasoning?: string) => void;
+    onConfirm: (box: Box, action: 'blur' | 'replace' | 'replace-runway' | 'mute', label?: string, reasoning?: string) => void;
     onCancel: () => void;
 }
 
@@ -33,6 +34,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ jobId, currentTime, onCon
         actions: ManualAction[];
     } | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [menuPos, setMenuPos] = useState<{ x: number, y: number } | null>(null);
 
     const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -70,6 +72,20 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ jobId, currentTime, onCon
         if (currentBox && currentBox.width > 0.5 && currentBox.height > 0.5) {
             setIsConfirmedBox(true);
             setStartPos(null);
+
+            // Set menu position relative to the viewport
+            const rect = canvasRef.current?.getBoundingClientRect();
+            if (rect && currentBox) {
+                const boxX = rect.left + (currentBox.left + currentBox.width / 2) * rect.width / 100;
+                const boxBottom = rect.top + (currentBox.top + currentBox.height) * rect.height / 100;
+                const boxTop = rect.top + (currentBox.top) * rect.height / 100;
+
+                setMenuPos({
+                    x: boxX,
+                    y: (currentBox.top > 50) ? boxTop - 12 : boxBottom + 12
+                });
+            }
+
             await runAnalysis(currentBox);
         } else {
             reset();
@@ -94,17 +110,12 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ jobId, currentTime, onCon
         }
     };
 
-    const [showReplaceOptions, setShowReplaceOptions] = useState(false);
-
-    const handleAction = (action: 'blur' | 'replace' | 'replace-pika' | 'mute', label?: string) => {
-        // If replace is clicked, show options instead of directly confirming
-        if (action === 'replace') {
-            setShowReplaceOptions(true);
-            return;
-        }
+    const handleAction = (action: 'blur' | 'replace' | 'replace-runway' | 'mute', label?: string) => {
+        // Streamline replacement flow: default to Runway Gen-3
+        const finalAction = action === 'replace' ? 'replace-runway' : action;
 
         if (currentBox) {
-            onConfirm(currentBox, action, label || analysisResult?.itemName, analysisResult?.reasoning);
+            onConfirm(currentBox, finalAction, label || analysisResult?.itemName, analysisResult?.reasoning);
             reset();
         }
     };
@@ -115,30 +126,31 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ jobId, currentTime, onCon
         setIsConfirmedBox(false);
         setAnalysisResult(null);
         setError(null);
+        setMenuPos(null);
     };
 
     return (
         <div
             ref={canvasRef}
-            className="absolute inset-0 z-[100] cursor-crosshair bg-black/10 backdrop-blur-[0.5px]"
+            className="absolute inset-0 z-[100] cursor-crosshair bg-black/20 backdrop-blur-[1px]"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
         >
             {!isConfirmedBox && (
-                <div className="absolute top-4 left-4 px-3 py-1.5 bg-background/80 backdrop-blur border border-border rounded-lg flex items-center gap-2 pointer-events-none animate-in fade-in slide-in-from-top-2">
-                    <MousePointer2 className="w-3.5 h-3.5 text-accent" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Drag to draw remediation zone</span>
+                <div className="absolute top-4 left-4 px-3 py-1.5 bg-zinc-900/90 backdrop-blur border border-white/10 rounded-lg flex items-center gap-2 pointer-events-none animate-in fade-in slide-in-from-top-2 shadow-2xl">
+                    <MousePointer2 className="w-3.5 h-3.5 text-white/60" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/80">Drag to draw remediation zone</span>
                 </div>
             )}
 
             {currentBox && (
                 <div
                     className={cn(
-                        "absolute border transition-all duration-300 ease-out",
+                        "absolute border-2 transition-all duration-300 ease-out",
                         isConfirmedBox
-                            ? "border-accent bg-accent/5 shadow-[0_0_30px_rgba(59,130,246,0.4)]"
-                            : "border-accent/50 bg-accent/5 shadow-[0_0_20px_rgba(59,130,246,0.2)]"
+                            ? "border-white bg-white/5 shadow-[0_0_40px_rgba(255,255,255,0.2)]"
+                            : "border-white/40 bg-white/5 shadow-[0_0_20px_rgba(255,255,255,0.1)]"
                     )}
                     style={{
                         top: `${currentBox.top}%`,
@@ -152,105 +164,11 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ jobId, currentTime, onCon
                     {/* Corner Handles */}
                     {isConfirmedBox && (
                         <>
-                            <div className="absolute -top-[1px] -left-[1px] w-2 h-2 border-t-2 border-l-2 border-accent" />
-                            <div className="absolute -top-[1px] -right-[1px] w-2 h-2 border-t-2 border-r-2 border-accent" />
-                            <div className="absolute -bottom-[1px] -left-[1px] w-2 h-2 border-b-2 border-l-2 border-accent" />
-                            <div className="absolute -bottom-[1px] -right-[1px] w-2 h-2 border-b-2 border-r-2 border-accent" />
+                            <div className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+                            <div className="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+                            <div className="absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 border-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+                            <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
                         </>
-                    )}
-
-                    {/* Analysis Label */}
-                    {isConfirmedBox && (
-                        <div className="absolute -top-10 left-0 flex items-center gap-2 whitespace-nowrap">
-                            <div className={cn(
-                                "px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl",
-                                isAnalyzing ? "bg-accent text-white animate-pulse" : "bg-white text-black"
-                            )}>
-                                {isAnalyzing ? (
-                                    <>
-                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                        Analyzing with Gemini...
-                                    </>
-                                ) : analysisResult ? (
-                                    <>
-                                        Detected: {analysisResult.itemName}
-                                    </>
-                                ) : error ? (
-                                    <>
-                                        <AlertCircle className="w-3 h-3 text-red-500" />
-                                        {error}
-                                    </>
-                                ) : (
-                                    "Region Selected"
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Action Menu - Enhanced for AI suggestions */}
-                    {isConfirmedBox && !isAnalyzing && (
-                        <div
-                            className={cn(
-                                "absolute left-1/2 -translate-x-1/2 min-w-[320px] bg-background border border-border rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 pointer-events-auto overflow-hidden z-[500]",
-                                currentBox.top > 50 ? "bottom-[calc(100%+12px)]" : "top-[calc(100%+12px)]"
-                            )}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onMouseUp={(e) => e.stopPropagation()}
-                        >
-                            {analysisResult && (
-                                <div className="p-3 bg-muted/20 border-b border-border">
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">AI Recommendation</p>
-                                    <p className="text-[11px] leading-relaxed italic opacity-80">"{analysisResult.reasoning}"</p>
-                                </div>
-                            )}
-
-                            <div className="p-1 space-y-1">
-                                {analysisResult?.actions.map((action) => (
-                                    <button
-                                        key={action.id}
-                                        onClick={() => handleAction(action.type as any, action.label)}
-                                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-accent/10 transition-all border border-transparent hover:border-accent/30 group"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                                                {action.type === 'blur' && <Droplets className="w-4 h-4" />}
-                                                {action.type === 'replace' && <ShieldAlert className="w-4 h-4 text-emerald-500" />}
-                                                {action.type === 'mute' && <VolumeX className="w-4 h-4 text-red-500" />}
-                                            </div>
-                                            <div className="flex flex-col items-start">
-                                                <span className="text-xs font-bold text-foreground">{action.label}</span>
-                                                <span className="text-[10px] text-muted-foreground">{action.description}</span>
-                                            </div>
-                                        </div>
-                                        <Wand2 className="w-4 h-4 text-accent/0 group-hover:text-accent/50 transition-all" />
-                                    </button>
-                                ))}
-
-                                {/* Standard fallback actions if no AI results */}
-                                {!analysisResult && !error && (
-                                    <>
-                                        <button onClick={() => handleAction('blur')} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted/50 transition-all text-sm font-medium">
-                                            <Droplets className="w-4 h-4 text-accent" /> Blur
-                                        </button>
-                                        <button onClick={() => handleAction('replace')} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted/50 transition-all text-sm font-medium">
-                                            <ShieldAlert className="w-4 h-4 text-emerald-500" /> Replace
-                                        </button>
-                                        <button onClick={() => handleAction('mute')} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted/50 transition-all text-sm font-medium">
-                                            <VolumeX className="w-4 h-4 text-red-500" /> Mute
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-
-                            <div className="p-2 border-t border-border flex justify-end">
-                                <button
-                                    onClick={reset}
-                                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all"
-                                >
-                                    <X className="w-3.5 h-3.5" /> Cancel
-                                </button>
-                            </div>
-                        </div>
                     )}
                 </div>
             )}
@@ -258,84 +176,127 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ jobId, currentTime, onCon
             {/* Escape Button - Always Visible */}
             <button
                 onClick={onCancel}
-                className="absolute top-4 right-4 px-4 py-2.5 bg-red-500/90 hover:bg-red-600 backdrop-blur border-2 border-red-400 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all shadow-2xl shadow-red-500/50 hover:scale-105 z-[1000] animate-in fade-in slide-in-from-top-2 flex items-center gap-2"
+                className="absolute top-4 right-4 px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all shadow-2xl z-[1000] animate-in fade-in slide-in-from-top-2 flex items-center gap-2 cursor-pointer group"
             >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 text-white/40 group-hover:text-white transition-colors" />
                 Exit Edit Mode
             </button>
 
-            {/* Replace Options Modal */}
-            {showReplaceOptions && isConfirmedBox && (
-                <div className="absolute inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in">
-                    <div className="bg-background border-2 border-accent rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 animate-in zoom-in-95">
-                        <h3 className="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <ShieldAlert className="w-4 h-4 text-accent" />
-                            Choose Replacement Method
-                        </h3>
-                        <div className="space-y-3 mb-4">
-                            <button
-                                onClick={() => {
-                                    setShowReplaceOptions(false);
-                                    if (currentBox) {
-                                        onConfirm(currentBox, 'replace-pika', analysisResult?.itemName, analysisResult?.reasoning);
-                                        reset();
-                                    }
-                                }}
-                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border-2 border-white/5 hover:border-white/20 transition-all group"
-                            >
-                                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground/60">
-                                    <Zap className="w-5 h-5" />
-                                </div>
-                                <div className="flex-1 text-left">
-                                    <div className="text-sm font-bold text-foreground/80">Pika Labs Replace</div>
-                                    <div className="text-[10px] text-muted-foreground/40 uppercase tracking-tight">Geometry-Transform Inpainting</div>
-                                </div>
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowReplaceOptions(false);
-                                    if (currentBox) {
-                                        onConfirm(currentBox, 'replace', analysisResult?.itemName, analysisResult?.reasoning);
-                                        reset();
-                                    }
-                                }}
-                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border-2 border-white/5 hover:border-white/20 transition-all group"
-                            >
-                                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground/60">
-                                    <ShieldAlert className="w-5 h-5" />
-                                </div>
-                                <div className="flex-1 text-left">
-                                    <div className="text-sm font-bold text-foreground/80">VACE Replace</div>
-                                    <div className="text-[10px] text-muted-foreground/40 uppercase tracking-tight">Texture-Preserving Synthesis</div>
-                                </div>
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowReplaceOptions(false);
-                                    if (currentBox) {
-                                        onConfirm(currentBox, 'replace-runway', analysisResult?.itemName, analysisResult?.reasoning);
-                                        reset();
-                                    }
-                                }}
-                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border-2 border-white/5 hover:border-white/20 transition-all group"
-                            >
-                                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground/60">
-                                    <Wand2 className="w-5 h-5" />
-                                </div>
-                                <div className="flex-1 text-left">
-                                    <div className="text-sm font-bold text-foreground/80">Runway Gen-3</div>
-                                    <div className="text-[10px] text-muted-foreground/40 uppercase tracking-tight">Advanced Temporal Refactor</div>
-                                </div>
-                            </button>
+            {/* PORTALED CONTENT: Action Menu and Status Labels */}
+            {isConfirmedBox && menuPos && createPortal(
+                <div
+                    className="fixed inset-0 pointer-events-none z-[1001]"
+                    style={{ isolation: 'isolate' }}
+                >
+                    {/* Detection Label - Top of the box or bottom if near edge */}
+                    <div
+                        className="absolute whitespace-nowrap -translate-x-1/2 flex items-center gap-2 pointer-events-auto"
+                        style={{
+                            left: `${menuPos.x}px`,
+                            top: `${(currentBox?.top ?? 0) > 50 ? menuPos.y + 12 : menuPos.y - 50}px`,
+                            transformOrigin: 'center'
+                        }}
+                    >
+                        <div className={cn(
+                            "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.15em] flex items-center gap-2.5 shadow-[0_16px_32px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.1)]",
+                            isAnalyzing ? "bg-white text-black animate-pulse" : "bg-[#09090b] text-white border border-white/10"
+                        )}>
+                            {isAnalyzing ? (
+                                <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    Analyzing Scene...
+                                </>
+                            ) : analysisResult ? (
+                                <>
+                                    <ShieldAlert className="w-3.5 h-3.5 text-emerald-400" />
+                                    Detected: {analysisResult.itemName}
+                                </>
+                            ) : error ? (
+                                <>
+                                    <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                                    {error}
+                                </>
+                            ) : (
+                                "Region Selected"
+                            )}
                         </div>
-                        <button
-                            onClick={() => setShowReplaceOptions(false)}
-                            className="w-full px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
-                        >
-                            Cancel
-                        </button>
                     </div>
-                </div>
+
+                    {/* Action Menu */}
+                    {!isAnalyzing && (
+                        <div
+                            className={cn(
+                                "absolute left-1/2 -translate-x-1/2 min-w-[340px] bg-[#09090b] border border-white/10 rounded-2xl shadow-[0_32px_64px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.05)] animate-in fade-in zoom-in-95 duration-200 pointer-events-auto overflow-hidden",
+                                (currentBox?.top ?? 0) > 50 ? "-translate-y-full" : ""
+                            )}
+                            style={{
+                                left: `${menuPos.x}px`,
+                                top: `${menuPos.y}px`
+                            }}
+                        >
+                            {analysisResult && (
+                                <div className="p-4 bg-white/[0.03] border-b border-white/10">
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                        <Wand2 className="w-3 h-3 text-white/40" />
+                                        <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.1em]">AI recommendation</p>
+                                    </div>
+                                    <p className="text-[11px] leading-relaxed text-zinc-300 font-medium">"{analysisResult.reasoning}"</p>
+                                </div>
+                            )}
+
+                            <div className="p-1.5 space-y-1">
+                                {(analysisResult?.actions || []).map((action) => (
+                                    <button
+                                        key={action.id}
+                                        onClick={() => handleAction(action.type as any, action.label)}
+                                        className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-white/5 transition-all group cursor-pointer"
+                                    >
+                                        <div className="flex items-center gap-3.5">
+                                            <div className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center text-white/60 group-hover:text-white transition-colors border border-white/5">
+                                                {action.type === 'blur' && <Droplets className="w-4.5 h-4.5" />}
+                                                {(action.type === 'replace' || action.type.startsWith('replace-')) && <ShieldAlert className="w-4.5 h-4.5" />}
+                                                {action.type === 'mute' && <VolumeX className="w-4.5 h-4.5" />}
+                                            </div>
+                                            <div className="flex flex-col items-start gap-0.5">
+                                                <span className="text-xs font-bold text-white tracking-tight">{action.label}</span>
+                                                <span className="text-[10px] text-zinc-500 font-medium">{action.description}</span>
+                                            </div>
+                                        </div>
+                                        <Wand2 className="w-4 h-4 text-white/0 group-hover:text-white/20 transition-all scale-75 group-hover:scale-100" />
+                                    </button>
+                                ))}
+
+                                {/* Standard fallback actions if no AI results */}
+                                {(!analysisResult || analysisResult.actions.length === 0) && !error && (
+                                    <>
+                                        <button onClick={() => handleAction('blur')} className="w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl hover:bg-white/5 transition-all group cursor-pointer">
+                                            <Droplets className="w-4.5 h-4.5 text-white/40 group-hover:text-white" />
+                                            <span className="text-xs font-bold text-white">Manual Blur</span>
+                                        </button>
+                                        <button onClick={() => handleAction('replace')} className="w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl hover:bg-white/5 transition-all group cursor-pointer">
+                                            <ShieldAlert className="w-4.5 h-4.5 text-white/40 group-hover:text-white" />
+                                            <span className="text-xs font-bold text-white">Manual Replace</span>
+                                        </button>
+                                        <button onClick={() => handleAction('mute')} className="w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl hover:bg-white/5 transition-all group cursor-pointer">
+                                            <VolumeX className="w-4.5 h-4.5 text-white/40 group-hover:text-white" />
+                                            <span className="text-xs font-bold text-white">Manual Mute</span>
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+
+                            <div className="p-2.5 border-t border-white/5 bg-white/[0.01]">
+                                <button
+                                    onClick={reset}
+                                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-[#a1a1aa] hover:text-white hover:bg-white/5 transition-all cursor-pointer"
+                                >
+                                    <X className="w-3.5 h-3.5 opacity-50" /> Reject Analysis
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>,
+                document.body
             )}
         </div>
     );
