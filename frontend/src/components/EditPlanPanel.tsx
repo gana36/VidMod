@@ -482,7 +482,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     className="flex items-center gap-1 px-2 py-1 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors disabled:opacity-50"
                 >
                     <RefreshCw className="w-3 h-3" />
-                    Runway
+                    Replace
                 </button>
             );
         }
@@ -497,7 +497,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     className="flex items-center gap-1 px-2 py-1 bg-secondary/20 hover:bg-secondary/30 border border-border rounded text-[9px] font-bold uppercase transition-colors disabled:opacity-50"
                 >
                     <RefreshCw className="w-3 h-3" />
-                    Runway
+                    Replace
                 </button>
             );
         }

@@ -233,7 +233,7 @@ const VideoWorkspace: React.FC<VideoWorkspaceProps> = ({ videoUrl, jobId, seekTo
         if (!onAddFinding) return;
 
         const type = action === 'blur' ? 'Manual Blur'
-            : action === 'replace' || action === 'replace-runway' ? 'Manual Replace (Runway)'
+            : action === 'replace' || action === 'replace-runway' ? 'Manual Replace'
                 : 'Manual Mute';
         const category = action === 'blur' || action === 'replace' || action === 'replace-runway' ? 'logo' : 'language';
         const content = label || `User defined ${action} area`;

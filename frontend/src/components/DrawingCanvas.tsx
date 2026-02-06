@@ -111,7 +111,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ jobId, currentTime, onCon
     };
 
     const handleAction = (action: 'blur' | 'replace' | 'replace-runway' | 'mute', label?: string) => {
-        // Streamline replacement flow: default to Runway Gen-3
+        // Streamline replacement flow: default to Replace action
         const finalAction = action === 'replace' ? 'replace-runway' : action;
 
         if (currentBox) {

@@ -57,6 +57,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
 }) => {
     const [status, setStatus] = useState<Status>('idle');
     const [error, setError] = useState<string>('');
+    const [zoomedImage, setZoomedImage] = useState<string | null>(null);
     const [downloadUrl, setDownloadUrl] = useState<string>('');
     const [objectPrompt, setObjectPrompt] = useState(initialPrompt); // Local state for prompt
     const [replacementPrompt, setReplacementPrompt] = useState(suggestedReplacement);
@@ -353,7 +354,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
             case 'mask': return 'Highlight Object (Mask Overlay)';
             case 'replace-pika': return 'Pika Inpainting';
             case 'replace-vace': return 'VACE Inpainting';
-            case 'replace-runway': return 'Runway Gen-3 Refactor';
+            case 'replace-runway': return 'Gen-AI Replacement';
             case 'censor-beep': return 'Censor Audio (Beep)';
             case 'censor-dub': return 'Censor Audio (Voice Dub)';
             default: return 'Execute Action';
@@ -367,7 +368,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
             case 'mask': return `Highlight "${objectPrompt}" with a colored overlay.`;
             case 'replace-pika': return `Execute generative inpainting on "${objectPrompt}" via Pika.`;
             case 'replace-vace': return `Execute VACE-based remediation on "${objectPrompt}".`;
-            case 'replace-runway': return `Execute Runway Gen-3 refactor on "${objectPrompt}".`;
+            case 'replace-runway': return `Execute generative refactor on "${objectPrompt}".`;
             case 'censor-beep': return `Apply frequency-based audio masking to detected profanity.`;
             case 'censor-dub': return `Apply neural voice synthesis to remediate detected profanity.`;
             default: return '';
@@ -491,7 +492,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                 />
                             </div>
 
-                            {/* Runway Smart Clipping Info */}
+                            {/* Gen-AI Process Info */}
                             {actionType === 'replace-runway' && startTime !== undefined && endTime !== undefined && (
                                 <div className="surface-2 border border-border rounded-xl overflow-hidden">
                                     <div className="p-3 bg-white/3 border-b border-border flex items-center justify-between">
@@ -534,7 +535,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                 </div>
                             )}
 
-                            {/* AI Image Generation Option for Runway/Generic Replace */}
+                            {/* AI Image Generation Option for Gen-AI Replace */}
                             {actionType === 'replace-runway' && (
                                 <div className="card !bg-surface-2 border-border/50 p-4 space-y-4">
                                     <div className="flex items-center justify-between">
@@ -568,14 +569,14 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                     </div>
 
                                     {generatedImageUrl && (
-                                        <div className="relative group">
+                                        <div className="relative group cursor-zoom-in" onClick={() => setZoomedImage(generatedImageUrl)}>
                                             <img
                                                 src={generatedImageUrl}
                                                 alt="Generated reference"
                                                 className="w-full h-32 object-contain bg-[#0a0a0c] border border-white/10 rounded-xl"
                                             />
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-end justify-center pb-3">
-                                                <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">AI Generated</span>
+                                                <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">Click to preview</span>
                                             </div>
                                         </div>
                                     )}
@@ -970,6 +971,28 @@ const ActionModal: React.FC<ActionModalProps> = ({
                     )}
                 </div>
             </div>
+
+            {/* Image Zoom Portal */}
+            {zoomedImage && createPortal(
+                <div
+                    className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/90 backdrop-blur-xl animate-in fade-in duration-300"
+                    onClick={() => setZoomedImage(null)}
+                >
+                    <button
+                        className="absolute top-8 right-8 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all z-[1001]"
+                        onClick={() => setZoomedImage(null)}
+                    >
+                        <X className="w-8 h-8" />
+                    </button>
+                    <img
+                        src={zoomedImage}
+                        alt="Zoomed reference"
+                        className="max-w-[90vw] max-h-[90vh] object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>,
+                document.body
+            )}
         </div>,
         document.body
     );

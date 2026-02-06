@@ -51,6 +51,8 @@ const BatchProcessModal: React.FC<BatchProcessModalProps> = ({
     generatedImages,
     onGenerateImage
 }) => {
+    const [zoomedImage, setZoomedImage] = React.useState<string | null>(null);
+
     if (!isOpen) return null;
 
     const selectedCount = batchConfigs.filter(c => c.selected).length;
@@ -204,7 +206,7 @@ const BatchProcessModal: React.FC<BatchProcessModalProps> = ({
                                                         : "bg-zinc-900 border-border/50 text-zinc-500 hover:text-white hover:border-border"
                                                 )}
                                             >
-                                                {type.replace('replace-', '')}
+                                                {type === 'replace-runway' ? 'Replace' : type.replace('replace-', '')}
                                             </button>
                                         ))
                                     )}
@@ -213,7 +215,7 @@ const BatchProcessModal: React.FC<BatchProcessModalProps> = ({
                                 {config.effectType === 'replace-runway' && (
                                     <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg">
                                         <Sparkles className="w-3 h-3 text-primary" />
-                                        <span className="text-[9px] font-bold uppercase tracking-wider text-primary">Synthesis Active</span>
+                                        <span className="text-[9px] font-bold uppercase tracking-wider text-primary">Generative Engine Active</span>
                                     </div>
                                 )}
                             </div>
@@ -320,7 +322,7 @@ const BatchProcessModal: React.FC<BatchProcessModalProps> = ({
                                     </div>
                                 )}
 
-                                {/* Runway Synthesis UI */}
+                                {/* Generative Synthesis UI */}
                                 {config.effectType === 'replace-runway' && (
                                     <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-3 pt-2">
                                         <div className="p-4 bg-zinc-900/50 border border-border rounded-2xl space-y-2">
@@ -337,7 +339,7 @@ const BatchProcessModal: React.FC<BatchProcessModalProps> = ({
                                         <div className="p-3 bg-zinc-900/30 border border-border rounded-xl space-y-2">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-[8px] font-bold uppercase tracking-[0.1em] text-zinc-500">
-                                                    AI Reference Guard
+                                                    AI Fidelity Guard
                                                 </span>
                                                 {generatedImages[index] && (
                                                     <span className="text-[8px] font-medium text-emerald-400 flex items-center gap-1">
@@ -366,7 +368,8 @@ const BatchProcessModal: React.FC<BatchProcessModalProps> = ({
                                                     <img
                                                         src={generatedImages[index].url}
                                                         alt="Reference"
-                                                        className="w-12 h-12 object-cover rounded-lg border border-border shadow-sm"
+                                                        className="w-12 h-12 object-cover rounded-lg border border-border shadow-sm cursor-zoom-in"
+                                                        onClick={() => setZoomedImage(generatedImages[index].url)}
                                                     />
                                                 )}
                                             </div>
@@ -415,6 +418,27 @@ const BatchProcessModal: React.FC<BatchProcessModalProps> = ({
                     </div>
                 </div>
             </div>
+            {/* Image Zoom Portal */}
+            {zoomedImage && createPortal(
+                <div
+                    className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/90 backdrop-blur-xl animate-in fade-in duration-300"
+                    onClick={() => setZoomedImage(null)}
+                >
+                    <button
+                        className="absolute top-8 right-8 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all z-[1001]"
+                        onClick={() => setZoomedImage(null)}
+                    >
+                        <X className="w-8 h-8" />
+                    </button>
+                    <img
+                        src={zoomedImage}
+                        alt="Zoomed reference"
+                        className="max-w-[90vw] max-h-[90vh] object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>,
+                document.body
+            )}
         </div>,
         document.body
     );
