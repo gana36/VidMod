@@ -2171,7 +2171,14 @@ async def censor_audio(
     
     try:
         logger.info(f"Starting audio censoring in '{request.mode}' mode")
-        
+
+        # Determine source video: use output_path if exists (chained effects), otherwise original
+        source_video = job.output_path if (job.output_path and job.output_path.exists()) else job.video_path
+        if source_video == job.output_path:
+            logger.info(f"✨ Chaining audio effect on previous result: {source_video}")
+        else:
+            logger.info(f"Using original video: {source_video}")
+
         # Step 1: Get profanity matches - check request first, then cache, then analyze
         # Priority 1: User-edited matches from frontend (supports manual sync/word fixes)
         if request.profanity_matches:
@@ -2197,7 +2204,7 @@ async def censor_audio(
         else:
             logger.info("Step 1: CACHE MISS - Analyzing audio for profanity with Gemini...")
             profanity_matches = pipeline.audio_analyzer.analyze_profanity(
-                video_path=job.video_path,
+                video_path=job.video_path,  # Always analyze original for consistent timestamps
                 custom_words=request.custom_words
             )
             # Cache the results
@@ -2226,9 +2233,9 @@ async def censor_audio(
             logger.info("Step 2: Applying beep censoring with FFmpeg...")
             processor = AudioBeepProcessor(ffmpeg_path=pipeline.ffmpeg_path)
             output_path = job_dir / "censored_beep.mp4"
-            
+
             processor.apply_beeps(
-                video_path=job.video_path,
+                video_path=source_video,  # Use chained output if available
                 profanity_matches=profanity_matches,
                 output_path=output_path
             )
@@ -2262,7 +2269,7 @@ async def censor_audio(
             
             output_path = job_dir / "censored_cloned.mp4"
             dubber.apply_dubs_with_clone(
-                video_path=job.video_path,
+                video_path=source_video,  # Use chained output if available
                 word_replacements=word_replacements,
                 output_path=output_path,
                 voice_sample_start=request.voice_sample_start,
@@ -2281,7 +2288,7 @@ async def censor_audio(
             
             output_path = job_dir / "censored_auto.mp4"
             dubber.apply_dubs_multi_speaker(
-                video_path=job.video_path,
+                video_path=source_video,  # Use chained output if available
                 output_path=output_path,
                 custom_replacements=request.custom_replacements,
                 profanity_matches=profanity_matches
@@ -2308,7 +2315,7 @@ async def censor_audio(
             # Apply dubs with pre-built voice using DIRECT method (no re-analysis!)
             output_path = job_dir / "censored_dubbed.mp4"
             dubber.apply_dubs_direct(
-                video_path=job.video_path,
+                video_path=source_video,  # Use chained output if available
                 profanity_matches=profanity_matches,
                 output_path=output_path,
                 voice_type=voice_type

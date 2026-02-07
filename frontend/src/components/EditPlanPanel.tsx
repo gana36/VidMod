@@ -186,8 +186,24 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
 
     // Process selected findings
     const processBatchFindings = async () => {
+        // Debug: Log all configs and their selection state
+        console.log('=== BATCH PROCESS DEBUG ===');
+        console.log('Total configs:', batchConfigs.length);
+        batchConfigs.forEach((c, i) => {
+            console.log(`Config ${i}: ${c.finding.content.substring(0, 40)} - Selected: ${c.selected}`);
+        });
+
         const selected = batchConfigs.filter(c => c.selected);
-        if (selected.length === 0 || !jobId) return;
+        console.log('Filtered selected count:', selected.length);
+        console.log('Selected items:', selected.map((s, i) => `${i}: ${s.finding.content.substring(0, 30)}`));
+        console.log('Skipped items:', batchConfigs.filter(c => !c.selected).map(s => s.finding.content.substring(0, 30)));
+        console.log('===========================');
+
+        if (selected.length === 0 || !jobId) {
+            console.log('Aborting: No items selected or no jobId');
+            alert('No items selected for processing!');
+            return;
+        }
 
         setShowBatchReviewModal(false);
         setIsProcessingBatch(true);

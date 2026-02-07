@@ -60,6 +60,7 @@ const BatchProcessModal: React.FC<BatchProcessModalProps> = ({
     const handleToggleSelect = (index: number) => {
         const updated = [...batchConfigs];
         updated[index].selected = !updated[index].selected;
+        console.log(`Toggled segment ${index}: ${updated[index].finding.content.substring(0, 30)} -> Selected: ${updated[index].selected}`);
         onUpdateConfigs(updated);
     };
 
@@ -102,12 +103,17 @@ const BatchProcessModal: React.FC<BatchProcessModalProps> = ({
                         <div
                             key={index}
                             className={cn(
-                                "p-6 border transition-all duration-200 rounded-[20px] space-y-5 group",
+                                "p-6 border transition-all duration-200 rounded-[20px] space-y-5 group relative",
                                 config.selected
-                                    ? "border-primary/40 bg-surface-2 shadow-lg"
-                                    : "border-border/50 bg-surface-1/50 hover:border-border"
+                                    ? "border-primary/40 bg-surface-2 shadow-lg opacity-100"
+                                    : "border-border/50 bg-surface-1/50 hover:border-border opacity-40 grayscale"
                             )}
                         >
+                            {!config.selected && (
+                                <div className="absolute top-3 right-3 px-2 py-1 bg-zinc-800 border border-zinc-700 rounded-lg text-[8px] font-bold uppercase tracking-wider text-zinc-500">
+                                    Skipped
+                                </div>
+                            )}
                             {/* Header: Detection Type + Timestamp */}
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
@@ -179,7 +185,16 @@ const BatchProcessModal: React.FC<BatchProcessModalProps> = ({
                                 <div className="flex gap-1.5">
                                     {(config.finding.type?.toLowerCase().includes('profanity') ||
                                         config.finding.type?.toLowerCase().includes('language') ||
-                                        config.finding.category === 'language') ? (
+                                        config.finding.type?.toLowerCase().includes('dialogue') ||
+                                        config.finding.type?.toLowerCase().includes('gambling') ||
+                                        config.finding.content?.toLowerCase().includes('dialogue') ||
+                                        config.finding.content?.toLowerCase().includes('says ') ||
+                                        config.finding.content?.toLowerCase().includes('phrase') ||
+                                        config.finding.category === 'language' ||
+                                        config.finding.suggestedAction?.toLowerCase().includes('mute') ||
+                                        config.finding.suggestedAction?.toLowerCase().includes('audio') ||
+                                        config.finding.suggestedAction?.toLowerCase().includes('beep') ||
+                                        config.finding.suggestedAction?.toLowerCase().includes('dub')) ? (
                                         ['censor-beep', 'censor-dub'].map((type) => (
                                             <button
                                                 key={type}
