@@ -91,7 +91,7 @@ const AppLayout: React.FC = () => {
         setActiveTab('Analysis');
         setIsAnalyzing(true);
         try {
-            // Call the Gemini analysis API with compliance parameters
+            // Call the analysis API with compliance parameters
             const params = new URLSearchParams();
             params.append('platform', platform);
             params.append('region', region);
@@ -123,7 +123,7 @@ const AppLayout: React.FC = () => {
             }));
 
             setFindings(mappedFindings);
-            console.log('Gemini analysis complete:', data.summary);
+            console.log('Analysis complete:', data.summary);
         } catch (error) {
             console.error('Analysis failed:', error);
             // Fallback to empty findings on error

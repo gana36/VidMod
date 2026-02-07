@@ -357,9 +357,9 @@ const ActionModal: React.FC<ActionModalProps> = ({
             case 'blur': return 'Blur Object';
             case 'pixelate': return 'Pixelate Object';
             case 'mask': return 'Highlight Object (Mask Overlay)';
-            case 'replace-pika': return 'Pika Inpainting';
-            case 'replace-vace': return 'VACE Inpainting';
-            case 'replace-runway': return 'Gen-AI Replacement';
+            case 'replace-pika': return 'Generative Inpainting';
+            case 'replace-vace': return 'Unified Inpainting';
+            case 'replace-runway': return 'Generative Replacement';
             case 'censor-beep': return 'Censor Audio (Beep)';
             case 'censor-dub': return 'Censor Audio (Voice Dub)';
             default: return 'Execute Action';
@@ -371,8 +371,8 @@ const ActionModal: React.FC<ActionModalProps> = ({
             case 'blur': return `Detect "${objectPrompt}" and apply Gaussian blur.`;
             case 'pixelate': return `Detect "${objectPrompt}" and apply pixelation.`;
             case 'mask': return `Highlight "${objectPrompt}" with a colored overlay.`;
-            case 'replace-pika': return `Execute generative inpainting on "${objectPrompt}" via Pika.`;
-            case 'replace-vace': return `Execute VACE-based remediation on "${objectPrompt}".`;
+            case 'replace-pika': return `Execute generative inpainting on "${objectPrompt}".`;
+            case 'replace-vace': return `Execute unified remediation on "${objectPrompt}".`;
             case 'replace-runway': return `Execute generative refactor on "${objectPrompt}".`;
             case 'censor-beep': return `Apply frequency-based audio masking to detected profanity.`;
             case 'censor-dub': return `Apply neural voice synthesis to remediate detected profanity.`;
@@ -546,7 +546,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                     <div className="flex items-center justify-between">
                                         <label className="label-sm flex items-center gap-2 !text-zinc-400">
                                             <Sparkles className="w-3.5 h-3.5 text-zinc-500" />
-                                            Gemini Image Generator
+                                            AI Image Generator
                                         </label>
                                         {generatedImageUrl && (
                                             <span className="badge badge-success !text-[10px]">
@@ -597,7 +597,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                 <div className="card !bg-surface-2 border-border/50 p-4 space-y-4">
                                     <div className="flex items-center justify-between">
                                         <div className="space-y-0.5">
-                                            <label className="label-sm !text-zinc-300">ElevenLabs Dub Engine</label>
+                                            <label className="label-sm !text-zinc-300">Dubbing Engine</label>
                                             <p className="text-[10px] text-zinc-500">Select synthesis strategy</p>
                                         </div>
                                         <div className="flex bg-zinc-900 p-1 rounded-lg border border-border">
@@ -606,7 +606,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                                     key={m}
                                                     onClick={() => setDubMode(m)}
                                                     className={cn(
-                                                        "px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
+                                                        "px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer",
                                                         dubMode === m ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-white"
                                                     )}
                                                 >
@@ -776,7 +776,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                             <div className="flex items-center gap-2 p-3 bg-white/5 rounded-lg border border-white/10">
                                                 <Volume2 className="w-4 h-4 text-zinc-400" />
                                                 <p className="text-[10px] text-zinc-400 leading-tight">
-                                                    <span className="text-white font-semibold">Word-Based Synthesis:</span> Gemini will scan the entire audio for these words and apply precise sub-second alignment automatically.
+                                                    <span className="text-white font-semibold">Word-Based Synthesis:</span> The engine will scan the entire audio for these words and apply precise sub-second alignment automatically.
                                                 </p>
                                             </div>
                                         </div>

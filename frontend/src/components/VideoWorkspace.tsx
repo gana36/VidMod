@@ -18,8 +18,8 @@ export interface Finding {
     confidence: 'Low' | 'Medium' | 'High';
     startTime: number; // in seconds
     endTime: number; // in seconds
-    context?: string; // reasoning from Gemini
-    suggestedAction?: string; // recommended fix from Gemini
+    context?: string; // reasoning from AI
+    suggestedAction?: string; // recommended fix
     box?: {
         top: number;   // percentage
         left: number;  // percentage
