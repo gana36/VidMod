@@ -123,19 +123,78 @@ const UploadZone: React.FC<UploadZoneProps> = ({
     const uploadToBackend = async (file: File) => {
         setProgress(10);
         try {
-            const formData = new FormData();
-            formData.append('file', file);
+            // 1. Try to get Signed URL
+            let uploadUrlData = null;
+            try {
+                const urlRes = await fetch(`${API_BASE}/upload-url`);
+                if (urlRes.ok) {
+                    uploadUrlData = await urlRes.json();
+                }
+            } catch (e) {
+                console.warn("Signed URL not supported, falling back to direct upload");
+            }
 
-            const response = await fetch(`${API_BASE}/upload`, {
-                method: 'POST',
-                body: formData,
-            });
+            if (uploadUrlData) {
+                // 2a. Upload to GCS via Signed URL
+                const { upload_url, job_id, gcs_key } = uploadUrlData;
 
-            setProgress(50);
-            if (!response.ok) throw new Error(`Upload failed: ${response.statusText} `);
+                await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('PUT', upload_url, true);
+                    xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
 
-            const data = await response.json();
-            return data.job_id;
+                    xhr.upload.onprogress = (e) => {
+                        if (e.lengthComputable) {
+                            // Map 0-100 upload to 10-90 spread
+                            const percentComplete = (e.loaded / e.total) * 80;
+                            setProgress(10 + percentComplete);
+                        }
+                    };
+
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve(xhr.response);
+                        } else {
+                            reject(new Error(`GCS Upload failed: ${xhr.statusText}`));
+                        }
+                    };
+
+                    xhr.onerror = () => reject(new Error("GCS Network Error"));
+                    xhr.send(file);
+                });
+
+                // 2b. Notify backend to start processing
+                setProgress(95);
+                const processRes = await fetch(`${API_BASE}/process-upload`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        job_id,
+                        gcs_key,
+                        filename: file.name
+                    })
+                });
+
+                if (!processRes.ok) throw new Error(`Processing trigger failed: ${processRes.statusText}`);
+                const data = await processRes.json();
+                return data.job_id;
+
+            } else {
+                // 3. Fallback to Direct Upload (Legacy)
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                setProgress(50);
+                if (!response.ok) throw new Error(`Upload failed: ${response.statusText} `);
+
+                const data = await response.json();
+                return data.job_id;
+            }
         } catch (error) {
             console.error('Upload failed:', error);
             return null;

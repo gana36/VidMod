@@ -90,8 +90,43 @@ const AppLayout: React.FC = () => {
         setJobId(uploadedJobId);  // Store job ID for actions
         setActiveTab('Analysis');
         setIsAnalyzing(true);
+
         try {
-            // Call the Gemini analysis API with compliance parameters
+            // Step 1: Poll job status until video is ready (not PENDING/INITIALIZED)
+            const maxStatusChecks = 60; // 60 checks = ~2 minutes max
+            let statusCheckCount = 0;
+            let videoReady = false;
+
+            console.log('Waiting for video to be ready for analysis...');
+
+            while (statusCheckCount < maxStatusChecks && !videoReady) {
+                try {
+                    const statusRes = await fetch(`${API_BASE}/status/${uploadedJobId}`);
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        console.log(`Job status: ${statusData.status} (${statusData.current_step})`);
+
+                        // Check if video is ready (not PENDING/INITIALIZED)
+                        if (statusData.status !== 'pending' && statusData.current_step !== 'initialized') {
+                            videoReady = true;
+                            console.log('Video is ready for analysis!');
+                            break;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Status check failed, will retry:', e);
+                }
+
+                // Wait 2 seconds before next check
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                statusCheckCount++;
+            }
+
+            if (!videoReady) {
+                throw new Error('Video processing timed out');
+            }
+
+            // Step 2: Run analysis (video is now ready)
             const params = new URLSearchParams();
             params.append('platform', platform);
             params.append('region', region);
@@ -124,9 +159,9 @@ const AppLayout: React.FC = () => {
 
             setFindings(mappedFindings);
             console.log('Gemini analysis complete:', data.summary);
+
         } catch (error) {
             console.error('Analysis failed:', error);
-            // Fallback to empty findings on error
             setFindings([]);
         } finally {
             setIsAnalyzing(false);
@@ -142,7 +177,41 @@ const AppLayout: React.FC = () => {
         setIsAnalyzing(true);
 
         try {
-            // Analyze with compliance parameters
+            // Step 1: Poll job status until video is ready (not PENDING/INITIALIZED)
+            const maxStatusChecks = 60; // 60 checks = ~2 minutes max
+            let statusCheckCount = 0;
+            let videoReady = false;
+
+            console.log('Waiting for video to be ready for analysis...');
+
+            while (statusCheckCount < maxStatusChecks && !videoReady) {
+                try {
+                    const statusRes = await fetch(`${API_BASE}/status/${jobId}`);
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        console.log(`Job status: ${statusData.status} (${statusData.current_step})`);
+
+                        // Check if video is ready (not PENDING/INITIALIZED)
+                        if (statusData.status !== 'pending' && statusData.current_step !== 'initialized') {
+                            videoReady = true;
+                            console.log('Video is ready for analysis!');
+                            break;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Status check failed, will retry:', e);
+                }
+
+                // Wait 2 seconds before next check
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                statusCheckCount++;
+            }
+
+            if (!videoReady) {
+                throw new Error('Video processing timed out');
+            }
+
+            // Step 2: Run analysis (video is now ready)
             const params = new URLSearchParams();
             params.append('platform', platform);
             params.append('region', region);
@@ -172,6 +241,7 @@ const AppLayout: React.FC = () => {
             }));
 
             setFindings(mappedFindings);
+
         } catch (error) {
             console.error('Analysis failed:', error);
             setFindings([]);

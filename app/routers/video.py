@@ -209,6 +209,78 @@ async def upload_video(
             temp_path.unlink()
 
 
+class UploadUrlResponse(BaseModel):
+    upload_url: str
+    job_id: str
+    gcs_key: str
+
+@router.get("/upload-url", response_model=UploadUrlResponse)
+async def get_upload_url(
+    pipeline: VideoPipeline = Depends(get_pipeline)
+):
+    """
+    Generate a Signed URL for direct GCS upload (bypassing 32MB limit).
+    """
+    import uuid
+    
+    if not pipeline.gcs_uploader:
+        raise HTTPException(status_code=501, detail="GCS not configured on backend")
+        
+    job_id = str(uuid.uuid4())[:8]
+    key = f"jobs/{job_id}/input.mp4"
+    
+    try:
+        url = pipeline.gcs_uploader.generate_upload_url(
+            key=key,
+            content_type="video/mp4"
+        )
+        
+        return UploadUrlResponse(
+            upload_url=url,
+            job_id=job_id,
+            gcs_key=key
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate signed URL: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class ProcessUploadRequest(BaseModel):
+    job_id: str
+    gcs_key: str
+    filename: Optional[str] = "video.mp4"
+
+@router.post("/process-upload", response_model=VideoUploadResponse)
+async def process_upload(
+    request: ProcessUploadRequest,
+    background_tasks: BackgroundTasks,
+    pipeline: VideoPipeline = Depends(get_pipeline)
+):
+    """
+    Trigger processing after client has uploaded video to GCS.
+    """
+    try:
+        # Create job entry (file is on GCS, not local yet)
+        job = pipeline.create_job_from_gcs_upload(
+            job_id=request.job_id,
+            gcs_key=request.gcs_key
+        )
+        
+        # Start download and processing in background
+        background_tasks.add_task(pipeline.download_and_process_job, job.job_id)
+        
+        return VideoUploadResponse(
+            job_id=job.job_id,
+            message="Video queued for processing. Download starting...",
+            preview_frame_url=f"/api/preview/{job.job_id}/frame/0",
+            video_info={"source": "direct_gcs_upload", "key": request.gcs_key}
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to queue processing for {request.job_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/download/{job_id}")
 async def download_video(
     job_id: str,
@@ -1227,10 +1299,16 @@ async def analyze_video(
     Returns findings matching the frontend Finding type.
     """
     from core.gemini_video_analyzer import analyzeVideoWithGemini
+    from core.pipeline import PipelineStage
     
     job = pipeline.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+
+    # Race Condition Check: Ensure video is fully downloaded
+    # Pipeline stage INITIALIZED means it might still be downloading in background
+    if job.stage == PipelineStage.INITIALIZED:
+         raise HTTPException(status_code=409, detail="Video is still processing/downloading. Please wait.")
     
     if not job.video_path or not job.video_path.exists():
         raise HTTPException(status_code=400, detail="Video file not found")

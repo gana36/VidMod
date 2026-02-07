@@ -478,6 +478,73 @@ class VideoPipeline:
             return job
 
         return None
+
+    def create_job_from_gcs_upload(self, job_id: str, gcs_key: str) -> JobState:
+        """
+        Initialize a job that will be uploaded directly to GCS by the client.
+        The video file won't exist locally yet.
+        """
+        # Clean up previous jobs to save disk space
+        self.cleanup_all_jobs()
+        
+        job_dir = self._get_job_dir(job_id)
+        
+        # We don't have the file yet, but we know where it will be
+        # Assuming mp4 for now (or could pass extension)
+        job_video_path = job_dir / "input.mp4"
+        
+        job = JobState(
+            job_id=job_id,
+            video_path=job_video_path,
+            gcs_url=f"https://storage.googleapis.com/{self.gcs_uploader.bucket_name}/{gcs_key}" if self.gcs_uploader else None,
+            frames_dir=job_dir / "frames",
+            masks_dir=job_dir / "masks",
+            inpainted_dir=job_dir / "inpainted",
+            output_path=job_dir / "output.mp4",
+            audio_path=job_dir / "audio.aac",
+            stage=PipelineStage.INITIALIZED
+        )
+        
+        self.jobs[job_id] = job
+        self._save_job_state(job_id)
+        return job
+
+    def download_and_process_job(self, job_id: str):
+        """
+        Download video from GCS (after client upload) and start processing.
+        """
+        job = self.jobs.get(job_id)
+        if not job:
+            logger.error(f"Job {job_id} not found for processing")
+            return
+            
+        try:
+            # 1. Download video
+            logger.info(f"Downloading video for job {job_id} from GCS...")
+            
+            # Extract key from GCS URL or reconstruction
+            # URL format: .../bucket/key
+            # We stored full URL, but better to rely on known key structure if possible
+            # Or use HTTP download since it's public/signed
+            # Actually, let's use the GCS client if configured for reliability
+            
+            if self.gcs_uploader:
+                # Reconstruct key: jobs/{job_id}/input.mp4
+                key = f"jobs/{job_id}/input.mp4"
+                blob = self.gcs_uploader.bucket.blob(key)
+                blob.download_to_filename(str(job.video_path))
+                logger.info(f"Downloaded to {job.video_path}")
+            else:
+                 raise ValueError("GCS uploader not configured")
+                 
+            # 2. Start extraction
+            self.extract_frames(job_id)
+            
+        except Exception as e:
+            logger.error(f"Failed to process GCS upload for job {job_id}: {e}")
+            job.stage = PipelineStage.FAILED
+            job.error = f"Upload processing failed: {str(e)}"
+            self._save_job_state(job_id)
     
     def extract_frames(self, job_id: str) -> JobState:
         """Extract frames from uploaded video."""
