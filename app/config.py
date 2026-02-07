@@ -75,11 +75,12 @@ class Settings(BaseSettings):
     runway_api_key: str = ""  # Runway API key for direct Gen-4 API
     elevenlabs_api_key: str = ""  # ElevenLabs API key for voice dubbing
     
-    # AWS S3 Configuration (optional - for cloud storage)
-    aws_access_key_id: str = ""
-    aws_secret_access_key: str = ""
-    aws_s3_bucket_name: str = ""
-    aws_region: str = "us-east-1"
+    # CORS Configuration (comma-separated list of allowed origins)
+    allowed_origins: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,https://vidmod-2026.web.app,https://vidmod-2026.firebaseapp.com"
+    
+    # Google Cloud Storage Configuration
+    gcs_bucket_name: str = ""
+    gcs_project_id: str = "vidmod-2025"  # Default project ID, can be overridden by env var
     
     # Server Configuration
     host: str = "0.0.0.0"

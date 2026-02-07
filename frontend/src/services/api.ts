@@ -3,7 +3,7 @@
  * Centralized API calls for backend integration
  */
 
-const API_BASE = 'http://localhost:8000/api';
+export const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000') + '/api';
 
 export interface VideoUploadResponse {
     job_id: string;
@@ -151,61 +151,6 @@ export async function segmentWithSAM3(
     return response.json();
 }
 
-/**
- * Replace object using Pika Labs (requires reference image)
- */
-export async function replaceWithPika(
-    jobId: string,
-    prompt: string,
-    referenceImage: File,
-    negativePrompt: string = 'blurry, distorted, low quality, deformed',
-    duration: number = 5
-): Promise<ReplaceResponse> {
-    const formData = new FormData();
-    formData.append('job_id', jobId);
-    formData.append('prompt', prompt);
-    formData.append('reference_image', referenceImage);
-    formData.append('negative_prompt', negativePrompt);
-    formData.append('duration', duration.toString());
-
-    const response = await fetch(`${API_BASE}/replace-with-pika`, {
-        method: 'POST',
-        body: formData,
-    });
-
-    if (!response.ok) {
-        throw new Error(`Pika replacement failed: ${response.statusText}`);
-    }
-
-    return response.json();
-}
-
-/**
- * Replace object using VACE (prompt only, requires SAM3 mask first)
- */
-export async function replaceWithVACE(
-    jobId: string,
-    prompt: string,
-    numInferenceSteps: number = 30,
-    guidanceScale: number = 5.0
-): Promise<ReplaceResponse> {
-    const response = await fetch(`${API_BASE}/replace-with-vace`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            job_id: jobId,
-            prompt: prompt,
-            num_inference_steps: numInferenceSteps,
-            guidance_scale: guidanceScale,
-        }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`VACE replacement failed: ${response.statusText}`);
-    }
-
-    return response.json();
-}
 
 /**
  * Replace object using Runway Gen-4 with optional reference image for grounded replacement

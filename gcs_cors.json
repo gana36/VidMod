@@ -1,0 +1,8 @@
+[
+    {
+      "origin": ["https://vidmod-2026.web.app", "https://vidmod-2026.firebaseapp.com", "http://localhost:5173"],
+      "method": ["PUT", "GET", "HEAD", "OPTIONS"],
+      "responseHeader": ["Content-Type", "x-goog-resumable"],
+      "maxAgeSeconds": 3600
+    }
+]

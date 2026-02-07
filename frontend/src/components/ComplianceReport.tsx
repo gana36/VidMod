@@ -63,6 +63,8 @@ const ComplianceReport: React.FC<ComplianceReportProps> = ({
     ).length;
 
     const remediationRate = totalFindings === 0 ? 100 : Math.round((resolvedFindings / totalFindings) * 100);
+    const complianceStatus = remediationRate === 100 ? 'COMPLIANT' : 'PARTIALLY COMPLIANT';
+    const statusColor = remediationRate === 100 ? [22, 163, 74] : [234, 179, 8]; // Emerald vs Amber
 
     const generatePDF = () => {
         const doc = new jsPDF();
@@ -86,6 +88,14 @@ const ComplianceReport: React.FC<ComplianceReportProps> = ({
 
         doc.setFontSize(14);
         doc.text('CERTIFICATE OF COMPLIANCE', pageWidth - 15, 25, { align: 'right' });
+
+        // Status Badge
+        doc.setFillColor(statusColor[0], statusColor[1], statusColor[2]);
+        doc.roundedRect(pageWidth - 65, 32, 50, 10, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text(complianceStatus, pageWidth - 40, 38.5, { align: 'center' });
 
         // Certificate Details
         doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
@@ -160,20 +170,27 @@ const ComplianceReport: React.FC<ComplianceReportProps> = ({
         doc.setLineWidth(0.5);
         doc.line(15, signOffY + 5, pageWidth - 15, signOffY + 5);
 
-        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        // Certification Statement
         doc.setFontSize(9);
-        doc.text('Approver:', 15, signOffY + 15);
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.setFont('helvetica', 'normal');
+        const certText = `This document certifies that the video content "${metadata?.name || 'Untitled'}" has been processed and verified against the ${platform} / ${region} content policy standards. The final version is certified as ${complianceStatus}.`;
+        const splitCert = doc.splitTextToSize(certText, pageWidth - 30);
+        doc.text(splitCert, 15, signOffY + 15);
+
+        const signatureY = signOffY + 35;
+        doc.text('Approver:', 15, signatureY);
         doc.setFont('helvetica', 'bold');
-        doc.text(approverName, 40, signOffY + 15);
+        doc.text(approverName, 40, signatureY);
 
         doc.setFont('helvetica', 'normal');
-        doc.text('Notes:', 15, signOffY + 25);
+        doc.text('Notes:', 15, signatureY + 10);
         const splitNotes = doc.splitTextToSize(notes || 'No additional compliance notes provided.', pageWidth - 55);
-        doc.text(splitNotes, 40, signOffY + 25);
+        doc.text(splitNotes, 40, signatureY + 10);
 
         doc.setFontSize(8);
         doc.setTextColor(148, 163, 184);
-        doc.text(`Digital Verification Hash: ${btoa(metadata?.jobId || 'vidmod_hash').substring(0, 32).toUpperCase()}`, 15, signOffY + 50);
+        doc.text(`Digital Verification Hash: ${btoa(metadata?.jobId || 'vidmod_hash').substring(0, 32).toUpperCase()}`, 15, signatureY + 35);
 
         // Footer
         const totalPages = doc.internal.pages.length - 1;

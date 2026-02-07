@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
+import { API_BASE, generateReferenceImage } from '../services/api';
 import { ChevronDown, AlertCircle, VolumeX, EyeOff, ShieldCheck, Play, RefreshCw, Grid, Search, X, Loader2 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import ActionModal, { type ActionType } from './ActionModal';
 import BatchProcessModal, { type BatchFindingConfig } from './BatchProcessModal';
-import { generateReferenceImage } from '../services/api';
+
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -118,47 +119,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
         setCustomObjectInput('');
     };
 
-    // Handle VACE/Pika replacement (opens modal for replacement prompt)
-    const handleReplaceWithModal = (actionType: 'replace-vace' | 'replace-pika') => {
-        if (!customObjectInput.trim()) return;
 
-        const objectName = customObjectInput.trim();
-
-        // Check for duplicates
-        if (isObjectInQueue(objectName)) {
-            alert(`"${objectName}" is already in the queue!`);
-            return;
-        }
-
-        // Create a custom step for the modal
-        const customStep: EditStep = {
-            id: 'custom-' + Date.now(),
-            finding: {
-                id: -1,
-                type: 'Custom',
-                category: 'other',
-                content: objectName,
-                status: 'warning',
-                confidence: 'High',
-                startTime: 0,
-                endTime: 0,
-                suggestedAction: `Replace ${objectName} with something else`
-            },
-            violation: objectName,
-            action: `Replace with ${actionType === 'replace-vace' ? 'VACE' : 'Pika'}`,
-            reason: 'User-defined object',
-            summary: `Custom object: ${objectName}`,
-            confidence: 100,
-            iconType: 'blur'
-        };
-
-        setSelectedStep(customStep);
-        setSelectedActionType(actionType);
-        setModalOpen(true);
-
-        // Clear input
-        setCustomObjectInput('');
-    };
 
     // Remove object from queue
     const removeCustomObject = (id: string) => {
@@ -255,7 +216,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     );
 
                     if (result && result.download_path) {
-                        lastDownloadUrl = `http://localhost:8000${result.download_path}`;
+                        lastDownloadUrl = `${API_BASE.replace('/api', '')}${result.download_path}`;
                     }
                 } else if (config.effectType === 'replace-runway') {
                     // Runway: text-only replacement with Smart Clipping
@@ -279,7 +240,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     );
 
                     if (result && result.download_path) {
-                        lastDownloadUrl = `http://localhost:8000${result.download_path}`;
+                        lastDownloadUrl = `${API_BASE.replace('/api', '')}${result.download_path}`;
                     }
                 } else if (config.effectType === 'censor-beep' || config.effectType === 'censor-dub') {
                     // Audio censoring for profanity
@@ -298,7 +259,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     );
 
                     if (result && result.download_path) {
-                        lastDownloadUrl = `http://localhost:8000${result.download_path}`;
+                        lastDownloadUrl = `${API_BASE.replace('/api', '')}${result.download_path}`;
                     } else {
                         lastDownloadUrl = getDownloadUrl(jobId);
                     }
@@ -375,7 +336,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     // Combine all object names into a single prompt for SAM3
                     const combinedPrompt = objectNames.join(', ');
 
-                    const response = await fetch('http://localhost:8000/api/blur-object', {
+                    const response = await fetch(`${API_BASE}/blur-object`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -393,10 +354,11 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     }
 
                     console.log(`✓ Grouped ${group.length} objects: ${combinedPrompt}`);
-                } else if (effectType === 'replace-pika' || effectType === 'replace-vace' || effectType === 'replace-runway') {
+                } else if (effectType === 'replace-runway') {
                     // Replacement: Need reference image (skip if not available)
                     console.warn(`Skipping ${effectType} for ${objectNames.join(', ')} - reference image required`);
                     setBatchProgress(`Skipped ${objectNames.join(', ')} (${effectType} requires reference image)`);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
 
@@ -548,12 +510,11 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                                                 {[
                                                     { id: 'blur', icon: EyeOff, label: 'Blur' },
                                                     { id: 'pixelate', icon: Grid, label: 'Pixelate' },
-                                                    { id: 'replace-vace', icon: RefreshCw, label: 'Unified' },
-                                                    { id: 'replace-pika', icon: Play, label: 'Inpaint' }
+                                                    { id: 'replace-runway', icon: RefreshCw, label: 'Runway' }
                                                 ].map((act) => (
                                                     <button
                                                         key={act.id}
-                                                        onClick={() => act.id.includes('replace') ? handleReplaceWithModal(act.id as any) : handleAddToQueue(act.id as any)}
+                                                        onClick={() => handleAddToQueue(act.id as any)}
                                                         disabled={!jobId}
                                                         className="flex flex-1 items-center justify-center gap-1.5 px-3 py-2 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all disabled:opacity-20"
                                                     >
@@ -780,7 +741,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                         const result = await generateReferenceImage(jobId, config.replacementPrompt, '1:1');
                         setGeneratedImages(prev => ({
                             ...prev,
-                            [index]: { url: `http://localhost:8000${result.image_url}`, path: result.image_path }
+                            [index]: { url: `${API_BASE.replace('/api', '')}${result.image_url}`, path: result.image_path }
                         }));
                         // Update the config with the path
                         const updated = [...batchConfigs];

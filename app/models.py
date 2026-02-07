@@ -347,12 +347,12 @@ class ObjectDetectionResponse(BaseModel):
 
 
 # ============================================================================
-# AWS S3 Video Library Models
+# GCS Video Library Models
 # ============================================================================
 
 class VideoMetadata(BaseModel):
-    """Metadata for a video in S3."""
-    key: str = Field(..., description="S3 object key")
+    """Metadata for a video in GCS."""
+    key: str = Field(..., description="GCS object key")
     filename: str = Field(..., description="Original filename")
     size: int = Field(..., description="File size in bytes")
     size_mb: float = Field(..., description="File size in MB")
@@ -361,8 +361,8 @@ class VideoMetadata(BaseModel):
 
 
 class UseExistingVideoRequest(BaseModel):
-    """Request to create a job from existing S3 video."""
-    s3_url: str = Field(..., description="S3 URL of the video")
+    """Request to create a job from existing GCS video."""
+    s3_url: str = Field(..., description="GCS URL of the video (legacy field name 's3_url')")
     filename: Optional[str] = Field(None, description="Optional filename for the video")
 
 

@@ -5,8 +5,6 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
     segmentWithSAM3,
-    replaceWithPika,
-    replaceWithVACE,
     replaceWithRunway,
     blurObject,
     getDownloadUrl,
@@ -15,14 +13,15 @@ import {
     censorAudio,
     analyzeAudio,
     suggestReplacements,
-    generateReferenceImage
+    generateReferenceImage,
+    API_BASE
 } from '../services/api';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-export type ActionType = 'blur' | 'pixelate' | 'mask' | 'replace-pika' | 'replace-vace' | 'replace-runway' | 'censor-beep' | 'censor-dub';
+export type ActionType = 'blur' | 'pixelate' | 'mask' | 'replace-runway' | 'censor-beep' | 'censor-dub';
 
 interface ActionModalProps {
     isOpen: boolean;
@@ -61,7 +60,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
     const [downloadUrl, setDownloadUrl] = useState<string>('');
     const [objectPrompt, setObjectPrompt] = useState(initialPrompt); // Local state for prompt
     const [replacementPrompt, setReplacementPrompt] = useState(suggestedReplacement);
-    const [referenceImage, setReferenceImage] = useState<File | null>(null);
+    const [referenceImage] = useState<File | null>(null);
     const [maskOnly, setMaskOnly] = useState(true);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [profanityMatches, setProfanityMatches] = useState<Array<{
@@ -225,7 +224,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
         setIsGeneratingImage(true);
         try {
             const result = await generateReferenceImage(jobId, promptToUse, '1:1');
-            setGeneratedImageUrl(`http://localhost:8000${result.image_url}`);
+            setGeneratedImageUrl(`${API_BASE.replace('/api', '')}${result.image_url}`);
             setGeneratedImagePath(result.image_path);
         } catch (err) {
             console.error('Image generation failed:', err);
@@ -265,21 +264,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
                     finalDownloadUrl = getSegmentedDownloadUrl(jobId);
                     break;
 
-                case 'replace-pika':
-                    // Use Pika for replacement (requires reference image)
-                    if (!referenceImage) {
-                        throw new Error('Reference image is required for Pika replacement');
-                    }
-                    await replaceWithPika(jobId, replacementPrompt, referenceImage);
-                    finalDownloadUrl = getDownloadUrl(jobId);
-                    break;
 
-                case 'replace-vace':
-                    // First run SAM3 to create mask, then VACE for replacement
-                    await segmentWithSAM3(jobId, objectPrompt, true, 'green', 0.5);
-                    await replaceWithVACE(jobId, replacementPrompt);
-                    finalDownloadUrl = getDownloadUrl(jobId);
-                    break;
 
                 case 'replace-runway':
                     // Use Runway Gen-4 for replacement with optional reference image
@@ -357,9 +342,8 @@ const ActionModal: React.FC<ActionModalProps> = ({
             case 'blur': return 'Blur Object';
             case 'pixelate': return 'Pixelate Object';
             case 'mask': return 'Highlight Object (Mask Overlay)';
-            case 'replace-pika': return 'Generative Inpainting';
-            case 'replace-vace': return 'Unified Inpainting';
-            case 'replace-runway': return 'Generative Replacement';
+
+            case 'replace-runway': return 'Runway Gen-3 Refactor';
             case 'censor-beep': return 'Censor Audio (Beep)';
             case 'censor-dub': return 'Censor Audio (Voice Dub)';
             default: return 'Execute Action';
@@ -371,9 +355,8 @@ const ActionModal: React.FC<ActionModalProps> = ({
             case 'blur': return `Detect "${objectPrompt}" and apply Gaussian blur.`;
             case 'pixelate': return `Detect "${objectPrompt}" and apply pixelation.`;
             case 'mask': return `Highlight "${objectPrompt}" with a colored overlay.`;
-            case 'replace-pika': return `Execute generative inpainting on "${objectPrompt}".`;
-            case 'replace-vace': return `Execute unified remediation on "${objectPrompt}".`;
-            case 'replace-runway': return `Execute generative refactor on "${objectPrompt}".`;
+
+            case 'replace-runway': return `Execute Runway Gen-3 refactor on "${objectPrompt}".`;
             case 'censor-beep': return `Apply frequency-based audio masking to detected profanity.`;
             case 'censor-dub': return `Apply neural voice synthesis to remediate detected profanity.`;
             default: return '';
@@ -522,7 +505,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
                             )}
 
                             {/* Pika Reference Image Option */}
-                            {actionType === 'replace-pika' && (
+                            {/* {actionType === 'replace-pika' && (
                                 <div className="space-y-3">
                                     <label className="label-sm">Reference Image (Required)</label>
                                     <input
@@ -538,7 +521,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
                                         </p>
                                     )}
                                 </div>
-                            )}
+                            )} */}
 
                             {/* AI Image Generation Option for Gen-AI Replace */}
                             {actionType === 'replace-runway' && (
@@ -964,7 +947,7 @@ const ActionModal: React.FC<ActionModalProps> = ({
                     {status !== 'completed' && (
                         <button
                             onClick={handleExecute}
-                            disabled={status === 'processing' || status === 'detecting' || (actionType === 'replace-pika' && !referenceImage)}
+                            disabled={status === 'processing' || status === 'detecting' || (actionType === 'replace-runway' && !referenceImage)}
                             className="btn-primary text-xs sm:text-sm"
                         >
                             {status === 'processing' ? (

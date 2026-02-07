@@ -10,7 +10,7 @@ env
 
 # Environment variables
 .env
-
+env.yaml
 # Storage directories
 storage/
 

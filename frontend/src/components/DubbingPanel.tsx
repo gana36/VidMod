@@ -21,7 +21,8 @@ import {
     censorAudio,
     suggestReplacements,
     type ProfanityMatch,
-    getDownloadUrl
+    getDownloadUrl,
+    API_BASE
 } from '../services/api';
 
 function cn(...inputs: ClassValue[]) {
@@ -138,7 +139,7 @@ const DubbingPanel: React.FC<DubbingPanelProps> = ({ jobId, onActionComplete }) 
             if (onActionComplete) {
                 onActionComplete('dubbing', {
                     mode,
-                    downloadUrl: `http://localhost:8000${result.download_path}` || getDownloadUrl(jobId)
+                    downloadUrl: `${API_BASE.replace('/api', '')}${result.download_path}` || getDownloadUrl(jobId)
                 });
             }
         } catch (err) {

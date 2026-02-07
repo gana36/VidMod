@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Video, Clock, HardDrive, X, Check } from 'lucide-react';
+import { API_BASE } from '../services/api';
 
 interface VideoMetadata {
     key: string;
@@ -30,7 +31,7 @@ export const VideoLibrary: React.FC<VideoLibraryProps> = ({ onVideoSelect, onClo
             setLoading(true);
             setError(''); // Clear previous errors
 
-            const response = await fetch('http://localhost:8000/api/videos');
+            const response = await fetch(`${API_BASE}/videos`);
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch videos: ${response.status} ${response.statusText}`);

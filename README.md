@@ -52,7 +52,8 @@ Whether you need to blur a face, pixelate a license plate, or completely replace
 ## 🚀 How It Works
 
 1.  **Ingest**:
-    - User uploads a video file (MP4, MOV, etc.).
+    - User uploads a video file.
+    - **Smart Upload**: Large files (>32MB) are uploaded directly to **Google Cloud Storage (GCS)** via Signed URLs, bypassing server limits.
     - System uses **FFmpeg** to extract representative frames at 1fps.
 
 2.  **Analyze**:
@@ -117,6 +118,10 @@ When uploading a new video, **all previous job files are automatically deleted**
     *   **Google AI Studio**: `GEMINI_API_KEY`
     *   **RunwayML**: `RUNWAY_API_KEY`
     *   **Replicate**: `REPLICATE_API_TOKEN`
+    *   **ElevenLabs**: `ELEVENLABS_API_KEY`
+*   **Google Cloud**:
+    *   Service Account with `Service Account Token Creator` role (for Signed URLs)
+    *   GCS Bucket for storage
 
 ### 1. Backend Setup
 ```bash
@@ -163,12 +168,15 @@ npm run dev
 
 | Variable | Description | Required |
 |----------|-------------|:--------:|
+
 | `GEMINI_API_KEY` | Key for Google Gemini 1.5 Pro analysis | ✅ |
 | `RUNWAY_API_KEY` | Key for RunwayML video generation | ✅ |
 | `REPLICATE_API_TOKEN` | Key for Replicate (Pika/Flux/VACE) | ✅ |
-| `AWS_ACCESS_KEY_ID` | (Optional) For S3 storage if configured | ❌ |
-| `AWS_SECRET_ACCESS_KEY` | (Optional) For S3 storage | ❌ |
-| `AWS_S3_BUCKET_NAME` | (Optional) Bucket for video assets | ❌ |
+| `FAL_KEY` | Key for fal.ai (Video Inpainting) | ✅ |
+| `ELEVENLABS_API_KEY` | Key for ElevenLabs (Voice Dubbing) | ✅ |
+| `HF_TOKEN` | HuggingFace Token (for SAM3) | ✅ |
+| `GCS_BUCKET_NAME` | Google Cloud Storage Bucket Name | ✅ |
+| `GCS_PROJECT_ID` | Google Cloud Project ID | ✅ |
 | `UPLOAD_DIR` | Local directory for temp uploads (default: `./uploads`) | ❌ |
 
 ---
@@ -187,7 +195,8 @@ VidMod/
 │   │   └── processing.py    # FFmpeg & Pipeline orchestration
 │   └── utils/               # Helpers for S3, file handling
 ├── core/
-│   └── runway_engine.py     # Runway Gen-4 API wrapper
+│   ├── runway_engine.py     # Runway Gen-4 API wrapper
+│   └── gcs_uploader.py      # Google Cloud Storage handler
 ├── frontend/
 │   ├── src/
 │   │   ├── components/      # React components (EditPlanPanel, ActionModal)

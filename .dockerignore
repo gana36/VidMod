@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+*.egg-info/
+.eggs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Storage (will be created at runtime)
+storage/
+
+# Test files
+tests/
+*.mp4
+*.mov
+*.avi
+
+# Frontend (deployed separately)
+frontend/
+
+# Environment
+.env
+.env.local
+
+# Misc
+*.log
+.DS_Store
+Thumbs.db

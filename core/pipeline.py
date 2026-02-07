@@ -15,7 +15,7 @@ from .frame_extractor import FrameExtractor
 from .segmentation import SegmentationEngine, VideoSegmentationEngine
 from .inpainting import InpaintingEngine
 from .video_builder import VideoBuilder
-from .s3_uploader import S3Uploader
+from .gcs_uploader import GCSUploader
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +65,8 @@ class JobState:
     segmented_video_path: Optional[Path] = None
     segmented_video_url: Optional[str] = None
     
-    # S3 storage (optional - for cloud upload)
-    s3_url: Optional[str] = None
+    # GCS storage (optional - for cloud upload)
+    gcs_url: Optional[str] = None
     
     # Audio analysis cache (avoids re-analyzing in censor-audio)
     profanity_matches: Optional[list] = None  # List of ProfanityMatch objects
@@ -92,10 +92,8 @@ class VideoPipeline:
         keyframe_interval: int = 5,
         ffmpeg_path: str = "ffmpeg",
         ffprobe_path: str = "ffprobe",
-        aws_bucket_name: Optional[str] = None,
-        aws_region: str = 'us-east-1',
-        aws_access_key_id: Optional[str] = None,
-        aws_secret_access_key: Optional[str] = None
+        gcs_bucket_name: Optional[str] = None,
+        gcs_project_id: Optional[str] = None
     ):
         self.ffmpeg_path = ffmpeg_path  # Store for blur/pixelate effects
         self.ffprobe_path = ffprobe_path
@@ -119,19 +117,17 @@ class VideoPipeline:
         from app.config import get_settings
         self._gemini_api_key = get_settings().gemini_api_key
         
-        # Initialize S3 uploader if AWS credentials provided
-        self.s3_uploader = None
-        if aws_bucket_name:
+        # Initialize GCS uploader if bucket name provided
+        self.gcs_uploader = None
+        if gcs_bucket_name:
             try:
-                self.s3_uploader = S3Uploader(
-                    bucket_name=aws_bucket_name,
-                    region=aws_region,
-                    aws_access_key_id=aws_access_key_id,
-                    aws_secret_access_key=aws_secret_access_key
+                self.gcs_uploader = GCSUploader(
+                    bucket_name=gcs_bucket_name,
+                    project_id=gcs_project_id
                 )
-                logger.info(f"S3 integration enabled for bucket: {aws_bucket_name}")
+                logger.info(f"GCS integration enabled for bucket: {gcs_bucket_name}")
             except Exception as e:
-                logger.warning(f"S3 uploader initialization failed: {e}. Continuing without S3.")
+                logger.warning(f"GCS uploader initialization failed: {e}. Continuing without GCS.")
         
         # Initialize manual analyzer
         from .manual_analyzer import ManualAnalyzer
@@ -139,6 +135,91 @@ class VideoPipeline:
 
         # In-memory job storage (use Redis/DB for production)
         self.jobs: Dict[str, JobState] = {}
+
+    def _save_job_state(self, job_id: str):
+        """Save job state to GCS for stateless persistence."""
+        if not self.gcs_uploader or job_id not in self.jobs:
+            return
+            
+        try:
+            job = self.jobs[job_id]
+            # Convert JobState to dict, handling Path objects
+            state_dict = {
+                "job_id": job.job_id,
+                "video_path": str(job.video_path) if job.video_path else None,
+                "frames_dir": str(job.frames_dir) if job.frames_dir else None,
+                "stage": job.stage.value,
+                "progress": job.progress,
+                "video_info": job.video_info,
+                "gcs_url": job.gcs_url,
+                "frame_paths": [str(p) for p in job.frame_paths],
+                "error": job.error
+            }
+            
+            key = f"jobs/{job_id}/state.json"
+            self.gcs_uploader.upload_json(state_dict, key)
+            logger.info(f"Persisted job state for {job_id} to GCS")
+        except Exception as e:
+            logger.warning(f"Failed to persist job state: {e}")
+
+    def _restore_job_state(self, job_id: str) -> Optional[JobState]:
+        """Restore job state from GCS if missing from memory."""
+        if not self.gcs_uploader:
+            return None
+            
+        try:
+            key = f"jobs/{job_id}/state.json"
+            data = self.gcs_uploader.download_json(key)
+            if not data:
+                return None
+                
+            # Reconstruct JobState with current environment paths
+            # Critical: GCS state might contain paths from a different OS (e.g., Windows paths on Linux)
+            # We must ignore the absolute path in the JSON and reconstruct relative to our storage dir
+            job_dir = self._get_job_dir(job_id)
+            
+            # Reconstruct video path
+            video_path = None
+            if data.get("video_path"):
+                # extracting filename from potentially windows path on linux or vice versa
+                saved_path = data["video_path"]
+                filename = Path(saved_path).name
+                video_path = job_dir / filename
+            
+            # Reconstruct other paths
+            frames_dir = job_dir / "frames"
+            masks_dir = job_dir / "masks"
+            inpainted_dir = job_dir / "inpainted"
+            output_path = job_dir / "output.mp4"
+            audio_path = job_dir / "audio.aac"
+            
+            job = JobState(
+                job_id=data["job_id"],
+                video_path=video_path,
+                frames_dir=frames_dir,
+                masks_dir=masks_dir,
+                inpainted_dir=inpainted_dir,
+                output_path=output_path,
+                audio_path=audio_path,
+                stage=PipelineStage(data["stage"]),
+                progress=data["progress"],
+                video_info=data.get("video_info", {}),
+                gcs_url=data.get("gcs_url"),
+                error=data.get("error")
+            )
+            
+            # Restore frame paths as Paths (reconstructed)
+            if "frame_paths" in data:
+                # We assume frame filenames match
+                job.frame_paths = [frames_dir / Path(p).name for p in data["frame_paths"]]
+                
+            self.jobs[job_id] = job
+            logger.info(f"Restored job {job_id} from GCS")
+            return job
+            
+        except Exception as e:
+            logger.warning(f"Failed to restore job state: {e}")
+            return None
 
     def analyze_manual_box(
         self,
@@ -149,7 +230,7 @@ class VideoPipeline:
         """
         Extract a frame at timestamp and analyze a region using Gemini.
         """
-        job = self.jobs.get(job_id)
+        job = self.get_job(job_id)
         if not job:
             raise ValueError(f"Job {job_id} not found")
 
@@ -318,22 +399,22 @@ class VideoPipeline:
         job_video_path = job_dir / f"input{video_path.suffix}"
         shutil.copy(video_path, job_video_path)
         
-        # Upload to S3 if configured
-        s3_url = None
-        if self.s3_uploader:
+        # Upload to GCS if configured
+        gcs_url = None
+        if self.gcs_uploader:
             try:
-                s3_url = self.s3_uploader.upload_video(
+                gcs_url = self.gcs_uploader.upload_video(
                     job_video_path,
                     key=f"jobs/{job_id}/input{video_path.suffix}"
                 )
-                logger.info(f"Video uploaded to S3: {s3_url}")
+                logger.info(f"Video uploaded to GCS: {gcs_url}")
             except Exception as e:
-                logger.warning(f"S3 upload failed: {e}. Continuing with local processing.")
+                logger.warning(f"GCS upload failed: {e}. Continuing with local processing.")
         
         job = JobState(
             job_id=job_id,
             video_path=job_video_path,
-            s3_url=s3_url,  # Store S3 URL
+            gcs_url=gcs_url,  # Store GCS URL
             frames_dir=job_dir / "frames",
             masks_dir=job_dir / "masks",
             inpainted_dir=job_dir / "inpainted",
@@ -342,40 +423,128 @@ class VideoPipeline:
         )
         
         self.jobs[job_id] = job
+        self._save_job_state(job_id)  # Persist state
         return job
     
     def get_job(self, job_id: str) -> Optional[JobState]:
-        """Get job state by ID, with disk recovery if needed."""
+        """Get job state by ID, with disk and S3 recovery."""
         if job_id in self.jobs:
             return self.jobs[job_id]
             
-        # Try to recover from disk
+        # Try to recover from disk (if on same instance)
         job_dir = self.base_storage_dir / job_id
         if job_dir.exists():
             logger.info(f"Recovering job {job_id} from disk")
-            # Find the video file
             video_files = list(job_dir.glob("input.*"))
-            if not video_files:
-                return None
+            if video_files:
+                job = JobState(
+                    job_id=job_id,
+                    video_path=video_files[0],
+                    frames_dir=job_dir / "frames",
+                    masks_dir=job_dir / "masks",
+                    inpainted_dir=job_dir / "inpainted",
+                    output_path=job_dir / "output.mp4",
+                    audio_path=job_dir / "audio.aac"
+                )
+                if job.frames_dir.exists():
+                    job.frame_paths = sorted(job.frames_dir.glob("*.png"))
                 
-            job = JobState(
-                job_id=job_id,
-                video_path=video_files[0],
-                frames_dir=job_dir / "frames",
-                masks_dir=job_dir / "masks",
-                inpainted_dir=job_dir / "inpainted",
-                output_path=job_dir / "output.mp4",
-                audio_path=job_dir / "audio.aac"
-            )
+                self.jobs[job_id] = job
+                return job
+
+        # Try to recover from GCS (cross-instance recovery)
+        job = self._restore_job_state(job_id)
+        if job:
+            # If video is missing locally but we have GCS URL, download it
+            if job.video_path and not job.video_path.exists() and job.gcs_url:
+                try:
+                    logger.info(f"Downloading video for job {job_id} from GCS...")
+                    job.video_path.parent.mkdir(parents=True, exist_ok=True)
+                    
+                    # Download using requests or gcs_uploader
+                    # Since we have gcs_uploader, we can add a download method there or use requests
+                    import requests
+                    response = requests.get(job.gcs_url, stream=True)
+                    if response.status_code == 200:
+                        with open(job.video_path, 'wb') as f:
+                            for chunk in response.iter_content(chunk_size=8192):
+                                f.write(chunk)
+                        logger.info(f"Downloaded video to {job.video_path}")
+                    else:
+                        logger.error(f"Failed to download video from {job.gcs_url}")
+                except Exception as e:
+                    logger.error(f"Failed to download video restoration: {e}")
             
-            # Re-discover frames on disk
-            if job.frames_dir.exists():
-                job.frame_paths = sorted(job.frames_dir.glob("*.png"))
-            
-            self.jobs[job_id] = job
             return job
-            
+
         return None
+
+    def create_job_from_gcs_upload(self, job_id: str, gcs_key: str) -> JobState:
+        """
+        Initialize a job that will be uploaded directly to GCS by the client.
+        The video file won't exist locally yet.
+        """
+        # Clean up previous jobs to save disk space
+        self.cleanup_all_jobs()
+        
+        job_dir = self._get_job_dir(job_id)
+        
+        # We don't have the file yet, but we know where it will be
+        # Assuming mp4 for now (or could pass extension)
+        job_video_path = job_dir / "input.mp4"
+        
+        job = JobState(
+            job_id=job_id,
+            video_path=job_video_path,
+            gcs_url=f"https://storage.googleapis.com/{self.gcs_uploader.bucket_name}/{gcs_key}" if self.gcs_uploader else None,
+            frames_dir=job_dir / "frames",
+            masks_dir=job_dir / "masks",
+            inpainted_dir=job_dir / "inpainted",
+            output_path=job_dir / "output.mp4",
+            audio_path=job_dir / "audio.aac",
+            stage=PipelineStage.INITIALIZED
+        )
+        
+        self.jobs[job_id] = job
+        self._save_job_state(job_id)
+        return job
+
+    def download_and_process_job(self, job_id: str):
+        """
+        Download video from GCS (after client upload) and start processing.
+        """
+        job = self.jobs.get(job_id)
+        if not job:
+            logger.error(f"Job {job_id} not found for processing")
+            return
+            
+        try:
+            # 1. Download video
+            logger.info(f"Downloading video for job {job_id} from GCS...")
+            
+            # Extract key from GCS URL or reconstruction
+            # URL format: .../bucket/key
+            # We stored full URL, but better to rely on known key structure if possible
+            # Or use HTTP download since it's public/signed
+            # Actually, let's use the GCS client if configured for reliability
+            
+            if self.gcs_uploader:
+                # Reconstruct key: jobs/{job_id}/input.mp4
+                key = f"jobs/{job_id}/input.mp4"
+                blob = self.gcs_uploader.bucket.blob(key)
+                blob.download_to_filename(str(job.video_path))
+                logger.info(f"Downloaded to {job.video_path}")
+            else:
+                 raise ValueError("GCS uploader not configured")
+                 
+            # 2. Start extraction
+            self.extract_frames(job_id)
+            
+        except Exception as e:
+            logger.error(f"Failed to process GCS upload for job {job_id}: {e}")
+            job.stage = PipelineStage.FAILED
+            job.error = f"Upload processing failed: {str(e)}"
+            self._save_job_state(job_id)
     
     def extract_frames(self, job_id: str) -> JobState:
         """Extract frames from uploaded video."""
@@ -1165,14 +1334,14 @@ class VideoPipeline:
         if total_duration <= 10:
             logger.info(f"Duration {total_duration}s <= 10s. Running single Runway task.")
             
-            # Need to upload input_video to S3 first
+            # Need to upload input_video to GCS first
             video_url = None
-            if self.s3_uploader:
+            if self.gcs_uploader:
                 try:
-                    s3_key = f"jobs/{job_id}/runway_input_{uuid.uuid4().hex[:8]}.mp4"
-                    video_url = self.s3_uploader.upload_video(input_video, s3_key)
+                    gcs_key = f"jobs/{job_id}/runway_input_{uuid.uuid4().hex[:8]}.mp4"
+                    video_url = self.gcs_uploader.upload_video(input_video, gcs_key)
                 except Exception as e:
-                    raise RuntimeError(f"Failed to upload to S3: {e}")
+                    raise RuntimeError(f"Failed to upload to GCS: {e}")
             
             return runway_engine.replace_and_download(
                 video_path=input_video,
@@ -1220,11 +1389,12 @@ class VideoPipeline:
             logger.info(f"Processing Chunk {i+1}/{len(chunks)}: {chunk['duration']}s")
             
             # Upload chunk
-            if not self.s3_uploader:
-                raise RuntimeError("S3 Uploader required for Runway processing")
+            # Upload chunk
+            if not self.gcs_uploader:
+                raise RuntimeError("GCS Uploader required for Runway processing")
                 
-            chunk_s3_key = f"jobs/{job_id}/chunk_{i}_{uuid.uuid4().hex[:8]}.mp4"
-            chunk_url = self.s3_uploader.upload_video(chunk['path'], chunk_s3_key)
+            chunk_gcs_key = f"jobs/{job_id}/chunk_{i}_{uuid.uuid4().hex[:8]}.mp4"
+            chunk_url = self.gcs_uploader.upload_video(chunk['path'], chunk_gcs_key)
             
             # Request Duration (Strict 5s as per user/testing)
             req_seconds = 5

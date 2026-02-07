@@ -26,19 +26,19 @@ class RunwayEngine:
     Supports reference images for grounded object replacement.
     """
     
-    def __init__(self, api_key: str = None, s3_uploader=None):
+    def __init__(self, api_key: str = None, gcs_uploader=None):
         """
         Initialize Runway engine.
         
         Args:
             api_key: Runway API key (from RUNWAY_API_KEY env var)
-            s3_uploader: Optional S3Uploader instance for reference image uploads
+            gcs_uploader: Optional GCSUploader instance for reference image uploads
         """
         self.api_key = api_key or os.getenv("RUNWAY_API_KEY")
         if not self.api_key:
             raise ValueError("RUNWAY_API_KEY not set")
         
-        self.s3_uploader = s3_uploader
+        self.gcs_uploader = gcs_uploader
         
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -81,11 +81,11 @@ class RunwayEngine:
     
     def _get_image_url(self, image_path: Path, job_id: str = None) -> str:
         """
-        Get a URL for the reference image, using S3 if available, else base64.
+        Get a URL for the reference image, using GCS if available, else base64.
         
         Args:
             image_path: Path to the local image
-            job_id: Optional job ID for organizing S3 uploads
+            job_id: Optional job ID for organizing GCS uploads
             
         Returns:
             HTTPS URL or data URI for the image
@@ -97,18 +97,19 @@ class RunwayEngine:
         if image_path.exists():
             logger.info(f"   - File size: {image_path.stat().st_size / 1024:.1f} KB")
         
-        # Prefer S3 upload if uploader is available
-        if self.s3_uploader:
+        # Prefer GCS upload if uploader is available
+        if self.gcs_uploader:
             try:
                 key = f"reference_images/{job_id or 'temp'}_{image_path.name}" if job_id else None
-                logger.info(f"📤 Uploading reference image to S3 with key: {key}")
-                url = self.s3_uploader.upload_image(image_path, key=key)
-                logger.info(f"✅ Reference image uploaded to S3: {url}")
+                logger.info(f"📤 Uploading reference image to GCS with key: {key}")
+                # Use public URL from GCS
+                url = self.gcs_uploader.upload_video(image_path, key=key) # reusing upload_video which handles general file upload
+                logger.info(f"✅ Reference image uploaded to GCS: {url}")
                 return url
             except Exception as e:
-                logger.warning(f"⚠️ S3 upload failed, falling back to base64: {e}")
+                logger.warning(f"⚠️ GCS upload failed, falling back to base64: {e}")
         else:
-            logger.warning("⚠️ S3 uploader not available, using base64 encoding")
+            logger.warning("⚠️ GCS uploader not available, using base64 encoding")
         
         # Fallback to base64 data URI
         return self._encode_image_to_data_uri(image_path)
@@ -138,7 +139,7 @@ class RunwayEngine:
             aspect_ratio: Output aspect ratio (e.g., "16:9", "1280:720")
             duration: Output duration in seconds
             video_url: Required - publicly accessible video URL
-            job_id: Optional job ID for S3 organization
+            job_id: Optional job ID for GCS organization
             structure_transformation: 0.0-1.0, lower = more structural consistency
             
         Returns:
