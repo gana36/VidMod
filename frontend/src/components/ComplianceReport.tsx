@@ -51,11 +51,14 @@ const ComplianceReport: React.FC<ComplianceReportProps> = ({
     const totalEdits = activeEdits.length;
     const totalFindings = findings.length;
 
-    // Improved logic for resolved findings - matching by objectName or finding content
+    // Precise matching by findingId with defensive fuzzy fallback for manual ingestions
     const resolvedFindings = findings.filter(f =>
         activeEdits.some(e =>
-            e.objectName.toLowerCase().includes(f.content.toLowerCase()) ||
-            f.content.toLowerCase().includes(e.objectName.toLowerCase())
+            e.findingId === f.id ||
+            (e.findingId === undefined && (
+                e.objectName.toLowerCase().includes(f.content.toLowerCase()) ||
+                f.content.toLowerCase().includes(e.objectName.toLowerCase())
+            ))
         )
     ).length;
 

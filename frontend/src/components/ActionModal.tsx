@@ -31,7 +31,7 @@ interface ActionModalProps {
     actionType: ActionType;
     objectPrompt: string;
     suggestedReplacement?: string;
-    onActionComplete?: (result: { type: ActionType; downloadUrl?: string }) => void;
+    onActionComplete?: (result: { type: ActionType; downloadUrl?: string; objectName?: string; text_prompt?: string }) => void;
     // New props for smart detection
     initialBox?: { top: number; left: number; width: number; height: number };
     timestamp?: number;
@@ -339,7 +339,12 @@ const ActionModal: React.FC<ActionModalProps> = ({
 
             setDownloadUrl(finalDownloadUrl);
             setStatus('completed');
-            onActionComplete?.({ type: actionType, downloadUrl: finalDownloadUrl });
+            onActionComplete?.({
+                type: actionType,
+                downloadUrl: finalDownloadUrl,
+                objectName: objectPrompt,
+                text_prompt: replacementPrompt || objectPrompt
+            });
 
         } catch (err) {
             setStatus('error');

@@ -805,7 +805,7 @@ const EditPlanPanel: React.FC<EditPlanPanelProps> = ({ findings = [], jobId, onA
                     startTime={selectedStep.finding.startTime}
                     endTime={selectedStep.finding.endTime}
                     onActionComplete={(result) => {
-                        onActionComplete?.(result.type, result);
+                        onActionComplete?.(result.type, { ...result, findingId: selectedStep.finding.id });
                         setModalOpen(false);
                     }}
                 />

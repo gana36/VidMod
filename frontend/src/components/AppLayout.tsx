@@ -17,6 +17,7 @@ export interface EditVersion {
     downloadUrl: string;
     enabled: boolean;
     timestamp: number;
+    findingId?: number;
 }
 
 const AppLayout: React.FC = () => {
@@ -213,7 +214,8 @@ const AppLayout: React.FC = () => {
                     effectType: actionType,
                     downloadUrl: processedUrl,
                     enabled: true,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    findingId: result.findingId
                 };
                 console.log('Added version to history:', newVersion);
                 return [...prev, newVersion];

@@ -150,9 +150,15 @@ const RightPanel: React.FC<RightPanelProps> = ({
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 gap-3">
                                 {[
                                     { label: 'Violations', value: totalViolations, sub: 'Detected' },
+                                    {
+                                        label: 'Remediated',
+                                        value: editHistory.length,
+                                        sub: `${Math.round((editHistory.length / (totalViolations || 1)) * 100)}% Rate`,
+                                        color: "text-emerald-400"
+                                    },
                                     { label: 'Rating', value: predictedAgeRating, sub: 'Predicted' },
                                     { label: 'Status', value: riskLevel, sub: 'Risk Level', color: riskColor },
                                 ].map((stat, i) => (
